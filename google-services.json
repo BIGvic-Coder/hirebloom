@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "32893466508",
+    "project_id": "hirebloom-eca13",
+    "storage_bucket": "hirebloom-eca13.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:32893466508:android:c097f6df021deef3ba48a9",
+        "android_client_info": {
+          "package_name": "com.victor.hirebloom"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsLggzQ0z6qrOprKYZvKguKoT8Fr6ofTE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
