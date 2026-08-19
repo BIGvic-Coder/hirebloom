@@ -14,23 +14,23 @@ export default function EmployerDashboard() {
             <Text className="text-slate-500 font-medium text-sm mb-1">Welcome back,</Text>
             <Text className="text-2xl font-bold text-slate-900">TechNova Inc.</Text>
           </View>
-          <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center border-2 border-blue-900/10">
-            <Text className="text-blue-900 font-bold text-lg">T</Text>
+          <View className="w-12 h-12 bg-mintLight rounded-full items-center justify-center border-2 border-forest/10">
+            <Text className="text-forest font-bold text-lg">T</Text>
           </View>
         </View>
 
         {/* Action Buttons */}
         <View className="flex-row gap-3 mb-8">
-          <TouchableOpacity className="flex-1 bg-blue-900 py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-blue-900/30">
-            <Briefcase color="white" size={18} className="mr-2" />
+          <TouchableOpacity className="flex-1 bg-forest py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-forest/30">
+            <Briefcase color="white" size={18} style={{ marginRight: 6 }} />
             <Text className="text-white font-bold">Post Job</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => router.push('/employer/ai-matching')}
-            className="flex-1 bg-indigo-600 py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-indigo-600/30"
+            className="flex-1 bg-mint py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-mint/30"
           >
-            <Sparkles color="white" size={18} className="mr-2" />
-            <Text className="text-white font-bold">AI Match</Text>
+            <Sparkles color="#113c2c" size={18} style={{ marginRight: 6 }} />
+            <Text className="text-forest font-bold">AI Match</Text>
           </TouchableOpacity>
         </View>
 
@@ -38,8 +38,8 @@ export default function EmployerDashboard() {
         <Text className="text-lg font-bold text-slate-900 mb-4">Overview</Text>
         <View className="flex-row flex-wrap gap-4 mb-8">
           <View className="w-[47%] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-            <View className="w-10 h-10 bg-blue-50 rounded-xl items-center justify-center mb-3">
-              <Briefcase color="#1e3a8a" size={20} />
+            <View className="w-10 h-10 bg-mint/20 rounded-xl items-center justify-center mb-3">
+              <Briefcase color="#113c2c" size={20} />
             </View>
             <Text className="text-3xl font-bold text-slate-900 mb-1">12</Text>
             <Text className="text-slate-500 font-medium text-sm">Active Jobs</Text>
@@ -53,14 +53,14 @@ export default function EmployerDashboard() {
             <Text className="text-slate-500 font-medium text-sm">Total Candidates</Text>
           </View>
 
-          <View className="w-full bg-gradient-to-r from-blue-900 to-indigo-800 p-6 rounded-2xl shadow-lg shadow-blue-900/20">
+          <View className="w-full bg-gradient-to-r from-forestDark to-forest p-6 rounded-2xl shadow-lg shadow-forest/20">
             <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-blue-100 font-medium">Hiring Success Rate</Text>
-              <TrendingUp color="#60a5fa" size={20} />
+              <Text className="text-mintLight font-medium">Hiring Success Rate</Text>
+              <TrendingUp color="#8ecfa9" size={20} />
             </View>
             <View className="flex-row items-baseline">
               <Text className="text-4xl font-bold text-white mr-2">92</Text>
-              <Text className="text-blue-200 font-bold">%</Text>
+              <Text className="text-mint font-bold">%</Text>
             </View>
           </View>
         </View>
@@ -69,7 +69,7 @@ export default function EmployerDashboard() {
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-lg font-bold text-slate-900">Recent Candidates</Text>
           <TouchableOpacity>
-            <Text className="text-blue-600 font-bold text-sm">View All</Text>
+            <Text className="text-forest font-bold text-sm">View All</Text>
           </TouchableOpacity>
         </View>
 

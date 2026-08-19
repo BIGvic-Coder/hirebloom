@@ -6,7 +6,7 @@ export default function RecruiterTabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#1e3a8a',
+        tabBarActiveTintColor: '#113c2c',
         tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
           borderTopWidth: 1,

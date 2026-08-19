@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+// @ts-ignore
+import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Your Firebase Config (using Expo environment variables)
@@ -28,7 +29,7 @@ try {
   });
 } catch {
   // Graceful fallback for web/other environments where initializeAuth might already be set
-  auth = getApp().container.getProvider('auth').getImmediate();
+  auth = getAuth(app);
 }
 
 export { app, auth };

@@ -17,5 +17,17 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/app_old",
+    "src/components/app-tabs.tsx",
+    "src/components/app-tabs.web.tsx",
+    "src/components/ui/collapsible.tsx",
+    "src/hooks/use-theme.ts",
+    "src/components/themed-view.tsx",
+    "src/components/themed-text.tsx",
+    "src/components/web-badge.tsx",
+    "src/components/hint-row.tsx"
   ]
 }

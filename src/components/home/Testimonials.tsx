@@ -18,20 +18,20 @@ const QUOTES = [
 
 export default function Testimonials() {
   return (
-    <View className="px-6 py-16 bg-blue-50">
-      <Text className="text-3xl font-bold text-slate-900 text-center mb-10">
+    <View className="px-6 py-16 bg-cream">
+      <Text className="text-3xl font-bold text-forest text-center mb-10">
         Leave the heavy lifting to us.
       </Text>
 
       <View className="space-y-6">
         {QUOTES.map((quote, index) => (
-          <View key={index} className="bg-white p-8 rounded-3xl shadow-sm shadow-blue-100 mb-4">
-            <Text className="text-4xl text-blue-200 font-serif leading-none mb-2">"</Text>
+          <View key={index} className="bg-white p-8 rounded-3xl shadow-sm shadow-zinc-200/40 mb-4">
+            <Text className="text-4xl text-mint font-serif leading-none mb-2">&quot;</Text>
             <Text className="text-lg font-medium text-slate-700 italic leading-relaxed mb-6">
               {quote.text}
             </Text>
-            <View className="w-10 h-1 bg-blue-600 rounded-full mb-3" />
-            <Text className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+            <View className="w-10 h-1 bg-forest rounded-full mb-3" />
+            <Text className="text-sm font-bold text-forest uppercase tracking-wider">
               {quote.author}
             </Text>
           </View>

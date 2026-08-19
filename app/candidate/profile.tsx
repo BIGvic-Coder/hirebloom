@@ -9,13 +9,13 @@ export default function CandidateProfile() {
         <View className="bg-white px-5 pt-8 pb-6 border-b border-slate-200">
           <View className="flex-row justify-between items-start mb-6">
             <View className="flex-row items-center">
-              <View className="w-20 h-20 bg-blue-100 rounded-full items-center justify-center border-4 border-white shadow-sm mr-4">
-                <Text className="text-blue-700 font-bold text-3xl">A</Text>
+              <View className="w-20 h-20 bg-mint/25 rounded-full items-center justify-center border-4 border-white shadow-sm mr-4">
+                <Text className="text-forest font-extrabold text-3xl">A</Text>
               </View>
               <View>
                 <Text className="text-2xl font-bold text-slate-900 mb-1">Alex Morgan</Text>
-                <Text className="text-slate-500 font-medium">Senior Frontend Engineer</Text>
-                <Text className="text-slate-400 text-sm mt-1">San Francisco, CA • Remote</Text>
+                <Text className="text-slate-500 font-medium">Senior Support Specialist</Text>
+                <Text className="text-slate-400 text-sm mt-1">La Paz, Bolivia • Remote</Text>
               </View>
             </View>
             <TouchableOpacity className="w-10 h-10 bg-slate-100 rounded-full items-center justify-center">
@@ -25,17 +25,17 @@ export default function CandidateProfile() {
 
           {/* Quick Stats */}
           <View className="flex-row gap-4 mb-2">
-            <View className="flex-1 bg-blue-50 py-3 rounded-xl border border-blue-100 items-center">
-              <Text className="text-xl font-bold text-blue-900 mb-0.5">8</Text>
-              <Text className="text-blue-700 text-xs font-medium">Applied</Text>
+            <View className="flex-1 bg-mint/20 py-3 rounded-xl border border-mint/40 items-center">
+              <Text className="text-xl font-bold text-forest mb-0.5">8</Text>
+              <Text className="text-forest/80 text-xs font-semibold">Applied</Text>
             </View>
-            <View className="flex-1 bg-emerald-50 py-3 rounded-xl border border-emerald-100 items-center">
-              <Text className="text-xl font-bold text-emerald-900 mb-0.5">3</Text>
-              <Text className="text-emerald-700 text-xs font-medium">Interviews</Text>
+            <View className="flex-1 bg-mint/10 py-3 rounded-xl border border-mint/20 items-center">
+              <Text className="text-xl font-bold text-forest mb-0.5">3</Text>
+              <Text className="text-forest/80 text-xs font-semibold">Interviews</Text>
             </View>
-            <View className="flex-1 bg-purple-50 py-3 rounded-xl border border-purple-100 items-center">
-              <Text className="text-xl font-bold text-purple-900 mb-0.5">1</Text>
-              <Text className="text-purple-700 text-xs font-medium">Offers</Text>
+            <View className="flex-1 bg-mint/5 py-3 rounded-xl border border-mint/10 items-center">
+              <Text className="text-xl font-bold text-forest mb-0.5">1</Text>
+              <Text className="text-forest/80 text-xs font-semibold">Offers</Text>
             </View>
           </View>
         </View>
@@ -45,7 +45,7 @@ export default function CandidateProfile() {
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-slate-900">Experience</Text>
             <TouchableOpacity className="w-8 h-8 bg-white border border-slate-200 rounded-full items-center justify-center shadow-sm">
-              <Plus color="#1e3a8a" size={18} />
+              <Plus color="#113c2c" size={18} />
             </TouchableOpacity>
           </View>
 
@@ -59,7 +59,8 @@ export default function CandidateProfile() {
                   <Text className="text-lg font-bold text-slate-900">Frontend Engineer</Text>
                   <TouchableOpacity><Edit2 color="#94a3b8" size={16} /></TouchableOpacity>
                 </View>
-                <Text className="text-blue-600 font-medium mb-1">TechStart Inc.</Text>
+                <Text className="text-forest font-bold mb-1">Customer Support Center</Text>
+                <Text className="text-zinc-400 font-medium mb-1">TechStart Inc.</Text>
                 <Text className="text-slate-400 text-sm mb-2">Jan 2021 - Present • 3 yrs</Text>
                 <Text className="text-slate-600 leading-relaxed text-sm">
                   Spearheaded the migration of a legacy dashboard to React, improving load times by 40%. Led a team of 3 junior developers.
@@ -79,7 +80,7 @@ export default function CandidateProfile() {
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-slate-900">Top Skills</Text>
             <TouchableOpacity className="w-8 h-8 bg-white border border-slate-200 rounded-full items-center justify-center shadow-sm">
-              <Edit2 color="#1e3a8a" size={16} />
+              <Edit2 color="#113c2c" size={16} />
             </TouchableOpacity>
           </View>
 
@@ -111,7 +112,7 @@ export default function CandidateProfile() {
               </View>
               <View className="flex-1">
                 <Text className="font-bold text-slate-900">Personal Portfolio</Text>
-                <Text className="text-blue-500 text-xs">alexmorgan.dev</Text>
+                <Text className="text-forest text-xs">alexmorgan.dev</Text>
               </View>
               <ChevronRight color="#cbd5e1" size={20} />
             </TouchableOpacity>

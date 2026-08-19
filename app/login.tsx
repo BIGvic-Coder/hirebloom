@@ -3,9 +3,16 @@ import { View, Text, SafeAreaView, TextInput, TouchableOpacity, StatusBar } from
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+
+// Safely load native Google Sign-in to avoid crashes in environments like Expo Go where it's not present
+let GoogleSignin: any = null;
+try {
+  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+} catch (e) {
+  console.warn('Google Sign-in native module not available in this build.');
+}
 
 // Custom Official Google Multi-Colored Vector Logo
 const GoogleLogo = () => (
@@ -35,16 +42,22 @@ export default function Login() {
 
   // Configure Google SDK client on mount
   useEffect(() => {
-    try {
-      GoogleSignin.configure({
-        webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '1234567890-mockwebclientid.apps.googleusercontent.com',
-      });
-    } catch (e) {
-      console.warn('Google Sign-in configuration failed:', e);
+    if (GoogleSignin) {
+      try {
+        GoogleSignin.configure({
+          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '1234567890-mockwebclientid.apps.googleusercontent.com',
+        });
+      } catch (e) {
+        console.warn('Google Sign-in configuration failed:', e);
+      }
     }
   }, []);
 
   const handleGoogleSignIn = async () => {
+    if (!GoogleSignin) {
+      alert("Google Sign-In is only available in standalone native builds. Please sign in via the credentials fields or the demo portals below.");
+      return;
+    }
     setAuthLoading(true);
     try {
       if (IS_MOCK_FIREBASE) {

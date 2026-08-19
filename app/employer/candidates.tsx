@@ -36,7 +36,7 @@ export default function EmployerCandidates() {
           {['All', 'Applied (2)', 'Screening (1)', 'Interview (1)', 'Offer (1)'].map((stage, index) => (
             <TouchableOpacity 
               key={index} 
-              className={`px-4 py-2 rounded-full mr-2 justify-center ${index === 0 ? 'bg-blue-900' : 'bg-white border border-slate-200'}`}
+              className={`px-4 py-2 rounded-full mr-2 justify-center ${index === 0 ? 'bg-forest' : 'bg-white border border-slate-200'}`}
             >
               <Text className={`font-bold text-sm ${index === 0 ? 'text-white' : 'text-slate-600'}`}>
                 {stage}
@@ -50,23 +50,23 @@ export default function EmployerCandidates() {
           {candidates.map((candidate) => (
             <TouchableOpacity key={candidate.id} className="bg-white rounded-2xl p-4 mb-4 border border-slate-100 shadow-sm active:opacity-80">
               <View className="flex-row items-start">
-                <View className="w-14 h-14 bg-indigo-100 rounded-full items-center justify-center mr-4 mt-1 border border-indigo-200">
-                  <Text className="text-indigo-700 font-bold text-xl">{candidate.image}</Text>
+                <View className="w-14 h-14 bg-mintLight rounded-full items-center justify-center mr-4 mt-1 border border-mint/20">
+                  <Text className="text-forest font-bold text-xl">{candidate.image}</Text>
                 </View>
                 
                 <View className="flex-1">
                   <View className="flex-row justify-between items-start mb-1">
                     <Text className="text-lg font-bold text-slate-900">{candidate.name}</Text>
-                    <View className="bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
-                      <Text className="text-emerald-600 font-bold text-xs">{candidate.match} Match</Text>
+                    <View className="bg-mint/20 px-2 py-1 rounded border border-mint/30">
+                      <Text className="text-forest font-bold text-xs">{candidate.match} Match</Text>
                     </View>
                   </View>
                   
                   <Text className="text-slate-500 font-medium mb-3">{candidate.role}</Text>
                   
                   <View className="flex-row justify-between items-center mt-1">
-                    <View className="bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                      <Text className="text-blue-700 font-semibold text-xs">{candidate.stage}</Text>
+                    <View className="bg-mint/10 px-3 py-1 rounded-full border border-mint/20">
+                      <Text className="text-forest font-semibold text-xs">{candidate.stage}</Text>
                     </View>
                     
                     <View className="flex-row gap-3">
