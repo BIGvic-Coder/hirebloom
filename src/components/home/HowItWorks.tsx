@@ -52,9 +52,9 @@ const CLIENT_TESTIMONIALS = [
 ];
 
 const ONBOARD_AVATARS: Record<string, any> = {
-  Sofia: require('@/assets/images/avatar_sofia.png'),
-  Zanele: require('@/assets/images/avatar_zanele.png'),
-  David: require('@/assets/images/avatar_david.png'),
+  Sofia: require('@/assets/images/avatar_sofia.jpg'),
+  Zanele: require('@/assets/images/avatar_zanele.jpg'),
+  David: require('@/assets/images/avatar_david.jpg'),
 };
 
 const RADAR_NODES = [
