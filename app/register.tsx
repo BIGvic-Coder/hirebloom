@@ -3,10 +3,44 @@ import { View, Text, SafeAreaView, TextInput, TouchableOpacity, StatusBar } from
 import { Mail, Lock, User, ArrowRight, Building2, Briefcase } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 export default function Register() {
   const router = useRouter() as any;
   const [role, setRole] = useState<'candidate' | 'employer'>('candidate');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!fullName || !email || !password) {
+      alert("Please fill in all fields.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      if (IS_MOCK_FIREBASE) {
+        console.log("Mock Mode: Skipping real credentials registration");
+        // Simulate a successful verification delay for client demonstration
+        setTimeout(() => {
+          setAuthLoading(false);
+          router.push(role === 'employer' ? '/employer' : '/candidate');
+        }, 1000);
+        return;
+      }
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Store user's full name securely in Firebase Auth's displayName profile property
+      await updateProfile(userCredential.user, { displayName: fullName });
+      router.push(role === 'employer' ? '/employer' : '/candidate');
+    } catch (error: any) {
+      console.log('Registration Error:', error);
+      alert('Registration Failed: ' + (error.message || error));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-cream">
@@ -82,6 +116,8 @@ export default function Register() {
                 placeholder={role === 'employer' ? "Company Name" : "Full Name"}
                 className="flex-1 text-forest font-medium text-sm"
                 placeholderTextColor="#94a3b8"
+                value={fullName}
+                onChangeText={setFullName}
               />
             </View>
 
@@ -91,6 +127,8 @@ export default function Register() {
                 placeholder="Work Email" 
                 className="flex-1 text-forest font-medium text-sm"
                 placeholderTextColor="#94a3b8"
+                value={email}
+                onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -102,6 +140,8 @@ export default function Register() {
                 placeholder="Create Password" 
                 className="flex-1 text-forest font-medium text-sm"
                 placeholderTextColor="#94a3b8"
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
               />
             </View>
@@ -109,9 +149,12 @@ export default function Register() {
 
           <TouchableOpacity 
             className="w-full bg-forest py-4 rounded-xl flex-row items-center justify-center shadow active:opacity-95 mb-6"
-            onPress={() => router.push(role === 'employer' ? '/employer' : '/candidate')}
+            onPress={handleRegister}
+            disabled={authLoading}
           >
-            <Text className="text-white font-bold text-base mr-2">Create Account</Text>
+            <Text className="text-white font-bold text-base mr-2">
+              {authLoading ? 'Creating Account...' : 'Create Account'}
+            </Text>
             <ArrowRight color="white" size={18} />
           </TouchableOpacity>
 

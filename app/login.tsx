@@ -4,7 +4,7 @@ import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
 
 // Safely load native Google Sign-in to avoid crashes in environments like Expo Go where it's not present
 let GoogleSignin: any = null;
@@ -39,6 +39,34 @@ const GoogleLogo = () => (
 export default function Login() {
   const router = useRouter() as any;
   const [authLoading, setAuthLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleEmailSignIn = async () => {
+    if (!email || !password) {
+      alert("Please enter both email and password.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      if (IS_MOCK_FIREBASE) {
+        console.log("Mock Mode: Skipping real credentials sign-in");
+        // Simulate a successful verification delay for client demonstration
+        setTimeout(() => {
+          setAuthLoading(false);
+          router.push('/candidate');
+        }, 1000);
+        return;
+      }
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push('/candidate');
+    } catch (error: any) {
+      console.log('Sign-in Error:', error);
+      alert('Sign-In Failed: ' + (error.message || error));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   // Configure Google SDK client on mount
   useEffect(() => {
@@ -159,7 +187,8 @@ export default function Login() {
                 placeholder="Email address" 
                 className="flex-1 text-forest font-medium text-sm"
                 placeholderTextColor="#94a3b8"
-                defaultValue="Victor Talabi"
+                value={email}
+                onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -171,7 +200,8 @@ export default function Login() {
                 placeholder="Password" 
                 className="flex-1 text-forest font-medium text-sm"
                 placeholderTextColor="#94a3b8"
-                defaultValue="••••••••••"
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
               />
             </View>
@@ -183,9 +213,12 @@ export default function Login() {
 
           <TouchableOpacity 
             className="w-full bg-forest py-4 rounded-xl flex-row items-center justify-center shadow active:opacity-95 mb-6"
-            onPress={() => router.push('/')}
+            onPress={handleEmailSignIn}
+            disabled={authLoading}
           >
-            <Text className="text-white font-bold text-base mr-2">Sign In</Text>
+            <Text className="text-white font-bold text-base mr-2">
+              {authLoading ? 'Signing In...' : 'Sign In'}
+            </Text>
             <ArrowRight color="white" size={18} />
           </TouchableOpacity>
 
