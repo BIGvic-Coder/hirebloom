@@ -17,7 +17,7 @@ function getYouTubeEmbedUrl(url: string): string {
   if (!videoId) return '';
   const timeMatch = url.match(/[?&]t=(\d+)/);
   const startTime = timeMatch ? parseInt(timeMatch[1], 10) : 0;
-  const baseUrl = `https://www.youtube.com/embed/${videoId}?playsinline=1`;
+  const baseUrl = `https://www.youtube.com/embed/${videoId}?playsinline=1&autoplay=1`;
   return startTime ? `${baseUrl}&start=${startTime}` : baseUrl;
 }
 
@@ -275,8 +275,28 @@ export default function HeroSection() {
                     allowsFullscreenVideo={true}
                     allowsInlineMediaPlayback={true}
                     mediaPlaybackRequiresUserAction={false}
+                    originWhitelist={['*']}
                     source={{ 
-                      uri: getYouTubeEmbedUrl('https://youtu.be/7CDHXZG-yBI?t=12')
+                      html: `
+                        <!DOCTYPE html>
+                        <html>
+                          <head>
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                            <style>
+                              body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
+                              iframe { width: 100%; height: 100%; border: none; }
+                            </style>
+                          </head>
+                          <body>
+                            <iframe 
+                              src="${getYouTubeEmbedUrl('https://youtu.be/7CDHXZG-yBI?t=12')}" 
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                              allowfullscreen
+                            ></iframe>
+                          </body>
+                        </html>
+                      `,
+                      baseUrl: 'https://www.youtube.com'
                     }}
                   />
                 )}

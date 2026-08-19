@@ -17,7 +17,7 @@ function getYouTubeEmbedUrl(url: string): string {
   if (!videoId) return '';
   const timeMatch = url.match(/[?&]t=(\d+)/);
   const startTime = timeMatch ? parseInt(timeMatch[1], 10) : 0;
-  const baseUrl = `https://www.youtube.com/embed/${videoId}?playsinline=1`;
+  const baseUrl = `https://www.youtube.com/embed/${videoId}?playsinline=1&autoplay=1`;
   return startTime ? `${baseUrl}&start=${startTime}` : baseUrl;
 }
 
@@ -555,8 +555,28 @@ export default function HowItWorks() {
                     allowsFullscreenVideo={true}
                     allowsInlineMediaPlayback={true}
                     mediaPlaybackRequiresUserAction={false}
+                    originWhitelist={['*']}
                     source={{ 
-                      uri: getYouTubeEmbedUrl(playingDetails.url)
+                      html: `
+                        <!DOCTYPE html>
+                        <html>
+                          <head>
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                            <style>
+                              body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
+                              iframe { width: 100%; height: 100%; border: none; }
+                            </style>
+                          </head>
+                          <body>
+                            <iframe 
+                              src="${getYouTubeEmbedUrl(playingDetails.url)}" 
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                              allowfullscreen
+                            ></iframe>
+                          </body>
+                        </html>
+                      `,
+                      baseUrl: 'https://www.youtube.com'
                     }}
                   />
                 )}
@@ -590,21 +610,9 @@ export default function HowItWorks() {
             <Text className="text-forest font-bold text-base mb-1">{playingDetails.title}</Text>
             <Text className="text-zinc-500 text-xs mb-6">{playingDetails.subtitle}</Text>
 
-            <View className="bg-zinc-50 p-4 rounded-xl border border-zinc-200/60 mb-6">
-              <Text className="text-zinc-400 font-bold text-[9px] uppercase tracking-wider mb-1">Video Stream URL</Text>
-              <TextInput 
-                value={playingDetails.url}
-                className="text-xs text-forest font-mono bg-white border border-zinc-200 px-2 py-1.5 rounded"
-                editable={false}
-              />
-              <Text className="text-[8px] text-zinc-400 mt-2 italic leading-relaxed">
-                * This video link is configured inside &apos;src/components/home/HowItWorks.tsx&apos;.
-              </Text>
-            </View>
-
             <TouchableOpacity 
               onPress={() => setVideoModalVisible(false)}
-              className="bg-forest py-3.5 rounded-xl justify-center items-center"
+              className="bg-forest py-3.5 rounded-xl justify-center items-center mt-4"
             >
               <Text className="text-white font-bold text-sm">Close Player</Text>
             </TouchableOpacity>
