@@ -276,10 +276,7 @@ export default function HeroSection() {
                     allowsInlineMediaPlayback={true}
                     mediaPlaybackRequiresUserAction={false}
                     source={{ 
-                      uri: getYouTubeEmbedUrl('https://youtu.be/7CDHXZG-yBI?t=12'),
-                      headers: {
-                        'Referer': 'https://com.victor.hirebloom'
-                      }
+                      uri: getYouTubeEmbedUrl('https://youtu.be/7CDHXZG-yBI?t=12')
                     }}
                   />
                 )}

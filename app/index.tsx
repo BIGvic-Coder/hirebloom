@@ -9,6 +9,12 @@ import HowItWorks from '@/components/home/HowItWorks';
 import GlobalReach from '@/components/home/GlobalReach';
 import PricingSection from '@/components/home/PricingSection';
 
+// Memoize heavy static sections to prevent unnecessary re-renders on scroll state updates
+const MemoizedHero = React.memo(HeroSection);
+const MemoizedHowItWorks = React.memo(HowItWorks);
+const MemoizedGlobalReach = React.memo(GlobalReach);
+const MemoizedPricing = React.memo(PricingSection);
+
 export default function Home() {
   const router = useRouter() as any;
   const scrollViewRef = useRef<ScrollView>(null);
@@ -141,19 +147,19 @@ export default function Home() {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         <View id="overview" nativeID="overview" onLayout={(e) => handleSectionLayout('overview', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>
-          <HeroSection />
+          <MemoizedHero />
         </View>
         
         <View id="howItWorks" nativeID="howItWorks" onLayout={(e) => handleSectionLayout('howItWorks', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>
-          <HowItWorks />
+          <MemoizedHowItWorks />
         </View>
 
         <View id="impact" nativeID="impact" onLayout={(e) => handleSectionLayout('impact', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>
-          <GlobalReach />
+          <MemoizedGlobalReach />
         </View>
 
         <View id="pricing" nativeID="pricing" onLayout={(e) => handleSectionLayout('pricing', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>
-          <PricingSection />
+          <MemoizedPricing />
         </View>
 
         {/* Footer Brand Block */}

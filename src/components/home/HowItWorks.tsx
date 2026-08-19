@@ -556,10 +556,7 @@ export default function HowItWorks() {
                     allowsInlineMediaPlayback={true}
                     mediaPlaybackRequiresUserAction={false}
                     source={{ 
-                      uri: getYouTubeEmbedUrl(playingDetails.url),
-                      headers: {
-                        'Referer': 'https://com.victor.hirebloom'
-                      }
+                      uri: getYouTubeEmbedUrl(playingDetails.url)
                     }}
                   />
                 )}
