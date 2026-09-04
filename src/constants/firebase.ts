@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 // @ts-ignore
 import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Your Firebase Config (using Expo environment variables)
@@ -32,5 +33,9 @@ try {
   auth = getAuth(app);
 }
 
-export { app, auth };
+// Initialize Firestore
+const db = getFirestore(app);
+
+export { app, auth, db };
 export const IS_MOCK_FIREBASE = firebaseConfig.apiKey === "mock-api-key";
+

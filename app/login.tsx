@@ -3,8 +3,9 @@ import { View, Text, SafeAreaView, TextInput, TouchableOpacity, StatusBar } from
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Safely load native Google Sign-in to avoid crashes in environments like Expo Go where it's not present
 let GoogleSignin: any = null;
@@ -42,6 +43,39 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const handleUserRouting = async (user: any) => {
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      let role = 'candidate';
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData && userData.role) {
+          role = userData.role;
+        }
+      } else {
+        // Document doesn't exist yet (could be Google Sign-In first-time)
+        // Create a default user record in Firestore
+        role = 'candidate';
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          name: user.displayName || 'Google User',
+          email: user.email || '',
+          role: role,
+          createdAt: new Date().toISOString()
+        });
+      }
+      
+      // Navigate to the role-based dashboard
+      router.push(role === 'employer' ? '/employer' : role === 'recruiter' ? '/recruiter' : '/candidate');
+    } catch (err: any) {
+      console.log('Error checking user role:', err);
+      // Fallback redirect to candidate dashboard on failure
+      router.push('/candidate');
+    }
+  };
+
   const handleEmailSignIn = async () => {
     if (!email || !password) {
       alert("Please enter both email and password.");
@@ -58,8 +92,8 @@ export default function Login() {
         }, 1000);
         return;
       }
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/candidate');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await handleUserRouting(userCredential.user);
     } catch (error: any) {
       console.log('Sign-in Error:', error);
       alert('Sign-In Failed: ' + (error.message || error));
@@ -106,10 +140,9 @@ export default function Login() {
       if (!idToken) throw new Error("Google authentication failed (No ID Token returned)");
 
       const credential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(auth, credential);
+      const userCredential = await signInWithCredential(auth, credential);
 
-      // Routing fallback (e.g. standard candidate dashboard)
-      router.push('/candidate');
+      await handleUserRouting(userCredential.user);
     } catch (error: any) {
       console.log('Authentication Error:', error);
       alert('Sign-In Failed: ' + (error.message || error));

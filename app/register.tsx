@@ -3,8 +3,9 @@ import { View, Text, SafeAreaView, TextInput, TouchableOpacity, StatusBar } from
 import { Mail, Lock, User, ArrowRight, Building2, Briefcase } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function Register() {
   const router = useRouter() as any;
@@ -33,6 +34,16 @@ export default function Register() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       // Store user's full name securely in Firebase Auth's displayName profile property
       await updateProfile(userCredential.user, { displayName: fullName });
+      
+      // Store user profile details and role in Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        uid: userCredential.user.uid,
+        name: fullName,
+        email: email,
+        role: role,
+        createdAt: new Date().toISOString()
+      });
+
       router.push(role === 'employer' ? '/employer' : '/candidate');
     } catch (error: any) {
       console.log('Registration Error:', error);
