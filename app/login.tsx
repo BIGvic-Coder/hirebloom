@@ -77,7 +77,10 @@ export default function Login() {
   };
 
   const handleEmailSignIn = async () => {
-    if (!email || !password) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
+
+    if (!cleanEmail || !cleanPassword) {
       alert("Please enter both email and password.");
       return;
     }
@@ -85,18 +88,30 @@ export default function Login() {
     try {
       if (IS_MOCK_FIREBASE) {
         console.log("Mock Mode: Skipping real credentials sign-in");
-        // Simulate a successful verification delay for client demonstration
         setTimeout(() => {
           setAuthLoading(false);
           router.push('/candidate');
         }, 1000);
         return;
       }
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       await handleUserRouting(userCredential.user);
     } catch (error: any) {
       console.log('Sign-in Error:', error);
-      alert('Sign-In Failed: ' + (error.message || error));
+      const errCode = error?.code || '';
+      const errMsg = error?.message || '';
+
+      if (errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential')) {
+        alert("Invalid email or password.\n\nIf you haven't created an account yet, tap 'Sign up' below to register first!");
+      } else if (errCode === 'auth/user-not-found' || errMsg.includes('user-not-found')) {
+        alert("No account found with this email.\n\nTap 'Sign up' below to register a new account.");
+      } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password')) {
+        alert("Incorrect password. Please verify your password and try again.");
+      } else if (errCode === 'auth/invalid-email' || errMsg.includes('invalid-email')) {
+        alert("Please enter a valid email address.");
+      } else {
+        alert('Sign-In Failed: ' + (errMsg || error));
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -108,6 +123,7 @@ export default function Login() {
       try {
         GoogleSignin.configure({
           webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com',
+          offlineAccess: false,
         });
       } catch (e) {
         console.warn('Google Sign-in configuration failed:', e);
@@ -124,7 +140,6 @@ export default function Login() {
     try {
       if (IS_MOCK_FIREBASE) {
         console.log("Mock Mode: Skipping real credentials authentication");
-        // Simulate a successful verification delay
         setTimeout(() => {
           setAuthLoading(false);
           router.push('/candidate');
@@ -132,7 +147,7 @@ export default function Login() {
         return;
       }
 
-      await GoogleSignin.hasPlayServices();
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
       
       // Handle the new nested layout of user credentials from Expo SDK
@@ -145,7 +160,19 @@ export default function Login() {
       await handleUserRouting(userCredential.user);
     } catch (error: any) {
       console.log('Authentication Error:', error);
-      alert('Sign-In Failed: ' + (error.message || error));
+      const errStr = String(error?.message || error || '');
+      const errCode = String(error?.code || '');
+
+      if (errCode === '12501' || errStr.includes('SIGN_IN_CANCELLED') || errStr.includes('cancelled')) {
+        // User dismissed the account selection prompt
+        console.log('User cancelled Google Sign-in dialog');
+      } else if (errCode === '10' || errStr.includes('DEVELOPER_ERROR')) {
+        alert(
+          'Google Sign-In Configuration Notice:\n\nDEVELOPER_ERROR usually means Google Sign-In is propagating or requires enabling Google provider in Firebase Console (Authentication -> Sign-in method -> Google).\n\nYou can sign in with Email & Password (or tap Sign up) or use the Demo Portals below.'
+        );
+      } else {
+        alert('Sign-In Failed: ' + (error.message || error));
+      }
     } finally {
       setAuthLoading(false);
     }

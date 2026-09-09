@@ -16,30 +16,37 @@ export default function Register() {
   const [authLoading, setAuthLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!fullName || !email || !password) {
+    const cleanName = (fullName || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
+
+    if (!cleanName || !cleanEmail || !cleanPassword) {
       alert("Please fill in all fields.");
+      return;
+    }
+    if (cleanPassword.length < 6) {
+      alert("Password must be at least 6 characters long.");
       return;
     }
     setAuthLoading(true);
     try {
       if (IS_MOCK_FIREBASE) {
         console.log("Mock Mode: Skipping real credentials registration");
-        // Simulate a successful verification delay for client demonstration
         setTimeout(() => {
           setAuthLoading(false);
           router.push(role === 'employer' ? '/employer' : '/candidate');
         }, 1000);
         return;
       }
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       // Store user's full name securely in Firebase Auth's displayName profile property
-      await updateProfile(userCredential.user, { displayName: fullName });
+      await updateProfile(userCredential.user, { displayName: cleanName });
       
       // Store user profile details and role in Firestore
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         uid: userCredential.user.uid,
-        name: fullName,
-        email: email,
+        name: cleanName,
+        email: cleanEmail,
         role: role,
         createdAt: new Date().toISOString()
       });
@@ -47,7 +54,18 @@ export default function Register() {
       router.push(role === 'employer' ? '/employer' : '/candidate');
     } catch (error: any) {
       console.log('Registration Error:', error);
-      alert('Registration Failed: ' + (error.message || error));
+      const errCode = error?.code || '';
+      const errMsg = error?.message || '';
+
+      if (errCode === 'auth/email-already-in-use' || errMsg.includes('email-already-in-use')) {
+        alert("An account with this email already exists.\n\nPlease go to the Sign In page to log in.");
+      } else if (errCode === 'auth/weak-password' || errMsg.includes('weak-password')) {
+        alert("Password is too weak. Please use at least 6 characters.");
+      } else if (errCode === 'auth/invalid-email' || errMsg.includes('invalid-email')) {
+        alert("The email address format is invalid.");
+      } else {
+        alert('Registration Failed: ' + (errMsg || error));
+      }
     } finally {
       setAuthLoading(false);
     }
