@@ -12,7 +12,20 @@
           "package_name": "com.victor.hirebloom"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "32893466508-3hoj7vkb4mgev0ha6f3cuhgu5bfbhjv8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.victor.hirebloom",
+            "certificate_hash": "dbb18b20a561e304b23a1f012a87170cff8dd0d3"
+          }
+        },
+        {
+          "client_id": "32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBsLggzQ0z6qrOprKYZvKguKoT8Fr6ofTE"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

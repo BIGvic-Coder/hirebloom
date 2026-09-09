@@ -107,7 +107,7 @@ export default function Login() {
     if (GoogleSignin) {
       try {
         GoogleSignin.configure({
-          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '1234567890-mockwebclientid.apps.googleusercontent.com',
+          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com',
         });
       } catch (e) {
         console.warn('Google Sign-in configuration failed:', e);
