@@ -1,7 +1,23 @@
 import { View, Text, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
-import { Settings, Edit2, FileText, Globe, Award, Briefcase, Plus, ChevronRight } from 'lucide-react-native';
+import { Settings, Edit2, FileText, Globe, Award, Briefcase, Plus, ChevronRight, LogOut } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { signOut } from 'firebase/auth';
 
 export default function CandidateProfile() {
+  const router = useRouter() as any;
+
+  const handleSignOut = async () => {
+    try {
+      if (!IS_MOCK_FIREBASE && auth) {
+        await signOut(auth);
+      }
+      router.replace('/login');
+    } catch (err: any) {
+      console.log('Error signing out:', err);
+      router.replace('/login');
+    }
+  };
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -94,7 +110,7 @@ export default function CandidateProfile() {
 
           {/* Documents */}
           <Text className="text-lg font-bold text-slate-900 mb-4">Documents & Links</Text>
-          <View className="bg-white rounded-2xl border border-slate-100 shadow-sm p-2 mb-12">
+          <View className="bg-white rounded-2xl border border-slate-100 shadow-sm p-2 mb-6">
             <TouchableOpacity className="flex-row items-center p-3 border-b border-slate-100">
               <View className="w-10 h-10 bg-rose-50 rounded-lg items-center justify-center mr-3">
                 <FileText color="#e11d48" size={20} />
@@ -117,6 +133,31 @@ export default function CandidateProfile() {
               <ChevronRight color="#cbd5e1" size={20} />
             </TouchableOpacity>
           </View>
+
+          {/* Vetting Status Card */}
+          <View className="bg-emerald-950/20 border border-emerald-800/30 rounded-2xl p-4 mb-6 flex-row items-center">
+            <View className="w-10 h-10 rounded-full bg-emerald-500/20 items-center justify-center mr-3">
+              <Award color="#10b981" size={20} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-forest font-bold text-xs mb-0.5">BYU-Pathway Vetted</Text>
+              <Text className="text-slate-500 text-[10px] leading-tight">
+                English C1 Verified • Hardware & Camera Passed • Ready for Client Intro
+              </Text>
+            </View>
+          </View>
+
+          {/* Sign Out Button */}
+          <TouchableOpacity
+            onPress={handleSignOut}
+            className="w-full bg-red-50 border border-red-200 rounded-2xl p-4 flex-row items-center justify-between active:opacity-75 shadow-sm mb-12"
+          >
+            <View className="flex-row items-center">
+              <LogOut color="#dc2626" size={18} style={{ marginRight: 10 }} />
+              <Text className="text-red-600 font-bold text-sm">Sign Out Account</Text>
+            </View>
+            <ChevronRight color="#dc2626" size={16} />
+          </TouchableOpacity>
 
         </View>
       </ScrollView>

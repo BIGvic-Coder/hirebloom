@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, TextInput, Modal, Platform, Image } from 'react-native';
-import { Search, Filter, Star, MessageSquare, X, Play, Sparkles, CheckCircle } from 'lucide-react-native';
+import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, TextInput, Modal, Platform, Image, Alert } from 'react-native';
+import { Search, Filter, Star, MessageSquare, X, Play, Sparkles, CheckCircle, Calendar, UserCheck, XCircle } from 'lucide-react-native';
 import { openBrowserAsync } from 'expo-web-browser';
+import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
 
 // Helper to extract YouTube Video ID
 function getYouTubeVideoId(url: string): string {
@@ -136,15 +137,53 @@ const candidates = [
 ];
 
 export default function EmployerCandidates() {
+  const [candidateList, setCandidateList] = useState(candidates);
   const [selectedCandidate, setSelectedCandidate] = useState<typeof candidates[0] | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [aiAnalysisTab, setAiAnalysisTab] = useState<'summary' | 'scores' | 'transcript'>('summary');
+  const [selectedStage, setSelectedStage] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleSelectCandidate = (candidate: typeof candidates[0]) => {
     setSelectedCandidate(candidate);
     setAiAnalysisTab('summary');
     setModalVisible(true);
   };
+
+  const handleUpdateStage = async (newStage: string, applicationStatus: ApplicationStatus, feedback: string) => {
+    if (!selectedCandidate) return;
+
+    setCandidateList((prev) =>
+      prev.map((c) => (c.id === selectedCandidate.id ? { ...c, stage: newStage } : c))
+    );
+    setSelectedCandidate((prev) => (prev ? { ...prev, stage: newStage } : null));
+
+    // Update in live ApplicationsService so candidate tracker sees it immediately
+    const appId = `app-${selectedCandidate.id}`;
+    await ApplicationsService.updateApplicationStatus(appId, applicationStatus, {
+      step: newStage === 'Offer Sent' 
+        ? 'Review Contract Offer ($15/hr flat rate)' 
+        : newStage === 'Interview' 
+        ? 'Live Client Panel Interview on Google Meet' 
+        : newStage === 'Not Selected'
+        ? 'Candidate Selection Completed'
+        : 'Recruiter Screening Active',
+      feedbackReason: feedback,
+      notes: `Updated by TechNova hiring decision: ${newStage}`
+    });
+
+    Alert.alert(
+      'Candidate Status Updated',
+      `${selectedCandidate.name} has been moved to "${newStage}". The candidate's personal tracking screen is now updated.`
+    );
+  };
+
+  const filteredCandidates = candidateList.filter((c) => {
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          c.role.toLowerCase().includes(searchQuery.toLowerCase());
+    if (selectedStage === 'All') return matchesSearch;
+    return matchesSearch && c.stage.toLowerCase() === selectedStage.toLowerCase();
+  });
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
@@ -157,6 +196,8 @@ export default function EmployerCandidates() {
           <View className="flex-1 flex-row items-center bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
             <Search color="#94a3b8" size={20} className="mr-3" />
             <TextInput 
+              value={searchQuery}
+              onChangeText={setSearchQuery}
               placeholder="Search candidates..." 
               className="flex-1 text-slate-900 font-medium"
               placeholderTextColor="#94a3b8"
@@ -169,21 +210,26 @@ export default function EmployerCandidates() {
 
         {/* Pipeline Stages */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6 max-h-10">
-          {['All', 'Applied (2)', 'Screening (1)', 'Interview (1)', 'Offer (1)'].map((stage, index) => (
-            <TouchableOpacity 
-              key={index} 
-              className={`px-4 py-2 rounded-full mr-2 justify-center ${index === 0 ? 'bg-forest' : 'bg-white border border-slate-200'}`}
-            >
-              <Text className={`font-bold text-sm ${index === 0 ? 'text-white' : 'text-slate-600'}`}>
-                {stage}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {['All', 'Screening', 'Interview', 'Offer Sent', 'Not Selected'].map((stage) => {
+            const isSelected = selectedStage === stage;
+            const count = stage === 'All' ? candidateList.length : candidateList.filter(c => c.stage.toLowerCase() === stage.toLowerCase()).length;
+            return (
+              <TouchableOpacity 
+                key={stage} 
+                onPress={() => setSelectedStage(stage)}
+                className={`px-4 py-2 rounded-full mr-2 justify-center ${isSelected ? 'bg-forest' : 'bg-white border border-slate-200'}`}
+              >
+                <Text className={`font-bold text-xs ${isSelected ? 'text-white' : 'text-slate-600'}`}>
+                  {stage} ({count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Candidates List */}
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-          {candidates.map((candidate) => (
+          {filteredCandidates.map((candidate) => (
             <TouchableOpacity 
               key={candidate.id} 
               onPress={() => handleSelectCandidate(candidate)}
@@ -407,12 +453,39 @@ export default function EmployerCandidates() {
                 )}
               </ScrollView>
 
+              {/* Pipeline Decision Panel */}
+              <View className="bg-forest/80 p-4 rounded-2xl border border-mint/20 mt-4">
+                <Text className="text-mint font-bold text-xs uppercase tracking-wider mb-2.5">
+                  Update Candidate Stage
+                </Text>
+                <View className="flex-row gap-2 mb-2">
+                  <TouchableOpacity 
+                    onPress={() => handleUpdateStage('Interview', 'Interview Scheduled', 'Selected for live client panel interview on Google Meet.')}
+                    className="flex-1 bg-mint py-2.5 rounded-xl items-center active:opacity-90"
+                  >
+                    <Text className="text-forest font-bold text-xs">Schedule Interview</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={() => handleUpdateStage('Offer Sent', 'Offer Received', 'Candidate selected for placement! Contract extended at standard $15/hr rate.')}
+                    className="flex-1 bg-emerald-600 py-2.5 rounded-xl items-center active:opacity-90"
+                  >
+                    <Text className="text-white font-bold text-xs">Send Offer</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => handleUpdateStage('Not Selected', 'Not Selected', 'Thank you for your application and interview. We were impressed with your background, but decided to move forward with a finalist who had more direct experience with this specific tooling. Your profile remains active and prioritized for upcoming roles!')}
+                  className="w-full bg-red-500/20 border border-red-500/40 py-2 rounded-xl items-center active:opacity-85"
+                >
+                  <Text className="text-red-300 font-bold text-xs">Mark Not Selected (Send Feedback)</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity 
                 onPress={() => {
                   setModalVisible(false);
                   setSelectedCandidate(null);
                 }}
-                className="bg-forest mt-6 py-3.5 rounded-xl justify-center items-center border border-mint/10"
+                className="bg-forest mt-3 py-3 rounded-xl justify-center items-center border border-mint/10"
               >
                 <Text className="text-white font-bold text-sm">Close Report</Text>
               </TouchableOpacity>

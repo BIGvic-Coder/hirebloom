@@ -49,6 +49,12 @@ export default function CandidateTabsLayout() {
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="ai-matching"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

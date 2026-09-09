@@ -21,13 +21,16 @@ export default function EmployerDashboard() {
 
         {/* Action Buttons */}
         <View className="flex-row gap-3 mb-8">
-          <TouchableOpacity className="flex-1 bg-forest py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-forest/30">
+          <TouchableOpacity 
+            onPress={() => router.push('/employer/jobs')}
+            className="flex-1 bg-forest py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-forest/30 active:opacity-90"
+          >
             <Briefcase color="white" size={18} style={{ marginRight: 6 }} />
             <Text className="text-white font-bold">Post Job</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => router.push('/employer/ai-matching')}
-            className="flex-1 bg-mint py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-mint/30"
+            className="flex-1 bg-mint py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-mint/30 active:opacity-90"
           >
             <Sparkles color="#113c2c" size={18} style={{ marginRight: 6 }} />
             <Text className="text-forest font-bold">AI Match</Text>
@@ -37,21 +40,27 @@ export default function EmployerDashboard() {
         {/* Stats Grid */}
         <Text className="text-lg font-bold text-slate-900 mb-4">Overview</Text>
         <View className="flex-row flex-wrap gap-4 mb-8">
-          <View className="w-[47%] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+          <TouchableOpacity 
+            onPress={() => router.push('/employer/jobs')}
+            className="w-[47%] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm active:opacity-85"
+          >
             <View className="w-10 h-10 bg-mint/20 rounded-xl items-center justify-center mb-3">
               <Briefcase color="#113c2c" size={20} />
             </View>
             <Text className="text-3xl font-bold text-slate-900 mb-1">12</Text>
             <Text className="text-slate-500 font-medium text-sm">Active Jobs</Text>
-          </View>
+          </TouchableOpacity>
 
-          <View className="w-[47%] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+          <TouchableOpacity 
+            onPress={() => router.push('/employer/candidates')}
+            className="w-[47%] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm active:opacity-85"
+          >
             <View className="w-10 h-10 bg-emerald-50 rounded-xl items-center justify-center mb-3">
               <Users color="#10b981" size={20} />
             </View>
             <Text className="text-3xl font-bold text-slate-900 mb-1">84</Text>
             <Text className="text-slate-500 font-medium text-sm">Total Candidates</Text>
-          </View>
+          </TouchableOpacity>
 
           <View className="w-full bg-gradient-to-r from-forestDark to-forest p-6 rounded-2xl shadow-lg shadow-forest/20">
             <View className="flex-row justify-between items-center mb-2">
@@ -68,7 +77,7 @@ export default function EmployerDashboard() {
         {/* Recent Activity */}
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-lg font-bold text-slate-900">Recent Candidates</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/employer/candidates')}>
             <Text className="text-forest font-bold text-sm">View All</Text>
           </TouchableOpacity>
         </View>
@@ -77,7 +86,8 @@ export default function EmployerDashboard() {
           {['Sarah Jenkins', 'Michael Chen', 'Elena Rodriguez'].map((name, i) => (
             <TouchableOpacity 
               key={i} 
-              className={`flex-row items-center justify-between p-4 ${i !== 2 ? 'border-b border-slate-100' : ''}`}
+              onPress={() => router.push('/employer/candidates')}
+              className={`flex-row items-center justify-between p-4 active:opacity-75 ${i !== 2 ? 'border-b border-slate-100' : ''}`}
             >
               <View className="flex-row items-center">
                 <View className="w-12 h-12 bg-slate-100 rounded-full items-center justify-center mr-4">

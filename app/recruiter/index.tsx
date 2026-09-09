@@ -1,5 +1,6 @@
 import { View, Text, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { Users, FileCheck, CheckCircle, Search, Star, MoreVertical } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 const pendingReviews = [
   { id: 1, name: 'Jessica Taylor', role: 'UX Designer', score: 'Awaiting', status: 'Resume Review' },
@@ -7,6 +8,7 @@ const pendingReviews = [
 ];
 
 export default function RecruiterDashboard() {
+  const router = useRouter();
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <ScrollView className="flex-1 px-5 pt-8" showsVerticalScrollIndicator={false}>
@@ -44,7 +46,7 @@ export default function RecruiterDashboard() {
         {/* Action Required */}
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-lg font-bold text-slate-900">Action Required</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/recruiter/assessments')}>
             <Text className="text-forest font-bold text-sm">View All</Text>
           </TouchableOpacity>
         </View>
@@ -53,7 +55,8 @@ export default function RecruiterDashboard() {
           {pendingReviews.map((candidate, i) => (
             <TouchableOpacity 
               key={candidate.id} 
-              className={`flex-row items-center p-3 ${i !== pendingReviews.length - 1 ? 'border-b border-slate-100' : ''}`}
+              onPress={() => router.push('/recruiter/assessments')}
+              className={`flex-row items-center p-3 active:opacity-75 ${i !== pendingReviews.length - 1 ? 'border-b border-slate-100' : ''}`}
             >
               <View className="w-12 h-12 bg-mintLight rounded-full items-center justify-center mr-3 border border-mint/15">
                 <Text className="text-forest font-bold text-lg">{candidate.name.charAt(0)}</Text>
@@ -66,7 +69,7 @@ export default function RecruiterDashboard() {
                 <View className="bg-mint px-2 py-1 rounded-lg mb-1 border border-mintLight">
                   <Text className="text-forest font-extrabold text-[10px]">{candidate.status}</Text>
                 </View>
-                <Text className="text-slate-400 text-xs">Review Now</Text>
+                <Text className="text-forest font-bold text-xs">Review Now</Text>
               </View>
             </TouchableOpacity>
           ))}

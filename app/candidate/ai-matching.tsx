@@ -1,14 +1,70 @@
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
-import { Sparkles, Briefcase, ArrowRight, Building2, MapPin, Clock, Bookmark } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Sparkles, Briefcase, ArrowRight, Building2, MapPin, Clock, Bookmark, CheckCircle2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { ApplicationsService, JobItem } from '@/services/applicationsService';
 
 const aiJobs = [
-  { id: 1, title: 'Lead Support Specialist', company: 'InnovateX', location: 'Remote (US Hours)', salary: '$15 - $18 / hr', matchReason: 'Your 3+ years in customer service and experience with Zendesk perfectly align with their high-volume tier-2 support requirements.', match: '96%' },
-  { id: 2, title: 'Customer Success Manager', company: 'DesignFlow', location: 'Remote (US Hours)', salary: '$14 - $16 / hr', matchReason: 'They are specifically seeking BYU-Pathway graduates with strong English skills to lead client onboarding.', match: '92%' },
+  { id: 'job-1', title: 'Lead Support Specialist', company: 'InnovateX', location: 'Remote (US Hours)', salary: '$15 - $18 / hr', matchReason: 'Your 3+ years in customer service and experience with Zendesk perfectly align with their high-volume tier-2 support requirements.', match: '96%', type: 'Full-time', tags: ['Support', 'Zendesk'] },
+  { id: 'job-2', title: 'Customer Success Manager', company: 'DesignFlow', location: 'Remote (US Hours)', salary: '$14 - $16 / hr', matchReason: 'They are specifically seeking BYU-Pathway graduates with strong English skills to lead client onboarding.', match: '92%', type: 'Full-time', tags: ['Success', 'Onboarding'] },
 ];
 
 export default function CandidateAIMatching() {
   const router = useRouter();
+  const [appliedIds, setAppliedIds] = useState<string[]>([]);
+  const [bookmarkedIds, setBookmarkedIds] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    checkExistingApps();
+  }, []);
+
+  const checkExistingApps = async () => {
+    const apps = await ApplicationsService.getCandidateApplications();
+    setAppliedIds(apps.map(a => a.jobId));
+  };
+
+  const handleApply = async (job: typeof aiJobs[0]) => {
+    if (appliedIds.includes(job.id)) {
+      router.push('/candidate/applications');
+      return;
+    }
+
+    const jobItem: JobItem = {
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      salary: job.salary,
+      type: job.type,
+      tags: job.tags,
+      applicants: 1,
+      posted: 'Recent',
+      status: 'Active',
+      postedByRole: 'employer',
+      createdAt: new Date().toISOString()
+    };
+
+    const res = await ApplicationsService.applyForJob(jobItem, {
+      id: 'demo-candidate-1',
+      name: 'Alex Morgan',
+      email: 'alex.morgan@hirebloom.com',
+      note: 'Applied via Bloom AI Match recommendations.',
+    });
+
+    if (res.success) {
+      setAppliedIds(prev => [...prev, job.id]);
+      Alert.alert(
+        'Match Application Sent!',
+        `Your BYU-Pathway accredited profile has been submitted to ${job.company}. You can track your screening status right away.`,
+        [
+          { text: 'Later', style: 'cancel' },
+          { text: 'View Tracker', onPress: () => router.push('/candidate/applications') },
+        ]
+      );
+    } else {
+      Alert.alert('Notice', res.error || 'Failed to submit application.');
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-cream">
@@ -32,55 +88,81 @@ export default function CandidateAIMatching() {
 
         {/* AI Jobs List */}
         <View className="mb-12">
-          {aiJobs.map((job) => (
-            <View key={job.id} className="bg-white rounded-3xl border border-zinc-200/60 shadow-sm overflow-hidden mb-6">
-              <View className="p-5 border-b border-zinc-100">
-                <View className="flex-row justify-between items-start mb-4">
-                  <View className="flex-row items-center flex-1 pr-2">
-                    <View className="w-12 h-12 bg-mint/10 rounded-xl items-center justify-center mr-3 border border-mint/25">
-                      <Building2 color="#113c2c" size={20} />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-base font-bold text-forest mb-0.5 leading-tight">{job.title}</Text>
-                      <Text className="text-zinc-400 font-bold text-xs">{job.company}</Text>
-                    </View>
-                  </View>
-                  <View className="bg-mint px-2.5 py-1 rounded-lg flex-row items-center">
-                    <Sparkles color="#113c2c" size={10} style={{ marginRight: 4 }} />
-                    <Text className="text-forest font-extrabold text-[10px]">{job.match}</Text>
-                  </View>
-                </View>
+          {aiJobs.map((job) => {
+            const isApplied = appliedIds.includes(job.id);
+            const isBookmarked = !!bookmarkedIds[job.id];
 
-                <View className="flex-row items-center">
-                  <View className="flex-row items-center mr-4">
-                    <MapPin color="#64748b" size={12} style={{ marginRight: 4 }} />
-                    <Text className="text-zinc-500 text-xs font-semibold">{job.location}</Text>
+            return (
+              <View key={job.id} className="bg-white rounded-3xl border border-zinc-200/60 shadow-sm overflow-hidden mb-6">
+                <View className="p-5 border-b border-zinc-100">
+                  <View className="flex-row justify-between items-start mb-4">
+                    <View className="flex-row items-center flex-1 pr-2">
+                      <View className="w-12 h-12 bg-mint/10 rounded-xl items-center justify-center mr-3 border border-mint/25">
+                        <Building2 color="#113c2c" size={20} />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-base font-bold text-forest mb-0.5 leading-tight">{job.title}</Text>
+                        <Text className="text-zinc-400 font-bold text-xs">{job.company}</Text>
+                      </View>
+                    </View>
+                    <View className="bg-mint px-2.5 py-1 rounded-lg flex-row items-center">
+                      <Sparkles color="#113c2c" size={10} style={{ marginRight: 4 }} />
+                      <Text className="text-forest font-extrabold text-[10px]">{job.match}</Text>
+                    </View>
                   </View>
+
                   <View className="flex-row items-center">
-                    <Clock color="#64748b" size={12} style={{ marginRight: 4 }} />
-                    <Text className="text-zinc-500 text-xs font-semibold">{job.salary}</Text>
+                    <View className="flex-row items-center mr-4">
+                      <MapPin color="#64748b" size={12} style={{ marginRight: 4 }} />
+                      <Text className="text-zinc-500 text-xs font-semibold">{job.location}</Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <Clock color="#64748b" size={12} style={{ marginRight: 4 }} />
+                      <Text className="text-zinc-500 text-xs font-semibold">{job.salary}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              <View className="bg-zinc-50/50 p-4 border-b border-zinc-100">
-                <Text className="text-zinc-600 text-xs leading-relaxed">
-                  <Text className="font-bold text-forest">Why you matched: </Text>
-                  {job.matchReason}
-                </Text>
-              </View>
+                <View className="bg-zinc-50/50 p-4 border-b border-zinc-100">
+                  <Text className="text-zinc-600 text-xs leading-relaxed">
+                    <Text className="font-bold text-forest">Why you matched: </Text>
+                    {job.matchReason}
+                  </Text>
+                </View>
 
-              <View className="p-4 flex-row gap-3">
-                <TouchableOpacity className="flex-1 bg-forest py-3.5 rounded-xl flex-row items-center justify-center active:opacity-90">
-                  <Briefcase color="white" size={16} style={{ marginRight: 6 }} />
-                  <Text className="text-white font-bold text-xs">1-Click Apply</Text>
-                </TouchableOpacity>
-                <TouchableOpacity className="w-12 bg-zinc-100 py-3.5 rounded-xl items-center justify-center active:opacity-70 border border-zinc-200/50">
-                  <Bookmark color="#113c2c" size={18} />
-                </TouchableOpacity>
+                <View className="p-4 flex-row gap-3">
+                  <TouchableOpacity 
+                    onPress={() => handleApply(job)}
+                    className={`flex-1 py-3.5 rounded-xl flex-row items-center justify-center active:opacity-90 ${
+                      isApplied ? 'bg-mint/30 border border-mint' : 'bg-forest'
+                    }`}
+                  >
+                    {isApplied ? (
+                      <>
+                        <CheckCircle2 color="#113c2c" size={16} style={{ marginRight: 6 }} />
+                        <Text className="text-forest font-bold text-xs">Applied • View Tracker</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Briefcase color="white" size={16} style={{ marginRight: 6 }} />
+                        <Text className="text-white font-bold text-xs">1-Click Apply</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={() => setBookmarkedIds(prev => ({ ...prev, [job.id]: !prev[job.id] }))}
+                    className="w-12 bg-zinc-100 py-3.5 rounded-xl items-center justify-center active:opacity-70 border border-zinc-200/50"
+                  >
+                    <Bookmark 
+                      color="#113c2c" 
+                      fill={isBookmarked ? '#113c2c' : 'transparent'} 
+                      size={18} 
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
       </ScrollView>

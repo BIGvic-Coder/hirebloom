@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { Search, Filter, Sparkles, MapPin, CheckCircle, ShieldCheck } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 const mockTalent = [
   { id: 1, name: 'Ana Vasquez', country: 'Bolivia', role: 'Customer Support', english: 'C1 Fluent', score: '94%', avatar: 'AV' },
@@ -10,6 +11,7 @@ const mockTalent = [
 ];
 
 export default function RecruiterTalent() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'All' | 'Support' | 'Tech'>('All');
 
@@ -101,10 +103,16 @@ export default function RecruiterTalent() {
 
                 {/* Actions */}
                 <View className="border-t border-zinc-100 pt-3 flex-row space-x-2">
-                  <TouchableOpacity className="flex-1 bg-forest py-2.5 rounded-xl justify-center items-center active:opacity-90">
+                  <TouchableOpacity 
+                    onPress={() => router.push('/recruiter/assessments')}
+                    className="flex-1 bg-forest py-2.5 rounded-xl justify-center items-center active:opacity-90"
+                  >
                     <Text className="text-white font-bold text-xs">Verify Details</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity className="flex-1 bg-zinc-50 border border-zinc-200/60 py-2.5 rounded-xl justify-center items-center active:opacity-75">
+                  <TouchableOpacity 
+                    onPress={() => router.push('/recruiter/assessments')}
+                    className="flex-1 bg-zinc-50 border border-zinc-200/60 py-2.5 rounded-xl justify-center items-center active:opacity-75"
+                  >
                     <Text className="text-forest font-bold text-xs">Fast-Track Match</Text>
                   </TouchableOpacity>
                 </View>

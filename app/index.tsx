@@ -5,14 +5,20 @@ import { LogIn, UserPlus, Info } from 'lucide-react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 import HeroSection from '@/components/home/HeroSection';
+import TrustBadges from '@/components/home/TrustBadges';
+import FeaturesSection from '@/components/home/FeaturesSection';
 import HowItWorks from '@/components/home/HowItWorks';
 import GlobalReach from '@/components/home/GlobalReach';
+import Testimonials from '@/components/home/Testimonials';
 import PricingSection from '@/components/home/PricingSection';
 
 // Memoize heavy static sections to prevent unnecessary re-renders on scroll state updates
 const MemoizedHero = React.memo(HeroSection);
+const MemoizedTrustBadges = React.memo(TrustBadges);
+const MemoizedFeatures = React.memo(FeaturesSection);
 const MemoizedHowItWorks = React.memo(HowItWorks);
 const MemoizedGlobalReach = React.memo(GlobalReach);
+const MemoizedTestimonials = React.memo(Testimonials);
 const MemoizedPricing = React.memo(PricingSection);
 
 export default function Home() {
@@ -148,6 +154,8 @@ export default function Home() {
       >
         <View id="overview" nativeID="overview" onLayout={(e) => handleSectionLayout('overview', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>
           <MemoizedHero />
+          <MemoizedTrustBadges />
+          <MemoizedFeatures />
         </View>
         
         <View id="howItWorks" nativeID="howItWorks" onLayout={(e) => handleSectionLayout('howItWorks', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>
@@ -156,6 +164,7 @@ export default function Home() {
 
         <View id="impact" nativeID="impact" onLayout={(e) => handleSectionLayout('impact', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>
           <MemoizedGlobalReach />
+          <MemoizedTestimonials />
         </View>
 
         <View id="pricing" nativeID="pricing" onLayout={(e) => handleSectionLayout('pricing', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>

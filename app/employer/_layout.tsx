@@ -49,6 +49,12 @@ export default function EmployerTabsLayout() {
           tabBarIcon: ({ color }) => <UserCircle size={24} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="ai-matching"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
