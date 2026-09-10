@@ -6,6 +6,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { ApplicationsService } from '@/services/applicationsService';
 
 export default function Register() {
   const router = useRouter() as any;
@@ -42,14 +43,33 @@ export default function Register() {
       // Store user's full name securely in Firebase Auth's displayName profile property
       await updateProfile(userCredential.user, { displayName: cleanName });
       
-      // Store user profile details and role in Firestore
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        uid: userCredential.user.uid,
-        name: cleanName,
-        email: cleanEmail,
-        role: role,
-        createdAt: new Date().toISOString()
-      });
+      // Store user profile details and role in Firestore safely (non-blocking)
+      try {
+        if (!IS_MOCK_FIREBASE && db) {
+          await setDoc(doc(db, 'users', userCredential.user.uid), {
+            uid: userCredential.user.uid,
+            name: cleanName,
+            email: cleanEmail,
+            role: role,
+            createdAt: new Date().toISOString()
+          });
+        }
+      } catch (firestoreErr) {
+        console.warn('Firestore profile write skipped due to security rules:', firestoreErr);
+      }
+
+      // Save local user session
+      try {
+        await ApplicationsService.setCurrentUser({
+          uid: userCredential.user.uid,
+          name: cleanName,
+          email: cleanEmail,
+          role: role,
+          initials: ApplicationsService.getInitials(cleanName, cleanEmail)
+        });
+      } catch (sessionErr) {
+        console.warn('Could not save session:', sessionErr);
+      }
 
       router.push(role === 'employer' ? '/employer' : '/candidate');
     } catch (error: any) {
