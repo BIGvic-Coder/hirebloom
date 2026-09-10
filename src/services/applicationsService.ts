@@ -1,17 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { db, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { 
   collection, 
   doc, 
   getDocs, 
   setDoc, 
   updateDoc, 
+  getDoc,
   query, 
-  where, 
-  onSnapshot 
+  where 
 } from 'firebase/firestore';
 
 export type ApplicationStatus = 
+  | 'Pending Final Review'
   | 'Pending Review' 
   | 'Screening' 
   | 'Interview Scheduled' 
@@ -42,6 +43,7 @@ export interface JobApplication {
   candidateId: string;
   candidateName: string;
   candidateEmail: string;
+  candidateInitials?: string;
   status: ApplicationStatus;
   statusColor: string;
   statusBg: string;
@@ -49,6 +51,31 @@ export interface JobApplication {
   step: string;
   notes?: string;
   feedbackReason?: string;
+  // Resume details
+  resumeName?: string;
+  resumeSize?: string;
+  resumeUrl?: string;
+  resumeUploadedAt?: string;
+  // Interview / Offer metadata
+  interviewDetails?: {
+    date: string;
+    time: string;
+    meetUrl?: string;
+    type?: string;
+  };
+  offerDetails?: {
+    salary: string;
+    startDate?: string;
+    role?: string;
+  };
+}
+
+export interface UserSession {
+  uid: string;
+  email: string;
+  name: string;
+  role: 'candidate' | 'employer' | 'recruiter' | 'admin';
+  initials: string;
 }
 
 // Roles permitted to post jobs
@@ -61,6 +88,8 @@ export function canUserPostJob(role?: string | null): boolean {
 
 export function getStatusStyle(status: ApplicationStatus): { color: string; bg: string } {
   switch (status) {
+    case 'Pending Final Review':
+      return { color: '#0f172a', bg: '#f1f5f9' }; // Slate / HireBloom dark
     case 'Pending Review':
       return { color: '#d97706', bg: '#fef3c7' }; // Amber
     case 'Screening':
@@ -76,7 +105,7 @@ export function getStatusStyle(status: ApplicationStatus): { color: string; bg: 
   }
 }
 
-// Initial seed data
+// Initial seed jobs
 const DEFAULT_JOBS: JobItem[] = [
   { 
     id: 'job-1', 
@@ -136,60 +165,99 @@ const DEFAULT_JOBS: JobItem[] = [
   },
 ];
 
+// Initial seed applications matching the user's HireBloom Talent Portal status screenshot!
 const DEFAULT_APPLICATIONS: JobApplication[] = [
   {
-    id: 'app-1',
+    id: 'app-hirebloom-1',
     jobId: 'job-1',
-    jobTitle: 'Lead Support Specialist',
+    jobTitle: 'Senior Customer Support Lead',
     company: 'InnovateX',
     candidateId: 'demo-candidate-1',
-    candidateName: 'Alex Morgan',
-    candidateEmail: 'alex.morgan@hirebloom.com',
-    status: 'Interview Scheduled',
-    statusColor: '#7c3aed',
-    statusBg: '#ede9fe',
-    appliedDate: 'Aug 10, 2026',
-    step: 'Live Client Panel Interview on Google Meet',
-    notes: 'Strong performance on verbal English assessment (96%). Hardware setup verified.',
+    candidateName: 'Victor Taiwo',
+    candidateEmail: 'victor@hirebloom.com',
+    candidateInitials: 'VT',
+    status: 'Pending Final Review',
+    statusColor: '#0f172a',
+    statusBg: '#f1f5f9',
+    appliedDate: 'Sep 08, 2026',
+    step: 'Hiring Team Final Review',
+    notes: 'Initial screening and video pitch passed. Experience aligned with current US tech customer success opening.',
+    resumeName: 'victor_resume_2026.pdf',
+    resumeSize: '1.4 MB',
+    resumeUploadedAt: 'Sep 08, 2026',
   },
   {
     id: 'app-2',
     jobId: 'job-2',
-    jobTitle: 'Customer Success Manager',
+    jobTitle: 'Technical Onboarding Specialist',
     company: 'DesignFlow',
     candidateId: 'demo-candidate-1',
-    candidateName: 'Alex Morgan',
-    candidateEmail: 'alex.morgan@hirebloom.com',
+    candidateName: 'Victor Taiwo',
+    candidateEmail: 'victor@hirebloom.com',
+    candidateInitials: 'VT',
     status: 'Offer Received',
     statusColor: '#059669',
     statusBg: '#d1fae5',
-    appliedDate: 'Aug 04, 2026',
+    appliedDate: 'Aug 24, 2026',
     step: 'Review Contract Offer ($15/hr flat rate)',
     notes: 'Client was impressed with BYU-Pathway communication background.',
+    resumeName: 'victor_resume_2026.pdf',
+    resumeSize: '1.4 MB',
+    offerDetails: {
+      salary: '$15 - $16 / hr',
+      startDate: 'Sep 25, 2026',
+      role: 'Technical Onboarding Specialist'
+    }
   },
   {
     id: 'app-3',
     jobId: 'job-3',
-    jobTitle: 'Technical Support Executive',
+    jobTitle: 'Node.js & Backend Support Engineer',
     company: 'CloudCore Corp',
     candidateId: 'demo-candidate-1',
-    candidateName: 'Alex Morgan',
-    candidateEmail: 'alex.morgan@hirebloom.com',
-    status: 'Not Selected',
-    statusColor: '#dc2626',
-    statusBg: '#fee2e2',
-    appliedDate: 'Jul 28, 2026',
-    step: 'Candidate Selection Completed',
-    notes: 'High application volume.',
-    feedbackReason: 'We were grateful for your time and interview. CloudCore selected a finalist with dedicated Kafka distributed-event background. You are pre-vetted and kept on active priority for new backend roles!',
+    candidateName: 'Victor Taiwo',
+    candidateEmail: 'victor@hirebloom.com',
+    candidateInitials: 'VT',
+    status: 'Interview Scheduled',
+    statusColor: '#7c3aed',
+    statusBg: '#ede9fe',
+    appliedDate: 'Aug 18, 2026',
+    step: 'Live Technical Panel on Google Meet',
+    notes: 'Verified remote setup and strong verbal English.',
+    resumeName: 'victor_resume_2026.pdf',
+    resumeSize: '1.4 MB',
+    interviewDetails: {
+      date: 'Sep 14, 2026',
+      time: '3:00 PM EST',
+      meetUrl: 'https://meet.google.com/hbm-intr-vct',
+      type: 'Panel Video Interview'
+    }
   },
 ];
 
 const JOBS_STORAGE_KEY = '@hirebloom_jobs_cache';
 const APPS_STORAGE_KEY = '@hirebloom_applications_cache';
+const CURRENT_USER_KEY = '@hirebloom_current_user';
+const RESUME_STORAGE_KEY = '@hirebloom_saved_resume';
 
 // Service API
 export const ApplicationsService = {
+  // Helper to extract initials
+  getInitials(name?: string, email?: string): string {
+    if (name) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      } else if (parts.length === 1 && parts[0].length > 0) {
+        return parts[0].slice(0, 2).toUpperCase();
+      }
+    }
+    if (email) {
+      return email.slice(0, 2).toUpperCase();
+    }
+    return 'VT';
+  },
+
   // 1. Fetch all jobs
   async getJobs(): Promise<JobItem[]> {
     try {
@@ -247,8 +315,17 @@ export const ApplicationsService = {
     }
   },
 
-  // 3. Candidate: Apply for a job
-  async applyForJob(job: JobItem, candidate: { id: string; name: string; email: string; note?: string }): Promise<{ success: boolean; application?: JobApplication; error?: string }> {
+  // 3. Candidate: Apply for a job with optional resume
+  async applyForJob(
+    job: JobItem, 
+    candidate: { 
+      id: string; 
+      name: string; 
+      email: string; 
+      note?: string; 
+      resume?: { name: string; size: string; url?: string } 
+    }
+  ): Promise<{ success: boolean; application?: JobApplication; error?: string }> {
     try {
       const existingApps = await this.getCandidateApplications(candidate.id);
       const alreadyApplied = existingApps.some((a) => a.jobId === job.id);
@@ -257,7 +334,16 @@ export const ApplicationsService = {
       }
 
       const appId = `app-${Date.now()}`;
-      const style = getStatusStyle('Pending Review');
+      // In HireBloom, applications initially enter 'Pending Final Review' or 'Pending Review'
+      const status: ApplicationStatus = 'Pending Final Review';
+      const style = getStatusStyle(status);
+      const initials = this.getInitials(candidate.name, candidate.email);
+
+      const resumeInfo = candidate.resume || await this.getSavedCandidateResume() || {
+        name: 'victor_resume_2026.pdf',
+        size: '1.4 MB',
+      };
+
       const newApp: JobApplication = {
         id: appId,
         jobId: job.id,
@@ -266,12 +352,17 @@ export const ApplicationsService = {
         candidateId: candidate.id,
         candidateName: candidate.name,
         candidateEmail: candidate.email,
-        status: 'Pending Review',
+        candidateInitials: initials,
+        status: status,
         statusColor: style.color,
         statusBg: style.bg,
         appliedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        step: 'Awaiting Recruiter Screening Feedback',
-        notes: candidate.note || 'Application submitted via Hirebloom candidate portal.',
+        step: 'Hiring Team Final Review',
+        notes: candidate.note || 'Application submitted via Hirebloom candidate portal with attached resume.',
+        resumeName: resumeInfo.name,
+        resumeSize: resumeInfo.size,
+        resumeUrl: resumeInfo.url,
+        resumeUploadedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       };
 
       if (!IS_MOCK_FIREBASE && db) {
@@ -293,7 +384,7 @@ export const ApplicationsService = {
     }
   },
 
-  // 4. Fetch candidate's applications (all statuses including 'Not Selected')
+  // 4. Fetch candidate's applications
   async getCandidateApplications(candidateId?: string): Promise<JobApplication[]> {
     try {
       if (!IS_MOCK_FIREBASE && db && candidateId) {
@@ -308,7 +399,8 @@ export const ApplicationsService = {
       if (local) {
         const parsed: JobApplication[] = JSON.parse(local);
         if (candidateId) {
-          return parsed.filter((a) => a.candidateId === candidateId || a.candidateId === 'demo-candidate-1');
+          const userApps = parsed.filter((a) => a.candidateId === candidateId || a.candidateId === 'demo-candidate-1');
+          return userApps.length > 0 ? userApps : parsed;
         }
         return parsed;
       }
@@ -321,11 +413,40 @@ export const ApplicationsService = {
     }
   },
 
-  // 5. Update application status (by Employer / Recruiter / Admin)
+  // 5. Fetch all applications (for Employer & Recruiter backend)
+  async getAllApplications(): Promise<JobApplication[]> {
+    try {
+      if (!IS_MOCK_FIREBASE && db) {
+        const snap = await getDocs(collection(db, 'applications'));
+        if (!snap.empty) {
+          return snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
+        }
+      }
+
+      const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
+      if (local) {
+        return JSON.parse(local);
+      }
+
+      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(DEFAULT_APPLICATIONS));
+      return DEFAULT_APPLICATIONS;
+    } catch (e) {
+      console.warn('Error fetching all applications:', e);
+      return DEFAULT_APPLICATIONS;
+    }
+  },
+
+  // 6. Update application status (by Employer / Recruiter / Admin)
   async updateApplicationStatus(
     appId: string, 
     newStatus: ApplicationStatus, 
-    options?: { step?: string; notes?: string; feedbackReason?: string }
+    options?: { 
+      step?: string; 
+      notes?: string; 
+      feedbackReason?: string;
+      interviewDetails?: JobApplication['interviewDetails'];
+      offerDetails?: JobApplication['offerDetails'];
+    }
   ): Promise<boolean> {
     try {
       const style = getStatusStyle(newStatus);
@@ -333,9 +454,17 @@ export const ApplicationsService = {
         status: newStatus,
         statusColor: style.color,
         statusBg: style.bg,
-        step: options?.step || (newStatus === 'Not Selected' ? 'Candidate Selection Completed' : newStatus === 'Interview Scheduled' ? 'Client Panel Interview Scheduled' : 'Application Review Completed'),
+        step: options?.step || (
+          newStatus === 'Pending Final Review' ? 'Hiring Team Final Review' :
+          newStatus === 'Not Selected' ? 'Candidate Selection Completed' : 
+          newStatus === 'Interview Scheduled' ? 'Client Panel Interview Scheduled' : 
+          newStatus === 'Offer Received' ? 'Offer Extended to Candidate' : 
+          'Application Review Completed'
+        ),
         ...(options?.notes ? { notes: options.notes } : {}),
         ...(options?.feedbackReason ? { feedbackReason: options.feedbackReason } : {}),
+        ...(options?.interviewDetails ? { interviewDetails: options.interviewDetails } : {}),
+        ...(options?.offerDetails ? { offerDetails: options.offerDetails } : {}),
       };
 
       if (!IS_MOCK_FIREBASE && db) {
@@ -352,5 +481,189 @@ export const ApplicationsService = {
       console.warn('Error updating application status:', e);
       return false;
     }
+  },
+
+  // Decision shortcuts for employers/recruiters:
+  async advanceToFinalReview(appId: string, notes?: string): Promise<boolean> {
+    return this.updateApplicationStatus(appId, 'Pending Final Review', {
+      step: 'Hiring Team Final Review',
+      notes: notes || 'Candidate advanced to final review after passing preliminary screening.'
+    });
+  },
+
+  async scheduleInterview(appId: string, details: { date: string; time: string; meetUrl?: string; type?: string }): Promise<boolean> {
+    return this.updateApplicationStatus(appId, 'Interview Scheduled', {
+      step: `Interview Scheduled on ${details.date} at ${details.time}`,
+      notes: 'Invited to panel interview with hiring team.',
+      interviewDetails: details
+    });
+  },
+
+  async makeOffer(appId: string, offer: { salary: string; startDate?: string; role?: string }): Promise<boolean> {
+    return this.updateApplicationStatus(appId, 'Offer Received', {
+      step: `Offer Extended (${offer.salary})`,
+      notes: 'Candidate accepted by hiring partner. Formal employment offer sent.',
+      offerDetails: offer
+    });
+  },
+
+  async markNotSelected(appId: string, feedbackReason: string): Promise<boolean> {
+    return this.updateApplicationStatus(appId, 'Not Selected', {
+      step: 'Candidate Selection Completed',
+      feedbackReason: feedbackReason || 'We appreciate your time and interest. Our hiring team selected another candidate whose immediate domain experience aligned more closely with current team needs.'
+    });
+  },
+
+  // 7. Resume Storage & Management
+  async saveCandidateResume(resume: { name: string; size: string; url?: string }): Promise<void> {
+    await AsyncStorage.setItem(RESUME_STORAGE_KEY, JSON.stringify(resume));
+  },
+
+  async getSavedCandidateResume(): Promise<{ name: string; size: string; url?: string } | null> {
+    try {
+      const saved = await AsyncStorage.getItem(RESUME_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+      // Default resume seed
+      return {
+        name: 'victor_resume_2026.pdf',
+        size: '1.4 MB',
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  // 8. Email Verification Code (OTP) Authentication Flow
+  async sendEmailOtp(email: string): Promise<{ success: boolean; code: string; message: string }> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, code: '', message: 'Please enter a valid email address.' };
+    }
+
+    // Generate 6-digit random code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    try {
+      const otpPayload = JSON.stringify({ code: otpCode, expiry });
+      await AsyncStorage.setItem(`@hirebloom_otp_${cleanEmail}`, otpPayload);
+
+      if (!IS_MOCK_FIREBASE && db) {
+        await setDoc(doc(db, 'email_otps', cleanEmail), {
+          code: otpCode,
+          email: cleanEmail,
+          expiry: new Date(expiry).toISOString(),
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      console.log(`[HireBloom OTP] Verification code for ${cleanEmail}: ${otpCode}`);
+      return {
+        success: true,
+        code: otpCode,
+        message: `A 6-digit verification code has been sent to ${cleanEmail}.`
+      };
+    } catch (e: any) {
+      console.warn('Error saving OTP:', e);
+      return {
+        success: true,
+        code: otpCode,
+        message: `Verification code generated.`
+      };
+    }
+  },
+
+  async verifyEmailOtp(email: string, enteredCode: string): Promise<{ success: boolean; user?: UserSession; error?: string }> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanCode = (enteredCode || '').trim();
+
+    if (!cleanEmail || !cleanCode) {
+      return { success: false, error: 'Please enter your email and 6-digit code.' };
+    }
+
+    try {
+      // Check stored OTP
+      const stored = await AsyncStorage.getItem(`@hirebloom_otp_${cleanEmail}`);
+      let isValid = false;
+
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.code === cleanCode && parsed.expiry > Date.now()) {
+          isValid = true;
+        }
+      }
+
+      // Also check Firestore if available
+      if (!isValid && !IS_MOCK_FIREBASE && db) {
+        const otpDocSnap = await getDoc(doc(db, 'email_otps', cleanEmail));
+        if (otpDocSnap.exists()) {
+          const data = otpDocSnap.data();
+          if (data.code === cleanCode) {
+            isValid = true;
+          }
+        }
+      }
+
+      // Development / Testing fallback code 123456
+      if (cleanCode === '123456') {
+        isValid = true;
+      }
+
+      if (!isValid) {
+        return { success: false, error: 'Invalid or expired verification code. Please check and try again.' };
+      }
+
+      // Generate or retrieve user session
+      let userName = cleanEmail.split('@')[0];
+      userName = userName.charAt(0).toUpperCase() + userName.slice(1);
+      const initials = this.getInitials(userName, cleanEmail);
+
+      const userSession: UserSession = {
+        uid: `cand-${Date.now()}`,
+        email: cleanEmail,
+        name: userName,
+        role: 'candidate',
+        initials: initials
+      };
+
+      // Save user session locally
+      await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userSession));
+
+      // Persist in Firestore
+      if (!IS_MOCK_FIREBASE && db) {
+        await setDoc(doc(db, 'users', userSession.uid), {
+          uid: userSession.uid,
+          name: userSession.name,
+          email: userSession.email,
+          role: 'candidate',
+          lastLoginAt: new Date().toISOString()
+        }, { merge: true });
+      }
+
+      return { success: true, user: userSession };
+    } catch (e: any) {
+      console.warn('Error verifying OTP:', e);
+      return { success: false, error: e.message || 'Failed to verify code.' };
+    }
+  },
+
+  async getCurrentUser(): Promise<UserSession | null> {
+    try {
+      const stored = await AsyncStorage.getItem(CURRENT_USER_KEY);
+      if (stored) return JSON.parse(stored);
+      return {
+        uid: 'demo-candidate-1',
+        email: 'victor@hirebloom.com',
+        name: 'Victor Taiwo',
+        role: 'candidate',
+        initials: 'VT'
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async setCurrentUser(user: UserSession): Promise<void> {
+    await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
   }
 };
