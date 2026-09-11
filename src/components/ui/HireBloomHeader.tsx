@@ -5,7 +5,9 @@ import { useRouter } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { NotificationsService } from '@/services/notificationsService';
 import { EmailService } from '@/services/emailService';
+import { ApplicationsService } from '@/services/applicationsService';
 import EmailInboxModal from './EmailInboxModal';
+import HireBloomLogoMark from './HireBloomLogoMark';
 
 interface HireBloomHeaderProps {
   portalTitle?: string;
@@ -15,57 +17,41 @@ interface HireBloomHeaderProps {
   showBack?: boolean;
 }
 
-export const HireBloomLogoMark = ({ size = 26 }: { size?: number }) => (
-  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-    <Svg width={size} height={size} viewBox="0 0 50 50">
-      <Path
-        d="M 15 42 C 6 38, 2 28, 2 16 C 2 6, 15 2, 34 2 C 39 2, 42 5, 42 10 C 42 22, 32 40, 15 42 Z"
-        fill="none"
-        stroke="#113C2C"
-        strokeWidth="4.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M 12 40 L 4 46"
-        stroke="#113C2C"
-        strokeWidth="4.5"
-        strokeLinecap="round"
-      />
-      <Path d="M 16 34 L 16 26" stroke="#8ECFA9" strokeWidth="3.5" strokeLinecap="round" />
-      <Circle cx="16" cy="20" r="3.5" fill="#8ECFA9" />
-      
-      <Path d="M 25 34 L 25 20" stroke="#8ECFA9" strokeWidth="3.5" strokeLinecap="round" />
-      <Circle cx="25" cy="14" r="3.5" fill="#8ECFA9" />
-
-      <Path d="M 34 34 L 34 24" stroke="#8ECFA9" strokeWidth="3.5" strokeLinecap="round" />
-      <Circle cx="34" cy="18" r="3.5" fill="#8ECFA9" />
-    </Svg>
-  </View>
-);
+export { HireBloomLogoMark };
 
 export default function HireBloomHeader({
   portalTitle = 'hirebloom',
   portalBadge = 'Candidate',
   userInitials = 'VT',
-  userEmail = 'victor@hirebloom.com',
+  userEmail,
 }: HireBloomHeaderProps) {
   const router = useRouter() as any;
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadEmailCount, setUnreadEmailCount] = useState(0);
+  const [activeEmail, setActiveEmail] = useState(userEmail || 'victor@hirebloom.com');
   const [emailModalVisible, setEmailModalVisible] = useState(false);
 
   useEffect(() => {
     loadUnread();
-    const interval = setInterval(loadUnread, 4000);
+    const interval = setInterval(loadUnread, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [userEmail]);
 
   const loadUnread = async () => {
     try {
+      let emailToUse = userEmail;
+      if (!emailToUse) {
+        const user = await ApplicationsService.getCurrentUser();
+        if (user?.email) {
+          emailToUse = user.email;
+        }
+      }
+      const finalEmail = emailToUse || 'victor@hirebloom.com';
+      setActiveEmail(finalEmail);
+
       const count = await NotificationsService.getUnreadCount();
       setUnreadCount(count);
-      const emailCount = await EmailService.getUnreadCount(userEmail);
+      const emailCount = await EmailService.getUnreadCount(finalEmail);
       setUnreadEmailCount(emailCount);
     } catch {
       setUnreadCount(0);
@@ -142,7 +128,7 @@ export default function HireBloomHeader({
           setEmailModalVisible(false);
           loadUnread();
         }}
-        userEmail={userEmail}
+        userEmail={activeEmail}
       />
     </View>
   );

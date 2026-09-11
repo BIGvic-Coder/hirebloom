@@ -63,21 +63,33 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 export const NotificationsService = {
   async getNotifications(userId?: string): Promise<NotificationItem[]> {
     try {
+      let list: NotificationItem[] = [];
+      const local = await AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+      if (local) {
+        list = JSON.parse(local);
+      } else {
+        list = INITIAL_NOTIFICATIONS;
+        await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(list));
+      }
+
       if (!IS_MOCK_FIREBASE && db && userId) {
-        const q = query(collection(db, 'notifications'), where('userId', '==', userId));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          return snap.docs.map((d) => ({ id: d.id, ...d.data() } as NotificationItem));
+        try {
+          const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const cloudDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as NotificationItem));
+            for (const item of cloudDocs) {
+              if (!list.find((n) => n.id === item.id)) {
+                list.push(item);
+              }
+            }
+          }
+        } catch {
+          // Handled silently
         }
       }
 
-      const local = await AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-      if (local) {
-        return JSON.parse(local);
-      }
-
-      await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(INITIAL_NOTIFICATIONS));
-      return INITIAL_NOTIFICATIONS;
+      return list;
     } catch {
       return INITIAL_NOTIFICATIONS;
     }

@@ -103,33 +103,78 @@ export const EmailService = {
     try {
       const cleanEmail = (recipientEmail || '').trim().toLowerCase();
 
+      // 1. Read authoritative local storage first
+      let list: EmailMessage[] = [];
+      try {
+        const stored = await AsyncStorage.getItem(EMAILS_STORAGE_KEY);
+        if (stored) {
+          list = JSON.parse(stored);
+        }
+      } catch (storageErr) {
+        console.warn('AsyncStorage read warning in getEmails:', storageErr);
+      }
+
+      if (!list || list.length === 0) {
+        list = [...INITIAL_SEED_EMAILS];
+        await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
+      }
+
+      // 2. Safely attempt Firestore sync if available (non-blocking, won't throw on permissions)
       if (!IS_MOCK_FIREBASE && db && cleanEmail) {
-        const q = query(collection(db, 'emails'), where('toEmail', '==', cleanEmail));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EmailMessage));
-          list.sort((a, b) => b.timestamp - a.timestamp);
-          return list;
+        try {
+          const q = query(collection(db, 'emails'), where('toEmail', '==', cleanEmail));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const cloudDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EmailMessage));
+            for (const item of cloudDocs) {
+              if (!list.find((m) => m.id === item.id)) {
+                list.push(item);
+              }
+            }
+          }
+        } catch {
+          // Handled silently - local storage is authoritative
         }
       }
 
-      const stored = await AsyncStorage.getItem(EMAILS_STORAGE_KEY);
-      if (stored) {
-        const list: EmailMessage[] = JSON.parse(stored);
-        list.sort((a, b) => b.timestamp - a.timestamp);
-        if (cleanEmail) {
-          const userEmails = list.filter(
-            (e) =>
-              e.toEmail.toLowerCase() === cleanEmail ||
-              e.toEmail.toLowerCase() === 'victor@hirebloom.com'
-          );
-          return userEmails.length > 0 ? userEmails : list;
+      // Sort by newest first
+      list.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Filter by recipient email if provided
+      if (cleanEmail) {
+        const matches = list.filter(
+          (e) =>
+            e.toEmail.toLowerCase() === cleanEmail ||
+            (cleanEmail === 'victor@hirebloom.com' && e.toEmail.toLowerCase() === 'victor@hirebloom.com')
+        );
+
+        if (matches.length > 0) {
+          // Always ensure the Founder Welcome email is in their inbox
+          const hasWelcome = matches.some((e) => e.template === 'founder_welcome');
+          if (!hasWelcome) {
+            const userFirstName = cleanEmail.split('@')[0];
+            const founderEmail: EmailMessage = {
+              ...INITIAL_SEED_EMAILS[1],
+              id: `founder-${cleanEmail}`,
+              toEmail: cleanEmail,
+              toName: userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1),
+            };
+            return [matches[0], founderEmail, ...matches.slice(1)];
+          }
+          return matches;
+        } else {
+          // If no specific emails submitted yet, return personalized welcome email for this user
+          const userFirstName = cleanEmail.split('@')[0];
+          const formattedName = userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1);
+          return INITIAL_SEED_EMAILS.map((e) => ({
+            ...e,
+            toEmail: cleanEmail,
+            toName: formattedName,
+          }));
         }
-        return list;
       }
 
-      await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_EMAILS));
-      return INITIAL_SEED_EMAILS;
+      return list;
     } catch {
       return INITIAL_SEED_EMAILS;
     }
@@ -140,14 +185,18 @@ export const EmailService = {
    */
   async markAsRead(emailId: string): Promise<void> {
     try {
-      if (!IS_MOCK_FIREBASE && db) {
-        await updateDoc(doc(db, 'emails', emailId), { read: true });
-      }
-
       const stored = await AsyncStorage.getItem(EMAILS_STORAGE_KEY);
       const list: EmailMessage[] = stored ? JSON.parse(stored) : INITIAL_SEED_EMAILS;
       const updated = list.map((e) => (e.id === emailId ? { ...e, read: true } : e));
       await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(updated));
+
+      if (!IS_MOCK_FIREBASE && db) {
+        try {
+          await updateDoc(doc(db, 'emails', emailId), { read: true });
+        } catch {
+          // Safe catch
+        }
+      }
     } catch (e) {
       console.warn('Error marking email as read:', e);
     }
@@ -166,18 +215,21 @@ export const EmailService = {
    */
   async dispatchEmail(newEmail: EmailMessage): Promise<void> {
     try {
+      // 1. Authoritative local storage first (instant & reliable)
+      const stored = await AsyncStorage.getItem(EMAILS_STORAGE_KEY);
+      const list: EmailMessage[] = stored ? JSON.parse(stored) : INITIAL_SEED_EMAILS;
+      const deduplicated = list.filter((e) => e.id !== newEmail.id);
+      const updated = [newEmail, ...deduplicated];
+      await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(updated));
+
+      // 2. Safely sync to Firestore in background
       if (!IS_MOCK_FIREBASE && db) {
         try {
           await setDoc(doc(db, 'emails', newEmail.id), sanitizeForFirestore(newEmail));
-        } catch (firestoreErr) {
-          console.warn('Firestore setDoc email warning:', firestoreErr);
+        } catch {
+          // Handled silently
         }
       }
-
-      const stored = await AsyncStorage.getItem(EMAILS_STORAGE_KEY);
-      const list: EmailMessage[] = stored ? JSON.parse(stored) : INITIAL_SEED_EMAILS;
-      const updated = [newEmail, ...list];
-      await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(updated));
     } catch (e) {
       console.warn('Error dispatching email:', e);
     }

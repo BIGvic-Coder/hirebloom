@@ -50,11 +50,14 @@ export default function CandidateHome() {
       setUnreadEmailsCount(emailCount);
 
       // Load applications
-      const apps = await ApplicationsService.getCandidateApplications();
+      const apps = await ApplicationsService.getCandidateApplications(user?.uid || user?.email);
       if (apps.length > 0) {
         const top = apps[0];
         setActiveApp(top);
         setStageInfo(WorkflowService.getPublicStageInfo(top.status));
+      } else {
+        setActiveApp(null);
+        setStageInfo(null);
       }
 
       // Load upcoming interview
@@ -84,7 +87,12 @@ export default function CandidateHome() {
   return (
     <SafeAreaView className="flex-1 bg-canvas">
       {/* Unified Professional Header */}
-      <HireBloomHeader portalTitle="hirebloom" portalBadge="Talent Portal" userInitials={displayInitials} />
+      <HireBloomHeader
+        portalTitle="hirebloom"
+        portalBadge="Talent Portal"
+        userInitials={displayInitials}
+        userEmail={currentUser?.email}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

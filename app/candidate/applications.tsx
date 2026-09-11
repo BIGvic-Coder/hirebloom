@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Modal, RefreshControl, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, RefreshControl, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Building2, 
   Calendar, 
@@ -23,11 +24,12 @@ import HireBloomHeader from '@/components/ui/HireBloomHeader';
 import WorkflowStepper from '@/components/ui/WorkflowStepper';
 import EmailInboxModal from '@/components/ui/EmailInboxModal';
 import { WorkflowService, PublicStageInfo } from '@/services/workflowService';
-import { ApplicationsService, JobApplication, ApplicationStatus } from '@/services/applicationsService';
+import { ApplicationsService, JobApplication, ApplicationStatus, UserSession } from '@/services/applicationsService';
 import { EmailService } from '@/services/emailService';
 
 export default function CandidateApplications() {
   const router = useRouter() as any;
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [selectedApp, setSelectedApp] = useState<JobApplication | null>(null);
   const [activeAppIndex, setActiveAppIndex] = useState(0);
@@ -36,10 +38,16 @@ export default function CandidateApplications() {
   const [emailModalVisible, setEmailModalVisible] = useState(false);
 
   const loadApplications = async () => {
-    const apps = await ApplicationsService.getCandidateApplications();
+    const user = await ApplicationsService.getCurrentUser();
+    setCurrentUser(user);
+    const targetId = user?.uid || user?.email;
+    const apps = await ApplicationsService.getCandidateApplications(targetId);
     setApplications(apps);
-    if (apps.length > 0 && !selectedApp) {
-      setSelectedApp(apps[0]);
+    if (apps.length > 0) {
+      const match = selectedApp ? apps.find(a => a.id === selectedApp.id) : null;
+      setSelectedApp(match || apps[0]);
+    } else {
+      setSelectedApp(null);
     }
   };
 
@@ -54,13 +62,18 @@ export default function CandidateApplications() {
   };
 
   const currentApp = applications[activeAppIndex] || selectedApp || applications[0];
-  const userInitials = currentApp?.candidateInitials || 'VT';
+  const userInitials = currentUser?.initials || currentApp?.candidateInitials || 'VT';
   const stageInfo = WorkflowService.getPublicStageInfo(currentApp?.status);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       {/* Unified Professional Header */}
-      <HireBloomHeader portalTitle="hirebloom" portalBadge="Talent Portal" userInitials={userInitials} />
+      <HireBloomHeader
+        portalTitle="hirebloom"
+        portalBadge="Talent Portal"
+        userInitials={userInitials}
+        userEmail={currentUser?.email || currentApp?.candidateEmail}
+      />
 
       <ScrollView 
         showsVerticalScrollIndicator={false}
@@ -485,7 +498,7 @@ export default function CandidateApplications() {
           setEmailModalVisible(false);
           loadApplications();
         }}
-        userEmail={currentApp?.candidateEmail || 'victor@hirebloom.com'}
+        userEmail={currentUser?.email || currentApp?.candidateEmail || 'victor@hirebloom.com'}
       />
     </SafeAreaView>
   );

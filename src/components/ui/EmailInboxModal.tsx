@@ -5,9 +5,9 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   Mail,
@@ -26,7 +26,8 @@ import {
   ExternalLink,
 } from 'lucide-react-native';
 import { EmailService, EmailMessage } from '@/services/emailService';
-import { HireBloomLogoMark } from './HireBloomHeader';
+import { ApplicationsService } from '@/services/applicationsService';
+import HireBloomLogoMark from './HireBloomLogoMark';
 
 interface EmailInboxModalProps {
   visible: boolean;
@@ -38,7 +39,7 @@ interface EmailInboxModalProps {
 export default function EmailInboxModal({
   visible,
   onClose,
-  userEmail = 'victor@hirebloom.com',
+  userEmail,
   initialEmailId,
 }: EmailInboxModalProps) {
   const [emails, setEmails] = useState<EmailMessage[]>([]);
@@ -52,7 +53,15 @@ export default function EmailInboxModal({
   }, [visible, userEmail]);
 
   const loadEmails = async () => {
-    const list = await EmailService.getEmails(userEmail);
+    let emailToUse = userEmail;
+    if (!emailToUse) {
+      const user = await ApplicationsService.getCurrentUser();
+      if (user?.email) {
+        emailToUse = user.email;
+      }
+    }
+    const finalEmail = emailToUse || 'victor@hirebloom.com';
+    const list = await EmailService.getEmails(finalEmail);
     setEmails(list);
     if (initialEmailId) {
       const match = list.find((e) => e.id === initialEmailId);

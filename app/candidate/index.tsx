@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Search, 
   MapPin, 
@@ -12,10 +13,13 @@ import {
   Award, 
   FileText, 
   UploadCloud, 
-  Check 
+  Check,
+  Mail
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { ApplicationsService, JobItem, UserSession } from '@/services/applicationsService';
+import { EmailService } from '@/services/emailService';
+import EmailInboxModal from '@/components/ui/EmailInboxModal';
 
 export default function CandidateJobs() {
   const router = useRouter();
@@ -36,10 +40,26 @@ export default function CandidateJobs() {
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [unreadEmailCount, setUnreadEmailCount] = useState(0);
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(refreshCounts, 4000);
+    return () => clearInterval(interval);
   }, []);
+
+  const refreshCounts = async () => {
+    try {
+      const user = await ApplicationsService.getCurrentUser();
+      if (user?.email) {
+        const count = await EmailService.getUnreadCount(user.email);
+        setUnreadEmailCount(count);
+      }
+    } catch {
+      // safe
+    }
+  };
 
   const loadData = async () => {
     const user = await ApplicationsService.getCurrentUser();
@@ -53,8 +73,12 @@ export default function CandidateJobs() {
     const fetchedJobs = await ApplicationsService.getJobs();
     setJobs(fetchedJobs.filter(j => j.status === 'Active'));
 
-    const existingApps = await ApplicationsService.getCandidateApplications();
+    const targetId = user?.uid || user?.email;
+    const existingApps = await ApplicationsService.getCandidateApplications(targetId);
     setAppliedJobIds(existingApps.map(a => a.jobId));
+
+    const emailCount = await EmailService.getUnreadCount(user?.email || 'victor@hirebloom.com');
+    setUnreadEmailCount(emailCount);
   };
 
   const toggleBookmark = (id: string) => {
@@ -87,15 +111,22 @@ export default function CandidateJobs() {
         "Application Status",
         `You previously submitted an application for ${job.title}.\n\nWhat would you like to do?`,
         [
-          { text: "View Current Status", onPress: () => router.push('/candidate/applications') },
           { 
-            text: "Apply Again (Test Fresh Apply)", 
+            text: "View Confirmation Email 📩", 
+            onPress: () => setEmailModalVisible(true) 
+          },
+          { 
+            text: "View Current Status", 
+            onPress: () => router.push('/candidate/applications') 
+          },
+          { 
+            text: "Apply Again (Fresh Test)", 
             onPress: () => {
               setActiveJobForModal(job);
               setApplicationNote('');
             }
           },
-          { text: "Cancel", style: "cancel" }
+          { text: "Close", style: "cancel" }
         ]
       );
       return;
@@ -151,8 +182,9 @@ export default function CandidateJobs() {
     const candidateName = currentUser?.name || 'Victor Taiwo';
     const candidateEmail = currentUser?.email || 'victor@hirebloom.com';
     const candidateId = currentUser?.uid || 'demo-candidate-1';
+    const targetJob = activeJobForModal;
 
-    const res = await ApplicationsService.applyForJob(activeJobForModal, {
+    const res = await ApplicationsService.applyForJob(targetJob, {
       id: candidateId,
       name: candidateName,
       email: candidateEmail,
@@ -162,10 +194,38 @@ export default function CandidateJobs() {
 
     setIsSubmitting(false);
     if (res.success) {
-      setAppliedJobIds(prev => [...prev, activeJobForModal.id]);
+      setAppliedJobIds(prev => [...prev, targetJob.id]);
       setActiveJobForModal(null);
       setShowSuccessToast(true);
-      setTimeout(() => setShowSuccessToast(false), 5000);
+      setTimeout(() => setShowSuccessToast(false), 6000);
+
+      // Refresh email count
+      const updatedCount = await EmailService.getUnreadCount(candidateEmail);
+      setUnreadEmailCount(updatedCount);
+
+      // Show immediate notification alert with direct access to Bloom Email Inbox!
+      Alert.alert(
+        "Application Submitted! 📩",
+        `Your application for ${targetJob.title} at ${targetJob.company} has been placed in the Hire Bloom Review Queue.\n\nAn official confirmation email has been dispatched to your Bloom Inbox (${candidateEmail}).`,
+        [
+          {
+            text: "Open Bloom Inbox 📬",
+            onPress: () => {
+              setEmailModalVisible(true);
+            },
+          },
+          {
+            text: "View Status in Portal",
+            onPress: () => {
+              router.push('/candidate/applications');
+            },
+          },
+          {
+            text: "OK",
+            style: "cancel",
+          }
+        ]
+      );
     } else {
       Alert.alert('Application Notice', res.error || 'Could not submit application.');
     }
@@ -192,29 +252,51 @@ export default function CandidateJobs() {
             <Text className="text-3xl font-extrabold text-slate-900">Find your next</Text>
             <Text className="text-3xl font-extrabold text-forest">dream job</Text>
           </View>
-          <View className="bg-mint/20 px-3 py-1 rounded-full border border-mint/40 flex-row items-center mt-1">
-            <Award size={12} color="#113c2c" style={{ marginRight: 4 }} />
-            <Text className="text-forest font-extrabold text-[10px] uppercase">Talent Network</Text>
+          <View className="flex-row items-center space-x-2 mt-1">
+            <TouchableOpacity
+              onPress={() => setEmailModalVisible(true)}
+              className="w-10 h-10 rounded-full bg-white border border-slate-200 items-center justify-center relative active:opacity-75 shadow-sm mr-1.5"
+            >
+              <Mail size={18} color="#113c2c" />
+              {unreadEmailCount > 0 && (
+                <View className="absolute -top-1 -right-1 bg-red-600 min-w-[18px] h-[18px] rounded-full px-1 items-center justify-center border border-white">
+                  <Text className="text-white text-[9px] font-extrabold">{unreadEmailCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View className="bg-mint/20 px-3 py-2 rounded-full border border-mint/40 flex-row items-center">
+              <Award size={12} color="#113c2c" style={{ marginRight: 4 }} />
+              <Text className="text-forest font-extrabold text-[10px] uppercase">Talent</Text>
+            </View>
           </View>
         </View>
 
-        {/* Success Alert Banner with direct link to Talent Portal Status */}
+        {/* Success Alert Banner with direct link to Confirmation Email & Portal */}
         {showSuccessToast && (
-          <TouchableOpacity 
-            onPress={() => router.push('/candidate/applications')}
-            className="w-full bg-emerald-600 p-4 rounded-2xl flex-row items-center justify-between mb-4 shadow-md shadow-emerald-600/30"
-          >
+          <View className="w-full bg-emerald-600 p-4 rounded-2xl flex-row items-center justify-between mb-4 shadow-md shadow-emerald-600/30">
             <View className="flex-row items-center flex-1 pr-2">
               <CheckCircle2 color="white" size={20} style={{ marginRight: 8 }} />
               <View>
-                <Text className="text-white font-bold text-xs">Application Submitted to Hiring Team!</Text>
-                <Text className="text-emerald-100 text-[10px]">Tap to view your Talent Portal status</Text>
+                <Text className="text-white font-bold text-xs">Application Submitted to Review Desk!</Text>
+                <Text className="text-emerald-100 text-[10px]">Official confirmation email dispatched to inbox</Text>
               </View>
             </View>
-            <View className="bg-white/20 px-2.5 py-1 rounded-lg">
-              <Text className="text-white font-bold text-[10px]">View Status</Text>
+            <View className="flex-row items-center">
+              <TouchableOpacity 
+                onPress={() => setEmailModalVisible(true)}
+                className="bg-white px-2.5 py-1.5 rounded-lg mr-1.5"
+              >
+                <Text className="text-emerald-900 font-bold text-[10px]">Open Email</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => router.push('/candidate/applications')}
+                className="bg-white/20 px-2 py-1.5 rounded-lg"
+              >
+                <Text className="text-white font-bold text-[10px]">Status</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          </View>
         )}
 
         {/* Search */}
@@ -464,6 +546,16 @@ export default function CandidateJobs() {
           )}
         </View>
       </Modal>
+
+      {/* Embedded Mobile Email Inbox Modal */}
+      <EmailInboxModal
+        visible={emailModalVisible}
+        onClose={() => {
+          setEmailModalVisible(false);
+          loadData();
+        }}
+        userEmail={currentUser?.email}
+      />
     </SafeAreaView>
   );
 }

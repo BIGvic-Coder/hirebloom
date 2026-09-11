@@ -286,19 +286,33 @@ export const ApplicationsService = {
   // 1. Fetch all jobs
   async getJobs(): Promise<JobItem[]> {
     try {
+      let jobs: JobItem[] = [];
+      const local = await AsyncStorage.getItem(JOBS_STORAGE_KEY);
+      if (local) {
+        jobs = JSON.parse(local);
+      }
+
       if (!IS_MOCK_FIREBASE && db) {
-        const snap = await getDocs(collection(db, 'jobs'));
-        if (!snap.empty) {
-          return snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobItem));
+        try {
+          const snap = await getDocs(collection(db, 'jobs'));
+          if (!snap.empty) {
+            const cloudJobs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobItem));
+            for (const cj of cloudJobs) {
+              if (!jobs.find((j) => j.id === cj.id)) {
+                jobs.push(cj);
+              }
+            }
+          }
+        } catch {
+          // Handled silently
         }
       }
       
-      const local = await AsyncStorage.getItem(JOBS_STORAGE_KEY);
-      if (local) {
-        return JSON.parse(local);
+      if (jobs.length === 0) {
+        jobs = DEFAULT_JOBS;
+        await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(jobs));
       }
-      await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(DEFAULT_JOBS));
-      return DEFAULT_JOBS;
+      return jobs;
     } catch {
       return DEFAULT_JOBS;
     }
@@ -350,9 +364,24 @@ export const ApplicationsService = {
     }
   ): Promise<{ success: boolean; application?: JobApplication; error?: string }> {
     try {
-      const existingApps = await this.getCandidateApplications(candidate.id);
-      // In demo/test mode: replace previous application for this role so user can test applying anytime
-      const otherApps = existingApps.filter((a) => a.jobId !== job.id);
+      // 1. Read all existing applications across all candidates
+      let allApps: JobApplication[] = [];
+      const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
+      if (local) {
+        allApps = JSON.parse(local);
+      } else {
+        allApps = DEFAULT_APPLICATIONS;
+      }
+
+      // Replace previous application from this candidate for this role so they can re-apply anytime
+      const otherApps = allApps.filter(
+        (a) =>
+          !(
+            a.jobId === job.id &&
+            (a.candidateId === candidate.id ||
+              a.candidateEmail.toLowerCase() === candidate.email.toLowerCase())
+          )
+      );
 
       const appId = `app-${Date.now()}`;
       // In HireBloom, new applications start at Step 1: Intro / Pending Review
@@ -361,7 +390,7 @@ export const ApplicationsService = {
       const initials = this.getInitials(candidate.name, candidate.email);
 
       const resumeInfo = candidate.resume || await this.getSavedCandidateResume() || {
-        name: 'victor_resume_2026.pdf',
+        name: `${candidate.name.toLowerCase().replace(/\s+/g, '_')}_resume_2026.pdf`,
         size: '1.4 MB',
       };
 
@@ -386,6 +415,11 @@ export const ApplicationsService = {
         resumeUploadedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       };
 
+      // 2. Save authoritative local storage first
+      const updatedApps = [newApp, ...otherApps];
+      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updatedApps));
+
+      // 3. Sync to Firestore if permitted
       if (!IS_MOCK_FIREBASE && db) {
         try {
           await setDoc(doc(db, 'applications', appId), sanitizeForFirestore(newApp));
@@ -393,9 +427,6 @@ export const ApplicationsService = {
           console.warn('Firestore setDoc application warning:', firestoreErr);
         }
       }
-
-      const updatedApps = [newApp, ...otherApps];
-      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updatedApps));
 
       // 1. Immediately send Official "Application Submitted" Email to candidate (matching Screenshot 1)
       await EmailService.sendApplicationSubmittedEmail(
@@ -435,26 +466,54 @@ export const ApplicationsService = {
   // 4. Fetch candidate's applications
   async getCandidateApplications(candidateId?: string): Promise<JobApplication[]> {
     try {
-      if (!IS_MOCK_FIREBASE && db && candidateId) {
-        const q = query(collection(db, 'applications'), where('candidateId', '==', candidateId));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          return snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
+      let targetId = candidateId;
+      if (!targetId) {
+        const user = await this.getCurrentUser();
+        if (user) {
+          targetId = user.uid || user.email;
         }
       }
 
+      let apps: JobApplication[] = [];
       const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
       if (local) {
-        const parsed: JobApplication[] = JSON.parse(local);
-        if (candidateId) {
-          const userApps = parsed.filter((a) => a.candidateId === candidateId || a.candidateId === 'demo-candidate-1');
-          return userApps.length > 0 ? userApps : parsed;
-        }
-        return parsed;
+        apps = JSON.parse(local);
+      } else {
+        apps = DEFAULT_APPLICATIONS;
+        await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(apps));
       }
 
-      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(DEFAULT_APPLICATIONS));
-      return DEFAULT_APPLICATIONS;
+      if (!IS_MOCK_FIREBASE && db && targetId) {
+        try {
+          const q = query(collection(db, 'applications'), where('candidateId', '==', targetId));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const cloudDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
+            for (const item of cloudDocs) {
+              const idx = apps.findIndex((a) => a.id === item.id);
+              if (idx >= 0) {
+                apps[idx] = item;
+              } else {
+                apps.push(item);
+              }
+            }
+          }
+        } catch {
+          // Handled silently
+        }
+      }
+
+      if (targetId) {
+        const cleanTarget = targetId.trim().toLowerCase();
+        const userApps = apps.filter(
+          (a) =>
+            a.candidateId.toLowerCase() === cleanTarget ||
+            a.candidateEmail.toLowerCase() === cleanTarget ||
+            (cleanTarget.includes('victor') && a.candidateId === 'demo-candidate-1')
+        );
+        return userApps;
+      }
+      return apps;
     } catch {
       return DEFAULT_APPLICATIONS;
     }
@@ -463,20 +522,35 @@ export const ApplicationsService = {
   // 5. Fetch all applications (for Employer & Recruiter backend)
   async getAllApplications(): Promise<JobApplication[]> {
     try {
+      let apps: JobApplication[] = [];
+      const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
+      if (local) {
+        apps = JSON.parse(local);
+      } else {
+        apps = DEFAULT_APPLICATIONS;
+        await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(apps));
+      }
+
       if (!IS_MOCK_FIREBASE && db) {
-        const snap = await getDocs(collection(db, 'applications'));
-        if (!snap.empty) {
-          return snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
+        try {
+          const snap = await getDocs(collection(db, 'applications'));
+          if (!snap.empty) {
+            const cloudApps = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
+            for (const ca of cloudApps) {
+              const idx = apps.findIndex((a) => a.id === ca.id);
+              if (idx >= 0) {
+                apps[idx] = ca;
+              } else {
+                apps.push(ca);
+              }
+            }
+          }
+        } catch {
+          // Handled silently
         }
       }
 
-      const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
-      if (local) {
-        return JSON.parse(local);
-      }
-
-      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(DEFAULT_APPLICATIONS));
-      return DEFAULT_APPLICATIONS;
+      return apps;
     } catch {
       return DEFAULT_APPLICATIONS;
     }
