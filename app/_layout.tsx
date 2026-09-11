@@ -10,6 +10,7 @@ LogBox.ignoreLogs([
   'Missing or insufficient permissions',
   'Error fetching',
   '[Reanimated]',
+  'Encountered two children with the same key',
 ]);
 
 // Disable Reanimated strict mode development render warnings
