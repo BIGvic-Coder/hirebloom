@@ -168,27 +168,8 @@ const DEFAULT_JOBS: JobItem[] = [
   },
 ];
 
-// Initial seed applications matching the user's HireBloom Talent Portal status screenshot!
+// Initial seed applications for testing (job-1 "Senior Customer Support Lead" is kept UNAPPLIED so you can test applying to it fresh!)
 const DEFAULT_APPLICATIONS: JobApplication[] = [
-  {
-    id: 'app-hirebloom-1',
-    jobId: 'job-1',
-    jobTitle: 'Senior Customer Support Lead',
-    company: 'InnovateX',
-    candidateId: 'demo-candidate-1',
-    candidateName: 'Victor Taiwo',
-    candidateEmail: 'victor@hirebloom.com',
-    candidateInitials: 'VT',
-    status: 'Pending Final Review',
-    statusColor: '#0f172a',
-    statusBg: '#f1f5f9',
-    appliedDate: 'Sep 08, 2026',
-    step: 'Hiring Team Final Review',
-    notes: 'Initial screening and video pitch passed. Experience aligned with current US tech customer success opening.',
-    resumeName: 'victor_resume_2026.pdf',
-    resumeSize: '1.4 MB',
-    resumeUploadedAt: 'Sep 08, 2026',
-  },
   {
     id: 'app-2',
     jobId: 'job-2',
@@ -370,10 +351,8 @@ export const ApplicationsService = {
   ): Promise<{ success: boolean; application?: JobApplication; error?: string }> {
     try {
       const existingApps = await this.getCandidateApplications(candidate.id);
-      const alreadyApplied = existingApps.some((a) => a.jobId === job.id);
-      if (alreadyApplied) {
-        return { success: false, error: 'You have already submitted an application for this position.' };
-      }
+      // In demo/test mode: replace previous application for this role so user can test applying anytime
+      const otherApps = existingApps.filter((a) => a.jobId !== job.id);
 
       const appId = `app-${Date.now()}`;
       // In HireBloom, new applications start at Step 1: Intro / Pending Review
@@ -411,7 +390,7 @@ export const ApplicationsService = {
         await setDoc(doc(db, 'applications', appId), newApp);
       }
 
-      const updatedApps = [newApp, ...existingApps];
+      const updatedApps = [newApp, ...otherApps];
       await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updatedApps));
 
       // 1. Immediately send Official "Application Submitted" Email to candidate (matching Screenshot 1)
@@ -688,6 +667,11 @@ export const ApplicationsService = {
       notes: feedbackReason,
       reviewerName,
     });
+  },
+
+  async resetTestApplications(): Promise<void> {
+    await AsyncStorage.removeItem(APPS_STORAGE_KEY);
+    await AsyncStorage.removeItem('@hirebloom_emails_cache');
   },
 
   // 7. Resume Storage & Management

@@ -61,9 +61,43 @@ export default function CandidateJobs() {
     setBookmarkedIds(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const handleResetTestApplications = async () => {
+    Alert.alert(
+      "Reset Applications for Testing",
+      "This will clear all application caches so all positions (including Senior Customer Support Lead) become clean and unapplied. Ready to test fresh?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset Clean",
+          style: "destructive",
+          onPress: async () => {
+            await ApplicationsService.resetTestApplications();
+            setAppliedJobIds([]);
+            await loadData();
+            Alert.alert("Reset Completed", "All job positions are now fresh and ready for new test applications!");
+          }
+        }
+      ]
+    );
+  };
+
   const handleOpenApplyModal = (job: JobItem) => {
     if (appliedJobIds.includes(job.id)) {
-      router.push('/candidate/applications');
+      Alert.alert(
+        "Application Status",
+        `You previously submitted an application for ${job.title}.\n\nWhat would you like to do?`,
+        [
+          { text: "View Current Status", onPress: () => router.push('/candidate/applications') },
+          { 
+            text: "Apply Again (Test Fresh Apply)", 
+            onPress: () => {
+              setActiveJobForModal(job);
+              setApplicationNote('');
+            }
+          },
+          { text: "Cancel", style: "cancel" }
+        ]
+      );
       return;
     }
     setActiveJobForModal(job);
@@ -225,9 +259,17 @@ export default function CandidateJobs() {
           <Text className="text-base font-extrabold text-slate-900">
             Open Positions ({filteredJobs.length})
           </Text>
-          <TouchableOpacity onPress={() => router.push('/candidate/applications')}>
-            <Text className="text-forest font-bold text-xs">Talent Portal Status</Text>
-          </TouchableOpacity>
+          <View className="flex-row items-center space-x-2">
+            <TouchableOpacity
+              onPress={handleResetTestApplications}
+              className="bg-emerald-50 border border-emerald-300 px-2.5 py-1 rounded-lg mr-2 active:opacity-75"
+            >
+              <Text className="text-emerald-900 font-bold text-[11px]">🔄 Reset Test</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/candidate/applications')}>
+              <Text className="text-forest font-bold text-xs">Talent Portal Status</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
