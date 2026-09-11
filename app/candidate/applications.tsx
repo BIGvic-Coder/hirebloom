@@ -12,52 +12,28 @@ import {
   Check, 
   Download,
   Eye,
-  Video
+  Video,
+  ArrowRight,
+  ClipboardList,
+  Mail,
+  MessageSquare
 } from 'lucide-react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import { useRouter } from 'expo-router';
+import HireBloomHeader from '@/components/ui/HireBloomHeader';
+import WorkflowStepper from '@/components/ui/WorkflowStepper';
+import EmailInboxModal from '@/components/ui/EmailInboxModal';
+import { WorkflowService, PublicStageInfo } from '@/services/workflowService';
 import { ApplicationsService, JobApplication, ApplicationStatus } from '@/services/applicationsService';
-
-// Official HireBloom Logo mark
-const HireBloomLogo = () => (
-  <View className="flex-row items-center">
-    <View className="w-8 h-8 justify-center items-center mr-2">
-      <Svg width="28" height="28" viewBox="0 0 50 50">
-        <Path
-          d="M 15 42 C 6 38, 2 28, 2 16 C 2 6, 15 2, 34 2 C 39 2, 42 5, 42 10 C 42 22, 32 40, 15 42 Z"
-          fill="none"
-          stroke="#059669"
-          strokeWidth="4.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <Path
-          d="M 12 40 L 4 46"
-          stroke="#059669"
-          strokeWidth="4.5"
-          strokeLinecap="round"
-        />
-        <Path d="M 16 34 L 16 26" stroke="#059669" strokeWidth="3.5" strokeLinecap="round" />
-        <Circle cx="16" cy="20" r="3.5" fill="#059669" />
-        
-        <Path d="M 25 34 L 25 20" stroke="#059669" strokeWidth="3.5" strokeLinecap="round" />
-        <Circle cx="25" cy="14" r="3.5" fill="#059669" />
-
-        <Path d="M 34 34 L 34 24" stroke="#059669" strokeWidth="3.5" strokeLinecap="round" />
-        <Circle cx="34" cy="18" r="3.5" fill="#059669" />
-      </Svg>
-    </View>
-    <Text className="text-xl font-bold text-slate-900 tracking-tight">
-      hire bloom
-    </Text>
-  </View>
-);
+import { EmailService } from '@/services/emailService';
 
 export default function CandidateApplications() {
+  const router = useRouter() as any;
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [selectedApp, setSelectedApp] = useState<JobApplication | null>(null);
   const [activeAppIndex, setActiveAppIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [resumeModalVisible, setResumeModalVisible] = useState(false);
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
 
   const loadApplications = async () => {
     const apps = await ApplicationsService.getCandidateApplications();
@@ -79,42 +55,12 @@ export default function CandidateApplications() {
 
   const currentApp = applications[activeAppIndex] || selectedApp || applications[0];
   const userInitials = currentApp?.candidateInitials || 'VT';
-
-  // Determine stage progress number (1-5)
-  const getProgressStageNumber = (status?: ApplicationStatus): number => {
-    switch (status) {
-      case 'Pending Review':
-        return 1;
-      case 'Screening':
-        return 2;
-      case 'Pending Final Review':
-        return 3;
-      case 'Interview Scheduled':
-        return 4;
-      case 'Offer Received':
-        return 5;
-      case 'Not Selected':
-        return 3; // Closed
-      default:
-        return 3;
-    }
-  };
-
-  const currentStage = getProgressStageNumber(currentApp?.status);
+  const stageInfo = WorkflowService.getPublicStageInfo(currentApp?.status);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      {/* Top Header Bar matching web portal: Logo on left, Avatar VT on right */}
-      <View className="px-6 py-4 border-b border-zinc-100 flex-row justify-between items-center bg-white">
-        <HireBloomLogo />
-        
-        {/* Candidate Avatar Circle matching VT from screenshot */}
-        <View className="w-10 h-10 rounded-full bg-slate-950 items-center justify-center shadow-sm">
-          <Text className="text-white font-bold text-sm tracking-wide">
-            {userInitials}
-          </Text>
-        </View>
-      </View>
+      {/* Unified Professional Header */}
+      <HireBloomHeader portalTitle="hirebloom" portalBadge="Talent Portal" userInitials={userInitials} />
 
       <ScrollView 
         showsVerticalScrollIndicator={false}
@@ -133,12 +79,13 @@ export default function CandidateApplications() {
               <Text className="text-slate-900 font-bold text-sm">Application status</Text>
             </View>
 
-            {/* Application Count indicator */}
-            {applications.length > 1 && (
-              <Text className="text-xs text-zinc-400">
-                {activeAppIndex + 1} of {applications.length} applications
-              </Text>
-            )}
+            <TouchableOpacity
+              onPress={() => setEmailModalVisible(true)}
+              className="flex-row items-center bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg active:opacity-75"
+            >
+              <Mail size={13} color="#065f46" style={{ marginRight: 5 }} />
+              <Text className="text-emerald-900 font-bold text-xs">Email Inbox</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -179,20 +126,71 @@ export default function CandidateApplications() {
         {currentApp ? (
           <View className="px-6 pt-4">
             
-            {/* STATUS Subtitle & Large Title */}
+            {/* STATUS Subtitle, Badge & Large Title */}
             <View className="mb-6">
-              <Text className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
-                STATUS
-              </Text>
+              <View className="flex-row justify-between items-center mb-1.5">
+                <Text className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                  APPLICATION STATUS
+                </Text>
+                <View 
+                  style={{ backgroundColor: stageInfo.bg, borderColor: stageInfo.border }}
+                  className="px-2.5 py-0.5 rounded-full border"
+                >
+                  <Text style={{ color: stageInfo.color }} className="text-[10px] font-bold uppercase tracking-wider">
+                    {stageInfo.badgeLabel}
+                  </Text>
+                </View>
+              </View>
               
               <Text className="text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
                 {currentApp.status}
               </Text>
               
-              <Text className="text-sm font-semibold text-emerald-700 mt-1">
+              <Text className="text-sm font-semibold text-emerald-700 mt-1 mb-4">
                 {currentApp.jobTitle} • <Text className="text-zinc-500 font-normal">{currentApp.company}</Text>
               </Text>
+
+              {/* 4-Step Public Hiring Journey Stepper */}
+              <View className="bg-canvas border border-border rounded-2xl p-3">
+                <WorkflowStepper currentStep={stageInfo.stepNumber} isDeclined={stageInfo.stage === 'Declined'} />
+              </View>
             </View>
+
+            {/* Hiring Team Official Reviewer Feedback Card */}
+            {currentApp.feedbackReason ? (
+              <View className="bg-emerald-50/80 border border-emerald-300 rounded-3xl p-4 mb-6 shadow-sm">
+                <View className="flex-row justify-between items-center mb-1.5">
+                  <View className="flex-row items-center">
+                    <View className="w-7 h-7 rounded-xl bg-forest items-center justify-center mr-2">
+                      <MessageSquare size={13} color="#8ecfa9" />
+                    </View>
+                    <Text className="text-xs font-bold text-emerald-950 uppercase tracking-wider">
+                      Hiring Team Evaluation & Feedback
+                    </Text>
+                  </View>
+                  <View className="bg-emerald-200/80 px-2 py-0.5 rounded-full">
+                    <Text className="text-emerald-950 text-[9px] font-extrabold">Verified</Text>
+                  </View>
+                </View>
+
+                <Text className="text-slate-800 text-xs italic leading-relaxed mb-3">
+                  "{currentApp.feedbackReason}"
+                </Text>
+
+                <View className="pt-2 border-t border-emerald-200/60 flex-row justify-between items-center">
+                  <Text className="text-[10px] text-emerald-800 font-semibold">
+                    Review Desk • Hire Bloom Talent Operations
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setEmailModalVisible(true)}
+                    className="flex-row items-center bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-sm"
+                  >
+                    <Mail size={11} color="#065f46" style={{ marginRight: 4 }} />
+                    <Text className="text-[10px] text-emerald-900 font-bold">View Email</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
 
             {/* Status-specific Phrasing */}
             {currentApp.status === 'Pending Final Review' && (
@@ -259,10 +257,19 @@ export default function CandidateApplications() {
                     Target Start Date: {currentApp.offerDetails?.startDate || 'Within 2 weeks'}
                   </Text>
                   <TouchableOpacity 
-                    onPress={() => Alert.alert("Accept Offer", "Offer accepted! Our onboarding coordinator will reach out with contract paperwork.")}
-                    className="bg-emerald-700 py-2.5 px-4 rounded-xl items-center"
+                    onPress={() => {
+                      Alert.alert(
+                        "Offer Accepted",
+                        "Your placement offer has been confirmed! We are now launching your onboarding checklist.",
+                        [
+                          { text: "Open Onboarding Checklist", onPress: () => router.push('/candidate/onboarding') }
+                        ]
+                      );
+                    }}
+                    className="bg-emerald-700 py-3 px-4 rounded-xl items-center flex-row justify-center active:opacity-90"
                   >
-                    <Text className="text-white font-bold text-xs">Accept Offer & Onboard</Text>
+                    <ClipboardList size={15} color="white" style={{ marginRight: 6 }} />
+                    <Text className="text-white font-bold text-xs">Accept Offer & Start Onboarding</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -276,7 +283,7 @@ export default function CandidateApplications() {
               </View>
             )}
 
-            {currentApp.status === 'Pending Review' || currentApp.status === 'Screening' && (
+            {(currentApp.status === 'Pending Review' || currentApp.status === 'Screening') && (
               <View className="space-y-4 mb-8">
                 <Text className="text-base text-slate-700 leading-relaxed font-normal">
                   Your application has been received and is currently undergoing initial candidate assessment.
@@ -287,95 +294,76 @@ export default function CandidateApplications() {
               </View>
             )}
 
-            {/* Visual Stage Progress Tracker */}
+            {/* Visual Stage Progress Tracker (Intro -> Match -> Interview -> Onboard) */}
             <View className="bg-zinc-50 border border-zinc-200 rounded-3xl p-5 mb-6">
               <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">
-                Application Timeline
+                4-Stage Hiring Journey
               </Text>
 
-              {/* Step 1 */}
+              {/* Step 1: Intro */}
               <View className="flex-row items-start mb-4">
                 <View className="w-7 h-7 rounded-full bg-emerald-100 border border-emerald-500 items-center justify-center mr-3 mt-0.5">
                   <Check size={14} color="#059669" strokeWidth={3} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-bold text-slate-900">Application Submitted</Text>
-                  <Text className="text-xs text-zinc-500">Submitted on {currentApp.appliedDate}</Text>
+                  <Text className="text-sm font-bold text-slate-900">Step 1: Intro & Screening</Text>
+                  <Text className="text-xs text-zinc-500">Credentials & preliminary English assessment passed ({currentApp.appliedDate})</Text>
                 </View>
               </View>
 
-              {/* Step 2 */}
+              {/* Step 2: Match */}
               <View className="flex-row items-start mb-4">
                 <View className={`w-7 h-7 rounded-full items-center justify-center mr-3 mt-0.5 ${
-                  currentStage >= 2 ? 'bg-emerald-100 border border-emerald-500' : 'bg-zinc-200 border border-zinc-300'
+                  stageInfo.stepNumber >= 2 ? 'bg-emerald-100 border border-emerald-500' : 'bg-zinc-200 border border-zinc-300'
                 }`}>
-                  {currentStage >= 2 ? (
+                  {stageInfo.stepNumber >= 2 ? (
                     <Check size={14} color="#059669" strokeWidth={3} />
                   ) : (
                     <Clock size={14} color="#94a3b8" />
                   )}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-bold text-slate-900">Initial Screening</Text>
+                  <Text className="text-sm font-bold text-slate-900">Step 2: Candidate Match</Text>
                   <Text className="text-xs text-zinc-500">
-                    {currentStage >= 2 ? 'Preliminary skills, English & workstation verified' : 'In queue for evaluation'}
+                    {stageInfo.stepNumber >= 2 ? 'Shortlisted with client partner hiring team' : 'Matching in progress'}
                   </Text>
                 </View>
               </View>
 
-              {/* Step 3 */}
+              {/* Step 3: Interview */}
               <View className="flex-row items-start mb-4">
                 <View className={`w-7 h-7 rounded-full items-center justify-center mr-3 mt-0.5 ${
-                  currentStage >= 3 ? 'bg-slate-900 border border-slate-900' : 'bg-zinc-200 border border-zinc-300'
+                  stageInfo.stepNumber >= 3 ? 'bg-purple-100 border border-purple-600' : 'bg-zinc-200 border border-zinc-300'
                 }`}>
-                  {currentStage >= 3 ? (
-                    <Check size={14} color="white" strokeWidth={3} />
-                  ) : (
-                    <Clock size={14} color="#94a3b8" />
-                  )}
-                </View>
-                <View className="flex-1">
-                  <Text className={`text-sm font-bold ${currentApp.status === 'Pending Final Review' ? 'text-forest' : 'text-slate-900'}`}>
-                    Pending Final Review
-                  </Text>
-                  <Text className="text-xs text-zinc-500">Hiring team evaluation for opening match</Text>
-                </View>
-              </View>
-
-              {/* Step 4 */}
-              <View className="flex-row items-start mb-4">
-                <View className={`w-7 h-7 rounded-full items-center justify-center mr-3 mt-0.5 ${
-                  currentStage >= 4 ? 'bg-purple-100 border border-purple-600' : 'bg-zinc-200 border border-zinc-300'
-                }`}>
-                  {currentStage >= 4 ? (
+                  {stageInfo.stepNumber >= 3 ? (
                     <Check size={14} color="#7c3aed" strokeWidth={3} />
                   ) : (
                     <Clock size={14} color="#94a3b8" />
                   )}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-bold text-slate-900">Interview & Assessment</Text>
+                  <Text className="text-sm font-bold text-slate-900">Step 3: Client Panel Interview</Text>
                   <Text className="text-xs text-zinc-500">
-                    {currentStage >= 4 ? 'Live interview scheduled / completed' : 'Scheduled if advanced from final review'}
+                    {stageInfo.stepNumber >= 3 ? 'Live interview with hiring team completed or scheduled' : 'Awaiting finalist interview invitation'}
                   </Text>
                 </View>
               </View>
 
-              {/* Step 5 */}
+              {/* Step 4: Onboard */}
               <View className="flex-row items-start">
                 <View className={`w-7 h-7 rounded-full items-center justify-center mr-3 mt-0.5 ${
-                  currentStage >= 5 ? 'bg-emerald-600 border border-emerald-600' : 'bg-zinc-200 border border-zinc-300'
+                  stageInfo.stepNumber >= 4 ? 'bg-emerald-600 border border-emerald-600' : 'bg-zinc-200 border border-zinc-300'
                 }`}>
-                  {currentStage >= 5 ? (
+                  {stageInfo.stepNumber >= 4 ? (
                     <Check size={14} color="white" strokeWidth={3} />
                   ) : (
                     <Clock size={14} color="#94a3b8" />
                   )}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-bold text-slate-900">Final Decision & Offer</Text>
+                  <Text className="text-sm font-bold text-slate-900">Step 4: Onboard & Placement</Text>
                   <Text className="text-xs text-zinc-500">
-                    {currentStage >= 5 ? 'Offer extended to candidate' : 'Placement notification'}
+                    {stageInfo.stepNumber >= 4 ? 'Offer accepted — contracts, equipment, and channel onboarding active' : 'Final placement & welcome kickoff'}
                   </Text>
                 </View>
               </View>
@@ -489,6 +477,16 @@ export default function CandidateApplications() {
           </View>
         </View>
       </Modal>
+
+      {/* Official Email Inbox Modal */}
+      <EmailInboxModal
+        visible={emailModalVisible}
+        onClose={() => {
+          setEmailModalVisible(false);
+          loadApplications();
+        }}
+        userEmail={currentApp?.candidateEmail || 'victor@hirebloom.com'}
+      />
     </SafeAreaView>
   );
 }

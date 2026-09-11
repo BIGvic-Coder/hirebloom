@@ -1,104 +1,189 @@
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
-import { Briefcase, Users, UserPlus, TrendingUp, ChevronRight, Sparkles } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, RefreshControl } from 'react-native';
+import { Briefcase, Users, TrendingUp, ChevronRight, Sparkles, ShieldCheck, DollarSign, Calendar } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import HireBloomHeader from '@/components/ui/HireBloomHeader';
+import { ApplicationsService, JobApplication } from '@/services/applicationsService';
+import { JobsService } from '@/services/jobsService';
 
 export default function EmployerDashboard() {
   const router = useRouter();
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      const apps = await ApplicationsService.getAllApplications();
+      setApplications(apps);
+    } catch (e) {
+      console.warn('Error loading employer dashboard data:', e);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData();
+    setRefreshing(false);
+  };
+
+  const pendingReviewCount = applications.filter((a) => a.status === 'Pending Review' || a.status === 'Pending Final Review').length;
+  const scheduledCount = applications.filter((a) => a.status === 'Interview Scheduled').length;
+  const offerCount = applications.filter((a) => a.status === 'Offer Received').length;
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
-      <ScrollView className="flex-1 px-5 pt-8" showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View className="flex-row justify-between items-center mb-8">
+    <SafeAreaView className="flex-1 bg-canvas">
+      {/* Unified Professional Header */}
+      <HireBloomHeader portalTitle="hirebloom" portalBadge="Employer Portal" userInitials="TN" />
+
+      <ScrollView 
+        className="flex-1 px-5 pt-6" 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={{ paddingBottom: 110 }}
+      >
+        {/* Company Title */}
+        <View className="flex-row justify-between items-center mb-6">
           <View>
-            <Text className="text-slate-500 font-medium text-sm mb-1">Welcome back,</Text>
-            <Text className="text-2xl font-bold text-slate-900">TechNova Inc.</Text>
+            <Text className="text-inkMuted font-medium text-xs mb-0.5">Employer Workspace</Text>
+            <Text className="text-2xl font-bold text-ink font-serif">TechNova Inc.</Text>
           </View>
-          <View className="w-12 h-12 bg-mintLight rounded-full items-center justify-center border-2 border-forest/10">
-            <Text className="text-forest font-bold text-lg">T</Text>
+          <View className="bg-mintLight/60 border border-mint/40 px-3 py-1 rounded-full">
+            <Text className="text-forest font-bold text-xs">Verified Partner</Text>
           </View>
         </View>
 
         {/* Action Buttons */}
-        <View className="flex-row gap-3 mb-8">
+        <View className="flex-row gap-3 mb-6">
           <TouchableOpacity 
             onPress={() => router.push('/employer/jobs')}
-            className="flex-1 bg-forest py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-forest/30 active:opacity-90"
+            className="flex-1 bg-forest py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
           >
-            <Briefcase color="white" size={18} style={{ marginRight: 6 }} />
-            <Text className="text-white font-bold">Post Job</Text>
+            <Briefcase color="white" size={16} style={{ marginRight: 6 }} />
+            <Text className="text-white font-bold text-xs">Post Requisition</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            onPress={() => router.push('/employer/ai-matching')}
-            className="flex-1 bg-mint py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-mint/30 active:opacity-90"
+            onPress={() => router.push('/employer/candidates')}
+            className="flex-1 bg-white border border-border py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
           >
-            <Sparkles color="#113c2c" size={18} style={{ marginRight: 6 }} />
-            <Text className="text-forest font-bold">AI Match</Text>
+            <Users color="#113C2C" size={16} style={{ marginRight: 6 }} />
+            <Text className="text-forest font-bold text-xs">View Pipeline</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Stats Grid */}
-        <Text className="text-lg font-bold text-slate-900 mb-4">Overview</Text>
-        <View className="flex-row flex-wrap gap-4 mb-8">
-          <TouchableOpacity 
-            onPress={() => router.push('/employer/jobs')}
-            className="w-[47%] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm active:opacity-85"
-          >
-            <View className="w-10 h-10 bg-mint/20 rounded-xl items-center justify-center mb-3">
-              <Briefcase color="#113c2c" size={20} />
+        {/* Verified Business Standard Metric Card (70% retention, $13/hr standard) */}
+        <View className="w-full bg-forest p-5 rounded-3xl mb-6 shadow-md">
+          <View className="flex-row justify-between items-center mb-2">
+            <Text className="text-mintLight font-bold text-xs uppercase tracking-wider">
+              Verified Hiring Standard
+            </Text>
+            <View className="bg-mint px-2 py-0.5 rounded-full">
+              <Text className="text-forest font-extrabold text-[9px]">OFFICIAL MODEL</Text>
             </View>
-            <Text className="text-3xl font-bold text-slate-900 mb-1">12</Text>
-            <Text className="text-slate-500 font-medium text-sm">Active Jobs</Text>
-          </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity 
-            onPress={() => router.push('/employer/candidates')}
-            className="w-[47%] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm active:opacity-85"
-          >
-            <View className="w-10 h-10 bg-emerald-50 rounded-xl items-center justify-center mb-3">
-              <Users color="#10b981" size={20} />
-            </View>
-            <Text className="text-3xl font-bold text-slate-900 mb-1">84</Text>
-            <Text className="text-slate-500 font-medium text-sm">Total Candidates</Text>
-          </TouchableOpacity>
+          <View className="flex-row items-baseline mb-3">
+            <Text className="text-4xl font-extrabold text-white mr-1 font-serif">70%</Text>
+            <Text className="text-mint font-bold text-sm">First-Year Retention</Text>
+          </View>
 
-          <View className="w-full bg-gradient-to-r from-forestDark to-forest p-6 rounded-2xl shadow-lg shadow-forest/20">
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-mintLight font-medium">Hiring Success Rate</Text>
-              <TrendingUp color="#8ecfa9" size={20} />
+          <View className="flex-row items-center justify-between pt-3 border-t border-white/10">
+            <View>
+              <Text className="text-[10px] text-zinc-300 font-bold uppercase">Starting Rate</Text>
+              <Text className="text-sm font-extrabold text-white">$13.00 / hour</Text>
             </View>
-            <View className="flex-row items-baseline">
-              <Text className="text-4xl font-bold text-white mr-2">92</Text>
-              <Text className="text-mint font-bold">%</Text>
+            <View>
+              <Text className="text-[10px] text-zinc-300 font-bold uppercase">Pre-Vetted Pool</Text>
+              <Text className="text-sm font-extrabold text-white">1,000+ Candidates</Text>
+            </View>
+            <View>
+              <Text className="text-[10px] text-zinc-300 font-bold uppercase">Screening Pass</Text>
+              <Text className="text-sm font-extrabold text-mint">~9% Approved</Text>
             </View>
           </View>
         </View>
 
-        {/* Recent Activity */}
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-lg font-bold text-slate-900">Recent Candidates</Text>
-          <TouchableOpacity onPress={() => router.push('/employer/candidates')}>
-            <Text className="text-forest font-bold text-sm">View All</Text>
+        {/* Hiring Pipeline Stats Grid */}
+        <Text className="text-sm font-bold text-ink mb-3">Pipeline Activity</Text>
+        <View className="flex-row flex-wrap gap-3 mb-6">
+          <TouchableOpacity 
+            onPress={() => router.push('/employer/jobs')}
+            className="w-[48%] bg-white p-4 rounded-2xl border border-border shadow-sm active:opacity-85"
+          >
+            <View className="w-8 h-8 bg-mintLight/40 rounded-xl items-center justify-center mb-2">
+              <Briefcase color="#113C2C" size={16} />
+            </View>
+            <Text className="text-2xl font-bold text-ink mb-0.5">4</Text>
+            <Text className="text-inkMuted font-medium text-xs">Open Requisitions</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => router.push('/employer/candidates')}
+            className="w-[48%] bg-white p-4 rounded-2xl border border-border shadow-sm active:opacity-85"
+          >
+            <View className="w-8 h-8 bg-amber-50 rounded-xl items-center justify-center mb-2">
+              <Users color="#D97706" size={16} />
+            </View>
+            <Text className="text-2xl font-bold text-ink mb-0.5">{pendingReviewCount || 18}</Text>
+            <Text className="text-inkMuted font-medium text-xs">Awaiting Review</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => router.push('/employer/candidates')}
+            className="w-[48%] bg-white p-4 rounded-2xl border border-border shadow-sm active:opacity-85"
+          >
+            <View className="w-8 h-8 bg-purple-50 rounded-xl items-center justify-center mb-2">
+              <Calendar color="#7C3AED" size={16} />
+            </View>
+            <Text className="text-2xl font-bold text-ink mb-0.5">{scheduledCount || 2}</Text>
+            <Text className="text-inkMuted font-medium text-xs">Interviews Scheduled</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => router.push('/employer/candidates')}
+            className="w-[48%] bg-white p-4 rounded-2xl border border-border shadow-sm active:opacity-85"
+          >
+            <View className="w-8 h-8 bg-emerald-50 rounded-xl items-center justify-center mb-2">
+              <TrendingUp color="#059669" size={16} />
+            </View>
+            <Text className="text-2xl font-bold text-ink mb-0.5">{offerCount || 1}</Text>
+            <Text className="text-inkMuted font-medium text-xs">Active Offers</Text>
           </TouchableOpacity>
         </View>
 
-        <View className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-12">
-          {['Sarah Jenkins', 'Michael Chen', 'Elena Rodriguez'].map((name, i) => (
+        {/* Recent Candidate Applicants */}
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-sm font-bold text-ink">Recent Candidates</Text>
+          <TouchableOpacity onPress={() => router.push('/employer/candidates')}>
+            <Text className="text-forest font-bold text-xs">View All Pipeline</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View className="bg-white rounded-2xl border border-border shadow-sm mb-10 overflow-hidden">
+          {applications.slice(0, 3).map((app, i) => (
             <TouchableOpacity 
-              key={i} 
+              key={app.id} 
               onPress={() => router.push('/employer/candidates')}
-              className={`flex-row items-center justify-between p-4 active:opacity-75 ${i !== 2 ? 'border-b border-slate-100' : ''}`}
+              className={`flex-row items-center justify-between p-4 active:opacity-75 ${i !== 2 ? 'border-b border-border' : ''}`}
             >
-              <View className="flex-row items-center">
-                <View className="w-12 h-12 bg-slate-100 rounded-full items-center justify-center mr-4">
-                  <Text className="text-slate-600 font-bold text-lg">{name.charAt(0)}</Text>
+              <View className="flex-row items-center flex-1 pr-2">
+                <View className="w-10 h-10 bg-canvas border border-border rounded-full items-center justify-center mr-3">
+                  <Text className="text-forest font-bold text-sm">{app.candidateInitials || 'VT'}</Text>
                 </View>
-                <View>
-                  <Text className="text-slate-900 font-bold mb-1">{name}</Text>
-                  <Text className="text-slate-500 text-xs">Applied for Senior Frontend Eng.</Text>
+                <View className="flex-1">
+                  <Text className="text-ink font-bold text-xs mb-0.5">{app.candidateName}</Text>
+                  <Text className="text-inkMuted text-[11px]">{app.jobTitle}</Text>
                 </View>
               </View>
-              <ChevronRight color="#cbd5e1" size={20} />
+              <View className="items-end">
+                <View className="bg-canvas border border-border px-2 py-0.5 rounded-full mb-1">
+                  <Text className="text-forest font-bold text-[9px]">{app.status}</Text>
+                </View>
+                <Text className="text-inkMuted text-[9px]">{app.appliedDate}</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>

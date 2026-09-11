@@ -1,10 +1,22 @@
-import React from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Linking } from 'react-native';
-import { Calendar, Video, Clock, User, ChevronRight, ExternalLink } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Linking, RefreshControl } from 'react-native';
+import { Calendar, Video, Clock, User, ExternalLink } from 'lucide-react-native';
+import { ApplicationsService } from '@/services/applicationsService';
 
-const mockInterviews = [
+interface InterviewCardItem {
+  id: string | number;
+  title: string;
+  company: string;
+  interviewer: string;
+  date: string;
+  time: string;
+  link: string;
+  type: string;
+}
+
+const DEFAULT_INTERVIEWS: InterviewCardItem[] = [
   {
-    id: 1,
+    id: 'int-1',
     title: 'Client Partner Interview',
     company: 'InnovateX',
     interviewer: 'David Vance (Director of Ops)',
@@ -14,7 +26,7 @@ const mockInterviews = [
     type: 'Final Round',
   },
   {
-    id: 2,
+    id: 'int-2',
     title: 'Mock Placement Sync',
     company: 'Hirebloom Portal',
     interviewer: 'Zanele Mthembu (Placement Manager)',
@@ -26,6 +38,52 @@ const mockInterviews = [
 ];
 
 export default function CandidateInterviews() {
+  const [interviews, setInterviews] = useState<InterviewCardItem[]>(DEFAULT_INTERVIEWS);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadInterviews();
+  }, []);
+
+  const loadInterviews = async () => {
+    try {
+      const apps = await ApplicationsService.getCandidateApplications();
+      const scheduledApps = apps.filter((a) => a.status === 'Interview Scheduled');
+
+      if (scheduledApps.length > 0) {
+        const liveInterviews: InterviewCardItem[] = scheduledApps.map((app) => ({
+          id: `app-int-${app.id}`,
+          title: app.jobTitle,
+          company: app.company,
+          interviewer: 'Hiring Panel & Team Lead',
+          date: app.interviewDetails?.date || 'Upcoming (This Week)',
+          time: app.interviewDetails?.time || '3:00 PM EST',
+          link: app.interviewDetails?.meetUrl || 'https://meet.google.com/hbm-intr-vct',
+          type: app.interviewDetails?.type || 'Live Panel Interview',
+        }));
+
+        // Merge without duplicate companies
+        const combined = [...liveInterviews];
+        DEFAULT_INTERVIEWS.forEach((def) => {
+          if (!combined.some((c) => c.company === def.company)) {
+            combined.push(def);
+          }
+        });
+        setInterviews(combined);
+      } else {
+        setInterviews(DEFAULT_INTERVIEWS);
+      }
+    } catch (e) {
+      console.warn('Error loading interviews:', e);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadInterviews();
+    setRefreshing(false);
+  };
+
   const handleJoinCall = (url: string) => {
     Linking.openURL(url).catch((err) => console.error("Couldn't open meeting link", err));
   };
@@ -34,10 +92,14 @@ export default function CandidateInterviews() {
     <SafeAreaView className="flex-1 bg-cream">
       <View className="flex-1 px-5 pt-8">
         <Text className="text-3xl font-extrabold text-forest mb-2">Interviews</Text>
-        <Text className="text-zinc-500 text-sm mb-8">Manage and join your upcoming video sync calls.</Text>
+        <Text className="text-zinc-500 text-sm mb-6">Manage and join your upcoming video sync calls.</Text>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-          {mockInterviews.map((item) => (
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          {interviews.map((item) => (
             <View
               key={item.id}
               className="bg-white rounded-3xl border border-zinc-200/60 shadow-sm p-5 mb-5"

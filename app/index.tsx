@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, LayoutAnimation, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, LayoutAnimation, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LogIn, UserPlus, Info } from 'lucide-react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -109,10 +110,17 @@ export default function Home() {
         <View className="flex-row items-center space-x-2">
           <TouchableOpacity 
             onPress={() => router.push('/login')}
-            className="flex-row items-center bg-white border border-zinc-300 px-3 py-1.5 rounded-full active:opacity-60"
+            className="flex-row items-center bg-white border border-zinc-300 px-3 py-1.5 rounded-full active:opacity-60 mr-1.5"
           >
             <LogIn size={12} color="#113c2c" style={{ marginRight: 4 }} />
             <Text className="text-[10px] text-forest font-bold">Sign In</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => router.push('/register')}
+            className="flex-row items-center bg-forest px-3.5 py-1.5 rounded-full shadow-sm active:opacity-85"
+          >
+            <UserPlus size={12} color="#8ecfa9" style={{ marginRight: 4 }} />
+            <Text className="text-[10px] text-white font-bold">Register</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -153,6 +161,43 @@ export default function Home() {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         <View id="overview" nativeID="overview" onLayout={(e) => handleSectionLayout('overview', e.nativeEvent.layout.y)} style={Platform.OS === 'web' ? { scrollMarginTop: 110 } as any : undefined}>
+          {/* Quick Registration / Onboarding Gateway Banner */}
+          <View className="bg-forestDark mx-4 mt-3 mb-2 p-4 rounded-2xl border border-mint/20 shadow-md">
+            <View className="flex-row items-center justify-between mb-2">
+              <View className="flex-row items-center">
+                <View className="w-2 h-2 rounded-full bg-mint mr-2" />
+                <Text className="text-mint font-bold text-[11px] uppercase tracking-wider">
+                  New to Hire Bloom?
+                </Text>
+              </View>
+              <Text className="text-zinc-400 text-[10px]">$13/hr Standard Rate</Text>
+            </View>
+
+            <Text className="text-white font-bold text-base mb-1">
+              Create your profile in 30 seconds
+            </Text>
+            <Text className="text-zinc-300 text-xs mb-3 leading-relaxed">
+              Register with your Name, Google, or Email to start matching with remote roles or hire pre-vetted support talent.
+            </Text>
+
+            <View className="flex-row items-center">
+              <TouchableOpacity
+                onPress={() => router.push('/register')}
+                className="flex-1 bg-mint py-2.5 rounded-xl flex-row items-center justify-center shadow-sm active:opacity-90 mr-2"
+              >
+                <UserPlus size={14} color="#113c2c" style={{ marginRight: 6 }} />
+                <Text className="text-forest font-extrabold text-xs">Register with Name or Google</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/login')}
+                className="bg-white/10 border border-white/20 px-3.5 py-2.5 rounded-xl flex-row items-center justify-center active:opacity-80"
+              >
+                <LogIn size={13} color="#ffffff" style={{ marginRight: 4 }} />
+                <Text className="text-white font-bold text-xs">Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <MemoizedHero />
           <MemoizedTrustBadges />
           <MemoizedFeatures />
@@ -186,16 +231,16 @@ export default function Home() {
       {/* Sticky Dual Action Bar Footer */}
       <View className="absolute bottom-0 left-0 right-0 bg-white/95 border-t border-zinc-200/80 px-5 py-4 flex-row space-x-3 shadow-lg z-30">
         <TouchableOpacity 
-          onPress={() => router.push('/register')}
-          className="flex-1 bg-white border border-forest py-3.5 rounded-xl justify-center items-center active:opacity-60"
+          onPress={() => router.push({ pathname: '/register', params: { role: 'candidate' } })}
+          className="flex-1 bg-white border border-forest py-3.5 rounded-xl justify-center items-center active:opacity-60 mr-2"
         >
-          <Text className="text-forest font-bold text-sm">Apply for a Job</Text>
+          <Text className="text-forest font-bold text-sm">Apply as Candidate</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          onPress={() => router.push('/employer')}
+          onPress={() => router.push({ pathname: '/register', params: { role: 'employer' } })}
           className="flex-1 bg-mint py-3.5 rounded-xl justify-center items-center shadow shadow-mint/20 active:opacity-90"
         >
-          <Text className="text-forest font-bold text-sm">Start Hiring</Text>
+          <Text className="text-forest font-bold text-sm">Register as Employer</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

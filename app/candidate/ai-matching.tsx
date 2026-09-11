@@ -44,11 +44,18 @@ export default function CandidateAIMatching() {
       createdAt: new Date().toISOString()
     };
 
+    const currentUser = await ApplicationsService.getCurrentUser();
+    const candidateName = currentUser?.name || 'Victor Taiwo';
+    const candidateEmail = currentUser?.email || 'victor@hirebloom.com';
+    const candidateId = currentUser?.uid || 'demo-candidate-1';
+    const savedResume = await ApplicationsService.getSavedCandidateResume();
+
     const res = await ApplicationsService.applyForJob(jobItem, {
-      id: 'demo-candidate-1',
-      name: 'Alex Morgan',
-      email: 'alex.morgan@hirebloom.com',
+      id: candidateId,
+      name: candidateName,
+      email: candidateEmail,
       note: 'Applied via Bloom AI Match recommendations.',
+      resume: savedResume || undefined,
     });
 
     if (res.success) {

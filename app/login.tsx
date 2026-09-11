@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, TextInput, TouchableOpacity, StatusBar, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StatusBar, Alert, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, ArrowRight, Check, KeyRound, RefreshCw, ShieldCheck, ChevronLeft } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
@@ -12,8 +13,9 @@ import { ApplicationsService } from '@/services/applicationsService';
 let GoogleSignin: any = null;
 try {
   GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
-} catch (e) {
-  console.warn('Google Sign-in native module not available in this build.');
+} catch {
+  // Silent fallback: Google Sign-in native module only present in standalone APK builds
+  GoogleSignin = null;
 }
 
 // Custom Official Google Multi-Colored Vector Logo
@@ -40,15 +42,23 @@ const GoogleLogo = () => (
 
 export default function Login() {
   const router = useRouter() as any;
+  const params = useLocalSearchParams<{ email?: string }>();
   const [authLoading, setAuthLoading] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'emailCode' | 'password'>('emailCode');
   const [otpStep, setOtpStep] = useState<'enterEmail' | 'enterCode'>('enterEmail');
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(params.email || '');
   const [otpCode, setOtpCode] = useState('');
   const [generatedCodeHint, setGeneratedCodeHint] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Sync params if passed
+  useEffect(() => {
+    if (params.email && !email) {
+      setEmail(params.email);
+    }
+  }, [params.email]);
 
   // Configure Google SDK client on mount
   useEffect(() => {
@@ -58,8 +68,8 @@ export default function Login() {
           webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com',
           offlineAccess: false,
         });
-      } catch (e) {
-        console.warn('Google Sign-in configuration failed:', e);
+      } catch {
+        // Silent fallback for restricted environments
       }
     }
   }, []);
@@ -85,13 +95,13 @@ export default function Login() {
               role: role,
               createdAt: new Date().toISOString()
             });
-          } catch (writeErr) {
-            console.warn('Firestore initial user write skipped:', writeErr);
+          } catch {
+            // Firestore write handled gracefully
           }
         }
       }
-    } catch (firestoreErr) {
-      console.warn('Firestore role lookup restricted; proceeding with default role:', firestoreErr);
+    } catch {
+      // Proceed with default role on Firestore restricted rules
     }
 
     try {
@@ -103,36 +113,68 @@ export default function Login() {
         role: role as any,
         initials: ApplicationsService.getInitials(displayName, user.email)
       });
-    } catch (sessionErr) {
-      console.warn('Could not save local user session:', sessionErr);
+      await ApplicationsService.registerNewUser({
+        uid: user.uid,
+        email: user.email || '',
+        name: displayName,
+        role: role as any,
+      });
+    } catch {
+      // Handled silently
     }
     
-    router.push(role === 'employer' ? '/employer' : role === 'recruiter' ? '/recruiter' : '/candidate');
+    router.replace(role === 'employer' ? '/employer' : role === 'recruiter' ? '/recruiter' : '/candidate');
   };
 
-  // 1. Send Email Verification Code (OTP) Flow
+  // 1. Send Email Verification Code (OTP) Flow (Old vs New User Detection)
   const handleSendEmailOtp = async () => {
     const cleanEmail = (email || '').trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      Alert.alert("Invalid Email", "Please enter a valid email address to receive your verification code.");
+      Alert.alert("Invalid Email", "Please enter a valid email address to continue.");
       return;
     }
 
     setAuthLoading(true);
     try {
+      // Check if user is an existing / old user
+      const check = await ApplicationsService.checkUserExists(cleanEmail);
+
+      if (!check.exists) {
+        // NEW USER DETECTED: Offer instant registration
+        setAuthLoading(false);
+        Alert.alert(
+          "New to Hire Bloom?",
+          `We couldn't find an existing account for "${cleanEmail}".\n\nWould you like to register as a new user?`,
+          [
+            { text: "Try Another Email", style: "cancel" },
+            {
+              text: "Register as New User",
+              onPress: () => {
+                router.push({
+                  pathname: '/register',
+                  params: { email: cleanEmail }
+                });
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // EXISTING / OLD USER: Send 6-digit OTP verification code
       const res = await ApplicationsService.sendEmailOtp(cleanEmail);
       if (res.success) {
         setGeneratedCodeHint(res.code);
         setOtpStep('enterCode');
         Alert.alert(
-          "Verification Code Sent",
-          `We sent a 6-digit verification code to:\n${cleanEmail}\n\n(Demo Testing Code: ${res.code})`
+          `Welcome Back${check.user?.name ? `, ${check.user.name}` : ''}!`,
+          `We verified your account. A 6-digit verification code has been sent to:\n${cleanEmail}\n\n(Demo Testing Code: ${res.code})`
         );
       } else {
         Alert.alert("Error", res.message || "Failed to send verification code.");
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to send code.");
+      Alert.alert("Error", e.message || "Failed to verify account.");
     } finally {
       setAuthLoading(false);
     }
@@ -151,8 +193,9 @@ export default function Login() {
     setAuthLoading(true);
     try {
       const res = await ApplicationsService.verifyEmailOtp(cleanEmail, cleanCode);
-      if (res.success) {
-        router.push('/candidate');
+      if (res.success && res.user) {
+        const userRole = res.user.role;
+        router.replace(userRole === 'employer' ? '/employer' : userRole === 'recruiter' ? '/recruiter' : '/candidate');
       } else {
         Alert.alert("Verification Failed", res.error || "Invalid verification code.");
       }
@@ -258,7 +301,29 @@ export default function Login() {
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <StatusBar barStyle="dark-content" backgroundColor="#f5f2eb" />
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 }} showsVerticalScrollIndicator={false}>
+
+      {/* Top Navigation Bar */}
+      <View className="px-6 pt-3 pb-2 flex-row items-center justify-between">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="w-10 h-10 rounded-full bg-white border border-zinc-200/80 items-center justify-center shadow-sm active:opacity-70"
+        >
+          <ChevronLeft size={20} color="#113c2c" />
+        </TouchableOpacity>
+
+        <View className="flex-row items-center">
+          <Text className="text-xl font-bold text-forest tracking-tight">bloom</Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => router.push('/register')}
+          className="px-3 py-1.5 rounded-full bg-forest shadow-sm active:opacity-85"
+        >
+          <Text className="text-xs font-bold text-white">Register</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 20 }} showsVerticalScrollIndicator={false}>
         
         {/* Brand Logo Container */}
         <View className="flex-row items-center mb-6 self-center">

@@ -6,10 +6,13 @@ import {
   getDocs, 
   setDoc, 
   updateDoc, 
-  getDoc,
+  getDoc, 
   query, 
   where 
 } from 'firebase/firestore';
+import { NotificationsService } from './notificationsService';
+import { WorkflowService } from './workflowService';
+import { EmailService } from './emailService';
 
 export type ApplicationStatus = 
   | 'Pending Final Review'
@@ -239,6 +242,47 @@ const JOBS_STORAGE_KEY = '@hirebloom_jobs_cache';
 const APPS_STORAGE_KEY = '@hirebloom_applications_cache';
 const CURRENT_USER_KEY = '@hirebloom_current_user';
 const RESUME_STORAGE_KEY = '@hirebloom_saved_resume';
+const REGISTERED_USERS_KEY = '@hirebloom_registered_users';
+
+const DEFAULT_EXISTING_USERS: Array<{
+  uid: string;
+  email: string;
+  name: string;
+  role: 'candidate' | 'employer' | 'recruiter';
+  company?: string;
+}> = [
+  {
+    uid: 'user-victor-1',
+    email: 'victor@hirebloom.com',
+    name: 'Victor Taiwo',
+    role: 'candidate',
+  },
+  {
+    uid: 'user-alex-1',
+    email: 'alex.morgan.talent@gmail.com',
+    name: 'Alex Morgan',
+    role: 'candidate',
+  },
+  {
+    uid: 'user-sarah-1',
+    email: 'sarah.jenkins@hirebloom.com',
+    name: 'Sarah Jenkins',
+    role: 'recruiter',
+  },
+  {
+    uid: 'user-client-1',
+    email: 'client@apextech.com',
+    name: 'Apex Tech Hiring Team',
+    role: 'employer',
+    company: 'Apex Technologies',
+  },
+  {
+    uid: 'user-gabriella-1',
+    email: 'gabriellasmithlogan@gmail.com',
+    name: 'Gabriella Smith',
+    role: 'candidate',
+  },
+];
 
 // Service API
 export const ApplicationsService = {
@@ -274,8 +318,7 @@ export const ApplicationsService = {
       }
       await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(DEFAULT_JOBS));
       return DEFAULT_JOBS;
-    } catch (e) {
-      console.warn('Error fetching jobs:', e);
+    } catch {
       return DEFAULT_JOBS;
     }
   },
@@ -310,7 +353,6 @@ export const ApplicationsService = {
       await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(updated));
       return { success: true, job: newJob };
     } catch (e: any) {
-      console.warn('Error creating job:', e);
       return { success: false, error: e.message || 'Failed to publish role.' };
     }
   },
@@ -334,8 +376,8 @@ export const ApplicationsService = {
       }
 
       const appId = `app-${Date.now()}`;
-      // In HireBloom, applications initially enter 'Pending Final Review' or 'Pending Review'
-      const status: ApplicationStatus = 'Pending Final Review';
+      // In HireBloom, new applications start at Step 1: Intro / Pending Review
+      const status: ApplicationStatus = 'Pending Review';
       const style = getStatusStyle(status);
       const initials = this.getInitials(candidate.name, candidate.email);
 
@@ -357,7 +399,7 @@ export const ApplicationsService = {
         statusColor: style.color,
         statusBg: style.bg,
         appliedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        step: 'Hiring Team Final Review',
+        step: 'Intro & Screening Review',
         notes: candidate.note || 'Application submitted via Hirebloom candidate portal with attached resume.',
         resumeName: resumeInfo.name,
         resumeSize: resumeInfo.size,
@@ -372,6 +414,30 @@ export const ApplicationsService = {
       const updatedApps = [newApp, ...existingApps];
       await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updatedApps));
 
+      // 1. Immediately send Official "Application Submitted" Email to candidate (matching Screenshot 1)
+      await EmailService.sendApplicationSubmittedEmail(
+        { name: candidate.name, email: candidate.email },
+        { title: job.title, company: job.company }
+      );
+
+      // 2. In-app notification for candidate
+      await NotificationsService.sendNotification({
+        userId: candidate.id,
+        type: 'application',
+        title: 'Application Submitted',
+        body: `Your application for ${job.title} at ${job.company} is in our review queue.`,
+        deepLink: '/candidate/applications',
+      });
+
+      // 3. Record in audit trail
+      await WorkflowService.recordAuditLog(
+        candidate.id,
+        'APPLICATION_SUBMITTED',
+        'application',
+        appId,
+        { jobTitle: job.title, company: job.company, status: 'Pending Review' }
+      );
+
       // Also increment applicants count on the job
       const jobs = await this.getJobs();
       const updatedJobs = jobs.map((j) => (j.id === job.id ? { ...j, applicants: j.applicants + 1 } : j));
@@ -379,7 +445,6 @@ export const ApplicationsService = {
 
       return { success: true, application: newApp };
     } catch (e: any) {
-      console.warn('Error applying for job:', e);
       return { success: false, error: e.message || 'Failed to submit application.' };
     }
   },
@@ -407,8 +472,7 @@ export const ApplicationsService = {
 
       await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(DEFAULT_APPLICATIONS));
       return DEFAULT_APPLICATIONS;
-    } catch (e) {
-      console.warn('Error fetching candidate applications:', e);
+    } catch {
       return DEFAULT_APPLICATIONS;
     }
   },
@@ -430,8 +494,7 @@ export const ApplicationsService = {
 
       await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(DEFAULT_APPLICATIONS));
       return DEFAULT_APPLICATIONS;
-    } catch (e) {
-      console.warn('Error fetching all applications:', e);
+    } catch {
       return DEFAULT_APPLICATIONS;
     }
   },
@@ -444,21 +507,23 @@ export const ApplicationsService = {
       step?: string; 
       notes?: string; 
       feedbackReason?: string;
+      reviewerName?: string;
       interviewDetails?: JobApplication['interviewDetails'];
       offerDetails?: JobApplication['offerDetails'];
     }
   ): Promise<boolean> {
     try {
       const style = getStatusStyle(newStatus);
+      const reviewer = options?.reviewerName || 'Hire Bloom Vetting Desk';
       const updates: Partial<JobApplication> = {
         status: newStatus,
         statusColor: style.color,
         statusBg: style.bg,
         step: options?.step || (
-          newStatus === 'Pending Final Review' ? 'Hiring Team Final Review' :
+          newStatus === 'Pending Final Review' ? 'Step 2: Candidate Match & Shortlist' :
           newStatus === 'Not Selected' ? 'Candidate Selection Completed' : 
-          newStatus === 'Interview Scheduled' ? 'Client Panel Interview Scheduled' : 
-          newStatus === 'Offer Received' ? 'Offer Extended to Candidate' : 
+          newStatus === 'Interview Scheduled' ? 'Step 3: Client Panel Interview Scheduled' : 
+          newStatus === 'Offer Received' ? 'Step 4: Offer Extended to Candidate' : 
           'Application Review Completed'
         ),
         ...(options?.notes ? { notes: options.notes } : {}),
@@ -474,43 +539,154 @@ export const ApplicationsService = {
       const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
       const allApps: JobApplication[] = local ? JSON.parse(local) : DEFAULT_APPLICATIONS;
       const updated = allApps.map((a) => (a.id === appId ? { ...a, ...updates } : a));
-      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updated));
+      const targetApp = updated.find((a) => a.id === appId);
+      if (targetApp) {
+        // Record audit log
+        await WorkflowService.recordAuditLog(
+          reviewer,
+          `STATUS_CHANGED_${newStatus.toUpperCase().replace(/\s+/g, '_')}`,
+          'application',
+          appId,
+          { newStatus, step: updates.step, feedback: options?.feedbackReason }
+        );
 
+        // Send in-app notification to candidate
+        let notifTitle = 'Application Update';
+        let notifType: any = 'application';
+        let notifBody = `Your application for ${targetApp.jobTitle} is now in ${newStatus}.`;
+
+        if (newStatus === 'Interview Scheduled') {
+          notifTitle = 'Interview Scheduled';
+          notifType = 'interview';
+          notifBody = `Client panel interview scheduled for ${targetApp.jobTitle} at ${targetApp.company}.`;
+        } else if (newStatus === 'Offer Received') {
+          notifTitle = 'Offer Received!';
+          notifType = 'offer';
+          notifBody = `Congratulations! You received an employment offer for ${targetApp.jobTitle}.`;
+        } else if (newStatus === 'Pending Final Review') {
+          notifTitle = 'Matched to Final Review';
+          notifType = 'application';
+          notifBody = `Your application for ${targetApp.jobTitle} passed screening and has moved to final review.`;
+        }
+
+        await NotificationsService.sendNotification({
+          userId: targetApp.candidateId,
+          type: notifType,
+          title: notifTitle,
+          body: notifBody,
+          deepLink: newStatus === 'Interview Scheduled' ? '/candidate/interviews' : '/candidate/applications',
+        });
+
+        // ==================== DISPATCH OFFICIAL EMAIL NOTIFICATIONS ====================
+        try {
+          if (newStatus === 'Pending Final Review') {
+            await EmailService.sendFeedbackAndAdvanceEmail(
+              { name: targetApp.candidateName, email: targetApp.candidateEmail },
+              { title: targetApp.jobTitle, company: targetApp.company },
+              'Step 2: Match & Final Screening',
+              options?.feedbackReason || options?.notes || 'Candidate passed 6-layer vetting and English proficiency assessment. Shortlisted for client partner requisition.',
+              reviewer
+            );
+          } else if (newStatus === 'Interview Scheduled') {
+            await EmailService.sendInterviewInviteEmail(
+              { name: targetApp.candidateName, email: targetApp.candidateEmail },
+              { title: targetApp.jobTitle, company: targetApp.company },
+              options?.interviewDetails || {
+                date: 'Upcoming',
+                time: 'Confirmed',
+                meetUrl: 'https://meet.google.com/hbm-intr-vct',
+              }
+            );
+          } else if (newStatus === 'Offer Received') {
+            await EmailService.sendOfferEmail(
+              { name: targetApp.candidateName, email: targetApp.candidateEmail },
+              { title: targetApp.jobTitle, company: targetApp.company },
+              options?.offerDetails || {
+                salary: '$15 - $18 / hr',
+                startDate: 'Within 2 weeks',
+              }
+            );
+          } else if (newStatus === 'Not Selected') {
+            await EmailService.sendRejectionFeedbackEmail(
+              { name: targetApp.candidateName, email: targetApp.candidateEmail },
+              { title: targetApp.jobTitle, company: targetApp.company },
+              options?.feedbackReason || 'We appreciate your time. Our hiring team selected another applicant whose immediate domain background aligned with current team needs.',
+              reviewer
+            );
+          } else if (options?.feedbackReason) {
+            await EmailService.sendFeedbackAndAdvanceEmail(
+              { name: targetApp.candidateName, email: targetApp.candidateEmail },
+              { title: targetApp.jobTitle, company: targetApp.company },
+              newStatus,
+              options.feedbackReason,
+              reviewer
+            );
+          }
+        } catch (emailErr) {
+          console.warn('Error dispatching stage email:', emailErr);
+        }
+      }
+
+      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updated));
       return true;
-    } catch (e) {
-      console.warn('Error updating application status:', e);
+    } catch {
       return false;
     }
   },
 
   // Decision shortcuts for employers/recruiters:
-  async advanceToFinalReview(appId: string, notes?: string): Promise<boolean> {
+  async advanceToFinalReview(appId: string, notes?: string, reviewerName?: string): Promise<boolean> {
     return this.updateApplicationStatus(appId, 'Pending Final Review', {
-      step: 'Hiring Team Final Review',
-      notes: notes || 'Candidate advanced to final review after passing preliminary screening.'
+      step: 'Step 2: Candidate Match & Shortlist',
+      notes: notes || 'Candidate advanced to final review after passing preliminary screening.',
+      feedbackReason: notes || 'Candidate credentials, C1 English fluency, and remote workstation setup verified. Advanced to finalist match.',
+      reviewerName,
     });
   },
 
-  async scheduleInterview(appId: string, details: { date: string; time: string; meetUrl?: string; type?: string }): Promise<boolean> {
+  async scheduleInterview(
+    appId: string, 
+    details: { date: string; time: string; meetUrl?: string; type?: string },
+    reviewerName?: string
+  ): Promise<boolean> {
     return this.updateApplicationStatus(appId, 'Interview Scheduled', {
-      step: `Interview Scheduled on ${details.date} at ${details.time}`,
+      step: `Step 3: Interview on ${details.date} at ${details.time}`,
       notes: 'Invited to panel interview with hiring team.',
-      interviewDetails: details
+      interviewDetails: details,
+      reviewerName,
     });
   },
 
-  async makeOffer(appId: string, offer: { salary: string; startDate?: string; role?: string }): Promise<boolean> {
+  async makeOffer(
+    appId: string, 
+    offer: { salary: string; startDate?: string; role?: string },
+    reviewerName?: string
+  ): Promise<boolean> {
     return this.updateApplicationStatus(appId, 'Offer Received', {
-      step: `Offer Extended (${offer.salary})`,
+      step: `Step 4: Formal Offer Extended (${offer.salary})`,
       notes: 'Candidate accepted by hiring partner. Formal employment offer sent.',
-      offerDetails: offer
+      offerDetails: offer,
+      reviewerName,
     });
   },
 
-  async markNotSelected(appId: string, feedbackReason: string): Promise<boolean> {
+  async markNotSelected(appId: string, feedbackReason: string, reviewerName?: string): Promise<boolean> {
     return this.updateApplicationStatus(appId, 'Not Selected', {
       step: 'Candidate Selection Completed',
-      feedbackReason: feedbackReason || 'We appreciate your time and interest. Our hiring team selected another candidate whose immediate domain experience aligned more closely with current team needs.'
+      feedbackReason: feedbackReason || 'We appreciate your time and interest. Our hiring team selected another candidate whose immediate domain experience aligned more closely with current team needs.',
+      reviewerName,
+    });
+  },
+
+  async sendFeedbackOnly(appId: string, feedbackReason: string, reviewerName?: string): Promise<boolean> {
+    const apps = await this.getAllApplications();
+    const app = apps.find((a) => a.id === appId);
+    if (!app) return false;
+
+    return this.updateApplicationStatus(appId, app.status, {
+      feedbackReason,
+      notes: feedbackReason,
+      reviewerName,
     });
   },
 
@@ -556,8 +732,8 @@ export const ApplicationsService = {
             expiry: new Date(expiry).toISOString(),
             createdAt: new Date().toISOString()
           });
-        } catch (firestoreErr) {
-          console.warn('[HireBloom OTP] Firestore write skipped due to security rules; using local OTP:', firestoreErr);
+        } catch {
+          // Handled silently with local OTP fallback
         }
       }
 
@@ -567,14 +743,99 @@ export const ApplicationsService = {
         code: otpCode,
         message: `A 6-digit verification code has been sent to ${cleanEmail}.`
       };
-    } catch (e: any) {
-      console.warn('Error saving OTP:', e);
+    } catch {
       return {
         success: true,
         code: otpCode,
         message: `Verification code generated.`
       };
     }
+  },
+
+  // 9. User Existence Verification (Old vs New User Detection)
+  async getRegisteredUsers(): Promise<Array<{
+    uid: string;
+    email: string;
+    name: string;
+    role: 'candidate' | 'employer' | 'recruiter';
+    company?: string;
+  }>> {
+    try {
+      const stored = await AsyncStorage.getItem(REGISTERED_USERS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      await AsyncStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(DEFAULT_EXISTING_USERS));
+      return DEFAULT_EXISTING_USERS;
+    } catch {
+      return DEFAULT_EXISTING_USERS;
+    }
+  },
+
+  async registerNewUser(profile: {
+    uid: string;
+    email: string;
+    name: string;
+    role: 'candidate' | 'employer';
+    company?: string;
+  }): Promise<void> {
+    const cleanEmail = profile.email.trim().toLowerCase();
+    const existing = await this.getRegisteredUsers();
+    const updated = [
+      ...existing.filter((u) => u.email.toLowerCase() !== cleanEmail),
+      { ...profile, email: cleanEmail }
+    ];
+    await AsyncStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(updated));
+  },
+
+  async checkUserExists(email: string): Promise<{
+    exists: boolean;
+    user?: {
+      uid: string;
+      email: string;
+      name: string;
+      role: 'candidate' | 'employer' | 'recruiter';
+      company?: string;
+    };
+  }> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { exists: false };
+    }
+
+    // 1. Check local registered user cache
+    const registered = await this.getRegisteredUsers();
+    const foundLocal = registered.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (foundLocal) {
+      return { exists: true, user: foundLocal };
+    }
+
+    // 2. Check Firestore 'users' collection if online
+    if (!IS_MOCK_FIREBASE && db) {
+      try {
+        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          const foundFirestore = {
+            uid: docData.uid || snap.docs[0].id,
+            email: cleanEmail,
+            name: docData.name || cleanEmail.split('@')[0],
+            role: (docData.role as any) || 'candidate',
+            company: docData.company,
+          };
+          await this.registerNewUser(foundFirestore);
+          return { exists: true, user: foundFirestore };
+        }
+      } catch {
+        // Handled silently
+      }
+    }
+
+    return { exists: false };
   },
 
   async verifyEmailOtp(email: string, enteredCode: string): Promise<{ success: boolean; user?: UserSession; error?: string }> {
@@ -607,8 +868,8 @@ export const ApplicationsService = {
               isValid = true;
             }
           }
-        } catch (firestoreReadErr) {
-          console.warn('[HireBloom OTP] Firestore read skipped:', firestoreReadErr);
+        } catch {
+          // Handled silently
         }
       }
 
@@ -621,16 +882,21 @@ export const ApplicationsService = {
         return { success: false, error: 'Invalid or expired verification code. Please check your code and try again.' };
       }
 
-      // 4. Generate candidate user session
-      let userName = cleanEmail.split('@')[0];
+      // 4. Retrieve saved profile to preserve role (e.g. employer, recruiter, candidate)
+      const check = await this.checkUserExists(cleanEmail);
+      const existingUser = check.user;
+
+      let userName = existingUser?.name || cleanEmail.split('@')[0];
       userName = userName.charAt(0).toUpperCase() + userName.slice(1);
+      const userRole = existingUser?.role || 'candidate';
+      const uid = existingUser?.uid || `user-${Date.now()}`;
       const initials = this.getInitials(userName, cleanEmail);
 
       const userSession: UserSession = {
-        uid: `cand-${Date.now()}`,
+        uid: uid,
         email: cleanEmail,
         name: userName,
-        role: 'candidate',
+        role: userRole as any,
         initials: initials
       };
 
@@ -644,17 +910,16 @@ export const ApplicationsService = {
             uid: userSession.uid,
             name: userSession.name,
             email: userSession.email,
-            role: 'candidate',
+            role: userRole,
             lastLoginAt: new Date().toISOString()
           }, { merge: true });
-        } catch (firestoreWriteErr) {
-          console.warn('[HireBloom OTP] Firestore user write skipped:', firestoreWriteErr);
+        } catch {
+          // Handled silently
         }
       }
 
       return { success: true, user: userSession };
     } catch (e: any) {
-      console.warn('Error verifying OTP:', e);
       return { success: false, error: e.message || 'Failed to verify code.' };
     }
   },
