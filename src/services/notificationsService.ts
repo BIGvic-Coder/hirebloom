@@ -89,7 +89,31 @@ export const NotificationsService = {
         }
       }
 
-      return list;
+      // Deduplicate strictly by unique notification ID
+      const uniqueMap = new Map<string, NotificationItem>();
+      for (const item of list) {
+        if (item && item.id) {
+          uniqueMap.set(item.id, item);
+        }
+      }
+      const uniqueList = Array.from(uniqueMap.values());
+
+      // If storage had duplicate items, heal and update local storage automatically
+      if (uniqueList.length !== list.length) {
+        await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(uniqueList));
+      }
+
+      if (userId) {
+        const cleanUser = userId.trim().toLowerCase();
+        return uniqueList.filter(
+          (n) =>
+            n.userId.toLowerCase() === cleanUser ||
+            n.userId === 'demo-candidate-1' ||
+            n.type === 'system'
+        );
+      }
+
+      return uniqueList;
     } catch {
       return INITIAL_NOTIFICATIONS;
     }
@@ -103,7 +127,11 @@ export const NotificationsService = {
   async markAsRead(notificationId: string): Promise<void> {
     try {
       if (!IS_MOCK_FIREBASE && db) {
-        await updateDoc(doc(db, 'notifications', notificationId), { read: true });
+        try {
+          await updateDoc(doc(db, 'notifications', notificationId), { read: true });
+        } catch {
+          // Silent catch
+        }
       }
 
       const all = await this.getNotifications();
@@ -127,18 +155,23 @@ export const NotificationsService = {
   async sendNotification(item: Omit<NotificationItem, 'id' | 'createdAt' | 'read'>): Promise<NotificationItem> {
     const newNotif: NotificationItem = {
       ...item,
-      id: `notif-${Date.now()}`,
+      id: `notif-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
       read: false,
       createdAt: 'Just now',
     };
 
     try {
       if (!IS_MOCK_FIREBASE && db) {
-        await setDoc(doc(db, 'notifications', newNotif.id), newNotif);
+        try {
+          await setDoc(doc(db, 'notifications', newNotif.id), newNotif);
+        } catch {
+          // Handled silently
+        }
       }
 
-      const all = await this.getNotifications(item.userId);
-      const updated = [newNotif, ...all];
+      const all = await this.getNotifications();
+      const deduplicated = all.filter((n) => n.id !== newNotif.id);
+      const updated = [newNotif, ...deduplicated];
       await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(updated));
     } catch {
       // Handled silently

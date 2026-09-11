@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Linking, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Linking, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Video, Clock, User, ExternalLink } from 'lucide-react-native';
 import { ApplicationsService } from '@/services/applicationsService';
 
@@ -99,9 +100,9 @@ export default function CandidateInterviews() {
           contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-          {interviews.map((item) => (
+          {interviews.map((item, index) => (
             <View
-              key={item.id}
+              key={`${item.id}-${index}`}
               className="bg-white rounded-3xl border border-zinc-200/60 shadow-sm p-5 mb-5"
             >
               {/* Card Title & Type */}

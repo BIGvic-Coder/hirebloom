@@ -19,7 +19,13 @@ export default function NotificationsScreen() {
   const loadNotifications = async () => {
     try {
       const list = await NotificationsService.getNotifications();
-      setNotifications(list);
+      const seen = new Set<string>();
+      const unique = list.filter((item) => {
+        if (!item?.id || seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+      setNotifications(unique);
     } catch (e) {
       console.warn('Error loading notifications:', e);
     }
@@ -135,9 +141,9 @@ export default function NotificationsScreen() {
           />
         ) : (
           <View className="space-y-3">
-            {filtered.map((item) => (
+            {filtered.map((item, index) => (
               <TouchableOpacity
-                key={item.id}
+                key={`${item.id}-${index}`}
                 onPress={() => handleNotificationPress(item)}
                 className={`p-4 rounded-2xl border flex-row items-start active:opacity-85 shadow-sm transition-all ${
                   item.read ? 'bg-white border-border' : 'bg-mintLight/15 border-mint/40'

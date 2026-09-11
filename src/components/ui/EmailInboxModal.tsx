@@ -62,9 +62,15 @@ export default function EmailInboxModal({
     }
     const finalEmail = emailToUse || 'victor@hirebloom.com';
     const list = await EmailService.getEmails(finalEmail);
-    setEmails(list);
+    const seen = new Set<string>();
+    const unique = list.filter((e) => {
+      if (!e?.id || seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    });
+    setEmails(unique);
     if (initialEmailId) {
-      const match = list.find((e) => e.id === initialEmailId);
+      const match = unique.find((e) => e.id === initialEmailId);
       if (match) {
         setSelectedEmail(match);
         EmailService.markAsRead(match.id);
@@ -446,9 +452,9 @@ export default function EmailInboxModal({
                   </Text>
                 </View>
               ) : (
-                emails.map((email) => (
+                emails.map((email, idx) => (
                   <TouchableOpacity
-                    key={email.id}
+                    key={`${email.id}-${idx}`}
                     onPress={() => handleSelectEmail(email)}
                     className={`bg-white rounded-2xl p-4 mb-3 border shadow-sm flex-row items-start ${
                       !email.read ? 'border-emerald-300 bg-emerald-50/20' : 'border-zinc-200'
