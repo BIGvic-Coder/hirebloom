@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { db, IS_MOCK_FIREBASE, sanitizeForFirestore } from '@/constants/firebase';
 import { collection, doc, getDocs, setDoc, updateDoc, query, where } from 'firebase/firestore';
 
 export type EmailTemplateType =
@@ -167,7 +167,11 @@ export const EmailService = {
   async dispatchEmail(newEmail: EmailMessage): Promise<void> {
     try {
       if (!IS_MOCK_FIREBASE && db) {
-        await setDoc(doc(db, 'emails', newEmail.id), newEmail);
+        try {
+          await setDoc(doc(db, 'emails', newEmail.id), sanitizeForFirestore(newEmail));
+        } catch (firestoreErr) {
+          console.warn('Firestore setDoc email warning:', firestoreErr);
+        }
       }
 
       const stored = await AsyncStorage.getItem(EMAILS_STORAGE_KEY);

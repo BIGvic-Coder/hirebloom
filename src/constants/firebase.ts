@@ -39,3 +39,23 @@ const db = getFirestore(app);
 export { app, auth, db };
 export const IS_MOCK_FIREBASE = firebaseConfig.apiKey === "mock-api-key";
 
+/**
+ * Recursively strips any undefined fields from objects before saving to Firestore,
+ * preventing Firestore's "Unsupported field value: undefined" runtime error.
+ */
+export function sanitizeForFirestore<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeForFirestore(item)) as unknown as T;
+  }
+  const clean: any = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      clean[key] = sanitizeForFirestore(val);
+    }
+  }
+  return clean;
+}
+
+

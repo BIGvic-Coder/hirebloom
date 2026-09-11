@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { db, IS_MOCK_FIREBASE, sanitizeForFirestore } from '@/constants/firebase';
 import { 
   collection, 
   doc, 
@@ -382,12 +382,16 @@ export const ApplicationsService = {
         notes: candidate.note || 'Application submitted via Hirebloom candidate portal with attached resume.',
         resumeName: resumeInfo.name,
         resumeSize: resumeInfo.size,
-        resumeUrl: resumeInfo.url,
+        resumeUrl: resumeInfo.url || '',
         resumeUploadedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       };
 
       if (!IS_MOCK_FIREBASE && db) {
-        await setDoc(doc(db, 'applications', appId), newApp);
+        try {
+          await setDoc(doc(db, 'applications', appId), sanitizeForFirestore(newApp));
+        } catch (firestoreErr) {
+          console.warn('Firestore setDoc application warning:', firestoreErr);
+        }
       }
 
       const updatedApps = [newApp, ...otherApps];
@@ -512,7 +516,11 @@ export const ApplicationsService = {
       };
 
       if (!IS_MOCK_FIREBASE && db) {
-        await updateDoc(doc(db, 'applications', appId), updates);
+        try {
+          await updateDoc(doc(db, 'applications', appId), sanitizeForFirestore(updates));
+        } catch (updateErr) {
+          console.warn('Firestore updateDoc warning:', updateErr);
+        }
       }
 
       const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
