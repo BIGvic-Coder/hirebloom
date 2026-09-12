@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Users, ShieldCheck, Mail, Phone, Calendar, Clock, DollarSign, CheckCircle2, ChevronRight, MessageSquare } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';

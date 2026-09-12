@@ -1,4 +1,5 @@
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, BrainCircuit, Target, ArrowRight, UserCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 

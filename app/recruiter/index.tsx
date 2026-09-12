@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Users, FileCheck, CheckCircle, Search, Star, MoreVertical, ArrowRight, Sparkles } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, MapPin, Clock, Users, ChevronRight, MoreVertical, X, Briefcase, DollarSign, CheckCircle, ShieldAlert, ShieldCheck, Crown } from 'lucide-react-native';
 import { ApplicationsService, JobItem, canUserPostJob } from '@/services/applicationsService';
 import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';

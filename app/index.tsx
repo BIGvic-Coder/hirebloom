@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, LayoutAnimation, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LogIn, UserPlus, Info } from 'lucide-react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { ApplicationsService } from '@/services/applicationsService';
 
 import HeroSection from '@/components/home/HeroSection';
 import TrustBadges from '@/components/home/TrustBadges';
@@ -25,6 +26,42 @@ const MemoizedPricing = React.memo(PricingSection);
 export default function Home() {
   const router = useRouter() as any;
   const scrollViewRef = useRef<ScrollView>(null);
+  const [checkingAuth, setCheckingAuth] = useState(Platform.OS !== 'web');
+
+  // Mobile Auth Gateway: When opening native mobile APK, route unauthenticated users to Login / Register
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      let isMounted = true;
+      (async () => {
+        try {
+          const user = await ApplicationsService.getCurrentUser();
+          if (!isMounted) return;
+          if (user && user.uid) {
+            router.replace(
+              user.role === 'employer'
+                ? '/employer'
+                : user.role === 'recruiter'
+                ? '/recruiter'
+                : '/candidate'
+            );
+          } else {
+            router.replace('/login');
+          }
+        } catch {
+          if (isMounted) {
+            router.replace('/login');
+          }
+        } finally {
+          if (isMounted) {
+            setCheckingAuth(false);
+          }
+        }
+      })();
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, []);
 
   // Dynamic layout offset mapping to enable smooth scrolling to sections
   const [offsets, setOffsets] = useState<Record<string, number>>({});
@@ -71,6 +108,42 @@ export default function Home() {
       setActiveSection(current);
     }
   };
+
+  if (Platform.OS !== 'web' && checkingAuth) {
+    return (
+      <SafeAreaView className="flex-1 bg-forest items-center justify-center">
+        <StatusBar barStyle="light-content" backgroundColor="#113c2c" />
+        <View className="items-center">
+          <View className="w-16 h-16 bg-mint/20 rounded-3xl items-center justify-center mb-4 border border-mint/30 shadow-lg">
+            <Svg width="38" height="38" viewBox="0 0 50 50">
+              <Path
+                d="M 15 42 C 6 38, 2 28, 2 16 C 2 6, 15 2, 34 2 C 39 2, 42 5, 42 10 C 42 22, 32 40, 15 42 Z"
+                fill="none"
+                stroke="#8ecfa9"
+                strokeWidth="4.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <Path
+                d="M 12 40 L 4 46"
+                stroke="#8ecfa9"
+                strokeWidth="4.5"
+                strokeLinecap="round"
+              />
+              <Path d="M 16 34 L 16 26" stroke="#8ecfa9" strokeWidth="3.5" strokeLinecap="round" />
+              <Circle cx="16" cy="20" r="3.5" fill="#8ecfa9" />
+              <Path d="M 25 34 L 25 20" stroke="#8ecfa9" strokeWidth="3.5" strokeLinecap="round" />
+              <Circle cx="25" cy="14" r="3.5" fill="#8ecfa9" />
+              <Path d="M 34 34 L 34 24" stroke="#8ecfa9" strokeWidth="3.5" strokeLinecap="round" />
+              <Circle cx="34" cy="18" r="3.5" fill="#8ecfa9" />
+            </Svg>
+          </View>
+          <Text className="text-2xl font-extrabold text-white tracking-tight">hire bloom</Text>
+          <Text className="text-mintLight text-xs mt-1 font-medium">Connecting Global Talent</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white">

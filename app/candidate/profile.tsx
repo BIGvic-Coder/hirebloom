@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, Edit2, FileText, Globe, Award, Briefcase, Plus, ChevronRight, LogOut, UploadCloud, Check } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { signOut } from 'firebase/auth';
 import { ApplicationsService, UserSession } from '@/services/applicationsService';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 export default function CandidateProfile() {
   const router = useRouter() as any;
@@ -69,8 +71,14 @@ export default function CandidateProfile() {
 
   const handleSignOut = async () => {
     try {
+      await ApplicationsService.clearCurrentUser();
       if (!IS_MOCK_FIREBASE && auth) {
         await signOut(auth);
+      }
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // Safe to ignore if not signed in with Google
       }
       router.replace('/login');
     } catch (err: any) {

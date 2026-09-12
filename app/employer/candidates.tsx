@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight } from 'lucide-react-native';
 import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
 

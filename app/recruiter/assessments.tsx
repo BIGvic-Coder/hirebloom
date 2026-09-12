@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckCircle2, AlertCircle, ShieldAlert, Award, Star, Check, ShieldCheck, Clock, XCircle } from 'lucide-react-native';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';
 import { VettingService, SIX_LAYER_CHECKPOINTS, VettingCheckpoint } from '@/services/vettingService';

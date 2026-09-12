@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StatusBar, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StatusBar, Alert, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, ArrowRight, Check, KeyRound, RefreshCw, ShieldCheck, ChevronLeft } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -8,15 +8,7 @@ import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ApplicationsService } from '@/services/applicationsService';
-
-// Safely load native Google Sign-in to avoid crashes in environments like Expo Go where it's not present
-let GoogleSignin: any = null;
-try {
-  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
-} catch {
-  // Silent fallback: Google Sign-in native module only present in standalone APK builds
-  GoogleSignin = null;
-}
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 // Custom Official Google Multi-Colored Vector Logo
 const GoogleLogo = () => (
@@ -62,14 +54,14 @@ export default function Login() {
 
   // Configure Google SDK client on mount
   useEffect(() => {
-    if (GoogleSignin) {
+    if (Platform.OS !== 'web' && GoogleSignin?.configure) {
       try {
         GoogleSignin.configure({
           webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com',
           offlineAccess: false,
         });
-      } catch {
-        // Silent fallback for restricted environments
+      } catch (err) {
+        console.warn('GoogleSignin configure error:', err);
       }
     }
   }, []);
@@ -245,53 +237,82 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!GoogleSignin) {
+    if (Platform.OS === 'web') {
       Alert.alert(
-        "Google Sign-In Preview",
-        "Native Google Sign-In dialog runs on installed APK builds. Would you like to continue as a verified Google candidate now to test the app?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Continue with Google",
-            onPress: async () => {
-              const testGoogleUser = {
-                uid: `google-${Date.now()}`,
-                displayName: 'Gabriella Smith',
-                email: 'gabriellasmithlogan@gmail.com'
-              };
-              await handleUserRouting(testGoogleUser);
-            }
-          }
-        ]
+        "Google Sign-In",
+        "Native Google Sign-In runs in the Android APK. On web, please use Email Verification Code or Password to sign in."
       );
       return;
     }
+
     setAuthLoading(true);
     try {
-      if (IS_MOCK_FIREBASE) {
-        setTimeout(() => {
-          setAuthLoading(false);
-          router.push('/candidate');
-        }, 1000);
+      // 1. Verify Google Play Services is available
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      // 2. Sign out any existing session first so that Google Play Services always displays the native "Choose an account" dialog on Android
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // Safe to ignore if already signed out
+      }
+
+      // 3. Prompt user with native Google Account Chooser bottom sheet
+      const response = await GoogleSignin.signIn();
+
+      if (response && (response as any).type === 'cancelled') {
+        setAuthLoading(false);
         return;
       }
 
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo.data?.idToken || (userInfo as any).idToken;
-      if (!idToken) throw new Error("Google authentication failed (No ID Token returned)");
+      const resData: any = (response as any)?.data || response;
+      const idToken = resData?.idToken;
+      const googleUser = resData?.user || {};
 
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await signInWithCredential(auth, credential);
-      await handleUserRouting(userCredential.user);
+      const userEmail = googleUser?.email || '';
+      const userName = googleUser?.name || userEmail.split('@')[0] || 'HireBloom Member';
+      const userUid = googleUser?.id || `google-${Date.now()}`;
+
+      if (!userEmail && !idToken) {
+        throw new Error("No Google account selected.");
+      }
+
+      // Authenticate with Firebase if connected
+      let firebaseUser: any = null;
+      if (!IS_MOCK_FIREBASE && auth && idToken) {
+        try {
+          const credential = GoogleAuthProvider.credential(idToken);
+          const userCredential = await signInWithCredential(auth, credential);
+          firebaseUser = userCredential.user;
+        } catch (fbErr: any) {
+          console.warn('Firebase credential sign-in warning:', fbErr);
+        }
+      }
+
+      const authenticatedUser = {
+        uid: firebaseUser?.uid || userUid,
+        email: firebaseUser?.email || userEmail,
+        displayName: firebaseUser?.displayName || userName,
+      };
+
+      await handleUserRouting(authenticatedUser);
     } catch (error: any) {
       const errStr = String(error?.message || error || '');
       const errCode = String(error?.code || '');
 
-      if (errCode === '12501' || errStr.includes('SIGN_IN_CANCELLED') || errStr.includes('cancelled')) {
-        console.log('User cancelled Google Sign-in dialog');
+      // User cancelled account chooser - dismiss silently
+      if (
+        errCode === '12501' ||
+        errCode === statusCodes?.SIGN_IN_CANCELLED ||
+        errStr.includes('SIGN_IN_CANCELLED') ||
+        errStr.includes('cancelled') ||
+        errStr.includes('12501')
+      ) {
+        console.log('User dismissed Google account picker');
+      } else if (errCode === statusCodes?.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Google Play Services', 'Google Play Services is not available or outdated on this device.');
       } else {
-        Alert.alert('Google Sign-In', error.message || error.toString());
+        Alert.alert('Google Sign-In Error', error?.message || error.toString());
       }
     } finally {
       setAuthLoading(false);
@@ -304,12 +325,18 @@ export default function Login() {
 
       {/* Top Navigation Bar */}
       <View className="px-6 pt-3 pb-2 flex-row items-center justify-between">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-white border border-zinc-200/80 items-center justify-center shadow-sm active:opacity-70"
-        >
-          <ChevronLeft size={20} color="#113c2c" />
-        </TouchableOpacity>
+        {router.canGoBack() ? (
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="w-10 h-10 rounded-full bg-white border border-zinc-200/80 items-center justify-center shadow-sm active:opacity-70"
+          >
+            <ChevronLeft size={20} color="#113c2c" />
+          </TouchableOpacity>
+        ) : (
+          <View className="w-10 h-10 rounded-full bg-mint/15 items-center justify-center border border-mint/30">
+            <ShieldCheck size={18} color="#059669" />
+          </View>
+        )}
 
         <View className="flex-row items-center">
           <Text className="text-xl font-bold text-forest tracking-tight">bloom</Text>

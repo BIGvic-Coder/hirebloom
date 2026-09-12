@@ -257,12 +257,6 @@ const DEFAULT_EXISTING_USERS: Array<{
     role: 'employer',
     company: 'Apex Technologies',
   },
-  {
-    uid: 'user-gabriella-1',
-    email: 'gabriellasmithlogan@gmail.com',
-    name: 'Gabriella Smith',
-    role: 'candidate',
-  },
 ];
 
 // Service API
@@ -993,14 +987,13 @@ export const ApplicationsService = {
   async getCurrentUser(): Promise<UserSession | null> {
     try {
       const stored = await AsyncStorage.getItem(CURRENT_USER_KEY);
-      if (stored) return JSON.parse(stored);
-      return {
-        uid: 'demo-candidate-1',
-        email: 'victor@hirebloom.com',
-        name: 'Victor Taiwo',
-        role: 'candidate',
-        initials: 'VT'
-      };
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.uid) {
+          return parsed;
+        }
+      }
+      return null;
     } catch {
       return null;
     }
@@ -1008,5 +1001,13 @@ export const ApplicationsService = {
 
   async setCurrentUser(user: UserSession): Promise<void> {
     await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  },
+
+  async clearCurrentUser(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(CURRENT_USER_KEY);
+    } catch {
+      // Handled silently
+    }
   }
 };

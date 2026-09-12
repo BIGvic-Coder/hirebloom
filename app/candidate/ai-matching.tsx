@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, Briefcase, ArrowRight, Building2, MapPin, Clock, Bookmark, CheckCircle2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { ApplicationsService, JobItem } from '@/services/applicationsService';
