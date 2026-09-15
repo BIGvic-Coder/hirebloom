@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { signOut } from 'firebase/auth';
 import { ApplicationsService, UserSession } from '@/services/applicationsService';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin } from '@/services/googleAuth';
 import * as DocumentPicker from 'expo-document-picker';
 
 export default function CandidateProfile() {

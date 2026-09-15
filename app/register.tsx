@@ -33,7 +33,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { ApplicationsService } from '@/services/applicationsService';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes, isGoogleSigninAvailable } from '@/services/googleAuth';
 
 // Official Google Multi-Colored Vector Logo
 const GoogleLogo = () => (
@@ -264,10 +264,10 @@ export default function Register() {
 
   // 2. Register with Google (Native Android Account Picker)
   const handleGoogleRegister = async () => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'web' || !isGoogleSigninAvailable) {
       Alert.alert(
         'Google Registration',
-        'Native Google Registration runs in the Android APK. On web, please enter your details to create an account.'
+        'Native Google Registration runs in the Android APK. In Expo Go or Web, please enter your details to create an account.'
       );
       return;
     }

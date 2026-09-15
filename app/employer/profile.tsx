@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { signOut } from 'firebase/auth';
 import { ApplicationsService } from '@/services/applicationsService';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin } from '@/services/googleAuth';
 
 export default function EmployerProfile() {
   const router = useRouter() as any;

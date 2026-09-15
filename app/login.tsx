@@ -8,7 +8,7 @@ import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ApplicationsService } from '@/services/applicationsService';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes, isGoogleSigninAvailable } from '@/services/googleAuth';
 
 // Custom Official Google Multi-Colored Vector Logo
 const GoogleLogo = () => (
@@ -275,10 +275,10 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'web' || !isGoogleSigninAvailable) {
       Alert.alert(
         "Google Sign-In",
-        "Native Google Sign-In runs in the Android APK. On web, please use Email Verification Code or Password to sign in."
+        "Native Google Sign-In runs in the Android APK. In Expo Go or Web, please use Email Verification Code or Password to sign in."
       );
       return;
     }
