@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, LayoutAnimation, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, LayoutAnimation, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LogIn, UserPlus, Info } from 'lucide-react-native';
@@ -28,11 +28,12 @@ export default function Home() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [checkingAuth, setCheckingAuth] = useState(Platform.OS !== 'web');
 
-  // Mobile Auth Gateway: When opening native mobile APK, route unauthenticated users to Login / Register
+  // Mobile Auth Gateway: When opening native mobile APK / Expo Go, route unauthenticated users to Login / Register
   useEffect(() => {
     if (Platform.OS !== 'web') {
       let isMounted = true;
-      (async () => {
+      // Allow navigation tree to fully mount before routing
+      const navTimer = setTimeout(async () => {
         try {
           const user = await ApplicationsService.getCurrentUser();
           if (!isMounted) return;
@@ -56,9 +57,19 @@ export default function Home() {
             setCheckingAuth(false);
           }
         }
-      })();
+      }, 500);
+
+      // Maximum safety timeout: Never keep the splash screen up longer than 2 seconds
+      const safetyTimer = setTimeout(() => {
+        if (isMounted) {
+          setCheckingAuth(false);
+        }
+      }, 2000);
+
       return () => {
         isMounted = false;
+        clearTimeout(navTimer);
+        clearTimeout(safetyTimer);
       };
     }
   }, []);
@@ -113,7 +124,11 @@ export default function Home() {
     return (
       <SafeAreaView className="flex-1 bg-forest items-center justify-center">
         <StatusBar barStyle="light-content" backgroundColor="#113c2c" />
-        <View className="items-center">
+        <TouchableOpacity 
+          activeOpacity={0.9} 
+          onPress={() => router.replace('/login')}
+          className="items-center"
+        >
           <View className="w-16 h-16 bg-mint/20 rounded-3xl items-center justify-center mb-4 border border-mint/30 shadow-lg">
             <Svg width="38" height="38" viewBox="0 0 50 50">
               <Path
@@ -140,7 +155,14 @@ export default function Home() {
           </View>
           <Text className="text-2xl font-extrabold text-white tracking-tight">hire bloom</Text>
           <Text className="text-mintLight text-xs mt-1 font-medium">Connecting Global Talent</Text>
-        </View>
+
+          <View className="mt-8 items-center">
+            <ActivityIndicator size="small" color="#8ecfa9" />
+            <Text className="text-mintLight/80 text-[11px] font-semibold mt-3">
+              Tap anywhere to enter →
+            </Text>
+          </View>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
