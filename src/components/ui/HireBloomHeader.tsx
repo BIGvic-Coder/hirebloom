@@ -22,37 +22,45 @@ export { HireBloomLogoMark };
 export default function HireBloomHeader({
   portalTitle = 'hirebloom',
   portalBadge = 'Candidate',
-  userInitials = 'VT',
+  userInitials,
   userEmail,
 }: HireBloomHeaderProps) {
   const router = useRouter() as any;
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadEmailCount, setUnreadEmailCount] = useState(0);
-  const [activeEmail, setActiveEmail] = useState(userEmail || 'victor@hirebloom.com');
+  const [activeEmail, setActiveEmail] = useState(userEmail || '');
+  const [activeInitials, setActiveInitials] = useState(userInitials || 'HB');
   const [emailModalVisible, setEmailModalVisible] = useState(false);
 
   useEffect(() => {
     loadUnread();
     const interval = setInterval(loadUnread, 3000);
     return () => clearInterval(interval);
-  }, [userEmail]);
+  }, [userEmail, userInitials]);
 
   const loadUnread = async () => {
     try {
       let emailToUse = userEmail;
-      if (!emailToUse) {
-        const user = await ApplicationsService.getCurrentUser();
-        if (user?.email) {
-          emailToUse = user.email;
-        }
+      let initialsToUse = userInitials;
+
+      const user = await ApplicationsService.getCurrentUser();
+      if (!emailToUse && user?.email) {
+        emailToUse = user.email;
       }
-      const finalEmail = emailToUse || 'victor@hirebloom.com';
+      if (!initialsToUse && user) {
+        initialsToUse = user.initials || ApplicationsService.getInitials(user.name, user.email);
+      }
+
+      const finalEmail = emailToUse || '';
       setActiveEmail(finalEmail);
+      setActiveInitials(initialsToUse || 'HB');
 
       const count = await NotificationsService.getUnreadCount();
       setUnreadCount(count);
-      const emailCount = await EmailService.getUnreadCount(finalEmail);
-      setUnreadEmailCount(emailCount);
+      if (finalEmail) {
+        const emailCount = await EmailService.getUnreadCount(finalEmail);
+        setUnreadEmailCount(emailCount);
+      }
     } catch {
       setUnreadCount(0);
     }
@@ -112,10 +120,10 @@ export default function HireBloomHeader({
           )}
         </TouchableOpacity>
 
-        {userInitials ? (
+        {activeInitials ? (
           <View className="w-9 h-9 rounded-full bg-forest items-center justify-center shadow-sm">
             <Text className="text-white font-bold text-xs tracking-wider">
-              {userInitials}
+              {activeInitials}
             </Text>
           </View>
         ) : null}

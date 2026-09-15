@@ -68,36 +68,60 @@ export default function Login() {
 
   const handleUserRouting = async (user: any) => {
     let role = 'candidate';
+    let displayName = user.displayName;
+
     try {
+      // Check existing registered user to restore name and role
+      const check = await ApplicationsService.checkUserExists(user.email || '');
+      if (check.user?.name) {
+        displayName = check.user.name;
+      }
+      if (check.user?.role) {
+        role = check.user.role;
+      }
+
       if (!IS_MOCK_FIREBASE && db) {
         const userDocRef = doc(db, 'users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
         
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
-          if (userData && userData.role) {
+          if (userData?.role) {
             role = userData.role;
+          }
+          if (userData?.name && !displayName) {
+            displayName = userData.name;
           }
         } else {
           try {
             await setDoc(userDocRef, {
               uid: user.uid,
-              name: user.displayName || 'Candidate User',
+              name: displayName || user.email?.split('@')[0] || 'Candidate',
               email: user.email || '',
               role: role,
               createdAt: new Date().toISOString()
-            });
+            }, { merge: true });
           } catch {
             // Firestore write handled gracefully
           }
         }
       }
     } catch {
-      // Proceed with default role on Firestore restricted rules
+      // Handled gracefully
     }
 
+    if (!displayName) {
+      const prefix = user.email?.split('@')[0] || 'Candidate';
+      displayName = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    }
+
+    // 1. Clear any prior cached session first
     try {
-      const displayName = user.displayName || user.email?.split('@')[0] || 'Candidate';
+      await ApplicationsService.clearCurrentUser();
+    } catch {}
+
+    // 2. Set current user session
+    try {
       await ApplicationsService.setCurrentUser({
         uid: user.uid,
         email: user.email || '',
@@ -160,7 +184,7 @@ export default function Login() {
         setOtpStep('enterCode');
         Alert.alert(
           `Welcome Back${check.user?.name ? `, ${check.user.name}` : ''}!`,
-          `We verified your account. A 6-digit verification code has been sent to:\n${cleanEmail}\n\n(Demo Testing Code: ${res.code})`
+          `We verified your account. A 6-digit verification code has been sent to:\n${cleanEmail}\n\n(Testing Code: ${res.code})`
         );
       } else {
         Alert.alert("Error", res.message || "Failed to send verification code.");
@@ -209,28 +233,42 @@ export default function Login() {
     }
     setAuthLoading(true);
     try {
-      if (IS_MOCK_FIREBASE) {
-        setTimeout(() => {
-          setAuthLoading(false);
-          router.push('/candidate');
-        }, 800);
+      if (!IS_MOCK_FIREBASE && auth) {
+        try {
+          const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+          await handleUserRouting(userCredential.user);
+          return;
+        } catch (firebaseErr: any) {
+          console.warn('Firebase signInWithEmailAndPassword warning:', firebaseErr);
+          const errCode = firebaseErr?.code || '';
+          if (errCode === 'auth/wrong-password') {
+            Alert.alert("Incorrect Password", "Please check your password and try again.");
+            return;
+          }
+        }
+      }
+
+      // Check registered users in local/Firestore storage
+      const check = await ApplicationsService.checkUserExists(cleanEmail);
+      if (check.exists && check.user) {
+        if ((check.user as any).password && (check.user as any).password !== cleanPassword) {
+          Alert.alert("Incorrect Password", "Please check your password and try again.");
+          return;
+        }
+        await handleUserRouting({
+          uid: check.user.uid,
+          email: cleanEmail,
+          displayName: check.user.name,
+        });
         return;
       }
-      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      await handleUserRouting(userCredential.user);
-    } catch (error: any) {
-      const errCode = error?.code || '';
-      const errMsg = error?.message || '';
 
-      if (errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential')) {
-        Alert.alert("Sign-In Error", "Invalid email or password.\n\nTap 'Sign up' to create an account, or try signing in with Email Verification Code!");
-      } else if (errCode === 'auth/user-not-found' || errMsg.includes('user-not-found')) {
-        Alert.alert("Account Not Found", "No account found with this email.\n\nTap 'Sign up' to register a new account.");
-      } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password')) {
-        Alert.alert("Incorrect Password", "Please check your password and try again.");
-      } else {
-        Alert.alert("Sign-In Failed", errMsg || error.toString());
-      }
+      Alert.alert(
+        "Account Not Found",
+        `No account found with "${cleanEmail}".\n\nTap 'Sign up' to register a new account.`
+      );
+    } catch (error: any) {
+      Alert.alert("Sign-In Failed", error?.message || error.toString());
     } finally {
       setAuthLoading(false);
     }

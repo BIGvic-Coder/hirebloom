@@ -108,21 +108,12 @@ export default function Register() {
   const saveUserProfileAndRoute = async (user: any, nameToUse: string, userRole: 'candidate' | 'employer') => {
     const cleanEmail = (user.email || email).trim().toLowerCase();
 
+    // 1. Clear any prior cached session first so there is zero bleed-over
     try {
-      if (!IS_MOCK_FIREBASE && db) {
-        await setDoc(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          name: nameToUse,
-          email: cleanEmail,
-          role: userRole,
-          company: userRole === 'employer' ? companyName.trim() : null,
-          createdAt: new Date().toISOString(),
-        });
-      }
-    } catch {
-      // Handled silently
-    }
+      await ApplicationsService.clearCurrentUser();
+    } catch {}
 
+    // 2. Set active user session
     try {
       await ApplicationsService.setCurrentUser({
         uid: user.uid,
@@ -132,16 +123,37 @@ export default function Register() {
         initials: ApplicationsService.getInitials(nameToUse, cleanEmail),
       });
 
-      // Register into user index so subsequent logins use OTP verification
+      // 3. Register into persistent user database
       await ApplicationsService.registerNewUser({
         uid: user.uid,
         name: nameToUse,
         email: cleanEmail,
         role: userRole,
         company: userRole === 'employer' ? companyName.trim() : undefined,
+        password: password.trim(),
       });
-    } catch {
-      // Handled silently
+    } catch (e) {
+      console.warn('Local session/registration storage error:', e);
+    }
+
+    // 4. Also sync to Firestore 'users' collection
+    try {
+      if (!IS_MOCK_FIREBASE && db) {
+        await setDoc(
+          doc(db, 'users', user.uid),
+          {
+            uid: user.uid,
+            name: nameToUse,
+            email: cleanEmail,
+            role: userRole,
+            company: userRole === 'employer' ? companyName.trim() : null,
+            createdAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (e) {
+      console.warn('Firestore setDoc user warning:', e);
     }
 
     router.replace(userRole === 'employer' ? '/employer' : '/candidate');
@@ -202,38 +214,49 @@ export default function Register() {
         return;
       }
 
-      if (IS_MOCK_FIREBASE) {
-        setTimeout(() => {
-          setAuthLoading(false);
-          router.replace(role === 'employer' ? '/employer' : '/candidate');
-        }, 1000);
-        return;
+      let createdUser: any = null;
+      // Try Firebase Auth if available
+      if (!IS_MOCK_FIREBASE && auth) {
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+          createdUser = userCredential.user;
+          try {
+            await updateProfile(userCredential.user, { displayName: fullName });
+          } catch {}
+        } catch (firebaseAuthErr: any) {
+          console.warn('Firebase createUserWithEmailAndPassword warning:', firebaseAuthErr);
+          const errCode = firebaseAuthErr?.code || '';
+          if (errCode === 'auth/email-already-in-use') {
+            setAuthLoading(false);
+            Alert.alert(
+              'Account Exists',
+              'An account with this email already exists.\n\nPlease go to the Sign In page to log in.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Sign In', onPress: () => router.push('/login') }
+              ]
+            );
+            return;
+          }
+          // If offline or permission issue, fallback gracefully to locally persisted account
+          createdUser = {
+            uid: `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            email: cleanEmail,
+            displayName: fullName,
+          };
+        }
+      } else {
+        createdUser = {
+          uid: `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          email: cleanEmail,
+          displayName: fullName,
+        };
       }
 
-      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      await updateProfile(userCredential.user, { displayName: fullName });
-      await saveUserProfileAndRoute(userCredential.user, fullName, role);
+      await saveUserProfileAndRoute(createdUser, fullName, role);
     } catch (error: any) {
       console.log('Registration Error:', error);
-      const errCode = error?.code || '';
-      const errMsg = error?.message || '';
-
-      if (errCode === 'auth/email-already-in-use' || errMsg.includes('email-already-in-use')) {
-        Alert.alert(
-          'Account Exists',
-          'An account with this email already exists.\n\nPlease go to the Sign In page to log in.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign In', onPress: () => router.push('/login') }
-          ]
-        );
-      } else if (errCode === 'auth/weak-password' || errMsg.includes('weak-password')) {
-        Alert.alert('Weak Password', 'Password is too weak. Please use at least 6 characters.');
-      } else if (errCode === 'auth/invalid-email' || errMsg.includes('invalid-email')) {
-        Alert.alert('Invalid Email', 'The email address format is invalid.');
-      } else {
-        Alert.alert('Registration Failed', errMsg || error.toString());
-      }
+      Alert.alert('Registration Failed', error?.message || error.toString());
     } finally {
       setAuthLoading(false);
     }

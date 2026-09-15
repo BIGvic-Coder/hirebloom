@@ -7,13 +7,14 @@ import { auth, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { signOut } from 'firebase/auth';
 import { ApplicationsService, UserSession } from '@/services/applicationsService';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function CandidateProfile() {
   const router = useRouter() as any;
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [resume, setResume] = useState<{ name: string; size: string; url?: string }>({
-    name: 'victor_resume_2026.pdf',
-    size: '1.4 MB'
+    name: 'resume_document.pdf',
+    size: '1.2 MB'
   });
   const [appCount, setAppCount] = useState(3);
 
@@ -35,30 +36,58 @@ export default function CandidateProfile() {
   const handleUpdateResume = () => {
     Alert.alert(
       "Update Resume",
-      "Upload or replace your active resume in your HireBloom profile:",
+      "Choose an option to update your active resume:",
       [
         {
-          text: "Upload Standard CV (PDF)",
+          text: "📱 Choose File From Device",
           onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: [
+                  'application/pdf',
+                  'application/msword',
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                  'text/plain',
+                ],
+                copyToCacheDirectory: true,
+              });
+
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                const file = result.assets[0];
+                let sizeStr = '1.2 MB';
+                if (file.size) {
+                  const sizeInKb = Math.round(file.size / 1024);
+                  if (sizeInKb > 1024) {
+                    sizeStr = `${(sizeInKb / 1024).toFixed(1)} MB`;
+                  } else {
+                    sizeStr = `${sizeInKb} KB`;
+                  }
+                }
+                const updated = {
+                  name: file.name,
+                  size: sizeStr,
+                  url: file.uri,
+                };
+                await ApplicationsService.saveCandidateResume(updated);
+                setResume(updated);
+                Alert.alert("Resume Updated", `Successfully attached "${file.name}" (${sizeStr})`);
+              }
+            } catch (err: any) {
+              Alert.alert("File Picker Error", err.message || "Could not open document picker.");
+            }
+          },
+        },
+        {
+          text: "📄 Pre-loaded Sample Resume",
+          onPress: async () => {
+            const candidatePrefix = (currentUser?.name || 'candidate').toLowerCase().replace(/\s+/g, '_');
             const updated = {
-              name: `${(currentUser?.name || 'Victor').toLowerCase()}_resume_2026.pdf`,
+              name: `${candidatePrefix}_resume_2026.pdf`,
               size: '1.4 MB'
             };
             await ApplicationsService.saveCandidateResume(updated);
             setResume(updated);
-            Alert.alert("Resume Updated", "Your profile resume has been updated and will automatically attach to future job applications.");
-          }
-        },
-        {
-          text: "Upload Tailored Support CV (DOCX)",
-          onPress: async () => {
-            const updated = {
-              name: `${(currentUser?.name || 'Victor').toLowerCase()}_support_specialist_cv.docx`,
-              size: '890 KB'
-            };
-            await ApplicationsService.saveCandidateResume(updated);
-            setResume(updated);
-            Alert.alert("Resume Updated", "Your profile resume has been updated.");
+            Alert.alert("Resume Updated", "Sample PDF resume attached.");
           }
         },
         {
@@ -87,9 +116,9 @@ export default function CandidateProfile() {
     }
   };
 
-  const displayName = currentUser?.name || 'Victor Taiwo';
-  const displayEmail = currentUser?.email || 'victor@hirebloom.com';
-  const displayInitials = currentUser?.initials || 'VT';
+  const displayName = currentUser?.name || 'Talent Profile';
+  const displayEmail = currentUser?.email || 'talent@hirebloom.com';
+  const displayInitials = currentUser?.initials || (currentUser?.name ? ApplicationsService.getInitials(currentUser.name, currentUser.email) : 'HB');
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">

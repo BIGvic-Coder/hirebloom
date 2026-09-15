@@ -46,9 +46,9 @@ export default function CandidateAIMatching() {
     };
 
     const currentUser = await ApplicationsService.getCurrentUser();
-    const candidateName = currentUser?.name || 'Victor Taiwo';
-    const candidateEmail = currentUser?.email || 'victor@hirebloom.com';
-    const candidateId = currentUser?.uid || 'demo-candidate-1';
+    const candidateName = currentUser?.name || 'Talent Applicant';
+    const candidateEmail = currentUser?.email || 'talent@hirebloom.com';
+    const candidateId = currentUser?.uid || `candidate-${Date.now()}`;
     const savedResume = await ApplicationsService.getSavedCandidateResume();
 
     const res = await ApplicationsService.applyForJob(jobItem, {

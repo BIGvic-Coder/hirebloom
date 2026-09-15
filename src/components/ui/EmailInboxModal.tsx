@@ -60,7 +60,7 @@ export default function EmailInboxModal({
         emailToUse = user.email;
       }
     }
-    const finalEmail = emailToUse || 'victor@hirebloom.com';
+    const finalEmail = emailToUse || '';
     const list = await EmailService.getEmails(finalEmail);
     const seen = new Set<string>();
     const unique = list.filter((e) => {

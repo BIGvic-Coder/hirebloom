@@ -4,14 +4,14 @@ import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/aut
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Your Firebase Config (using Expo environment variables)
+// Your Firebase Config (using Expo environment variables with real project fallbacks)
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "mock-api-key",
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "hirebloom-demo.firebaseapp.com",
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "hirebloom-demo",
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "hirebloom-demo.appspot.com",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1234567890",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:1234567890:web:abcdef123456"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyBsLggzQ0z6qrOprKYZvKguKoT8Fr6ofTE",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "hirebloom-eca13.firebaseapp.com",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "hirebloom-eca13",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "hirebloom-eca13.firebasestorage.app",
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "32893466508",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:32893466508:web:732172cab258480f91b162"
 };
 
 // Check if Firebase is initialized, otherwise initialize it

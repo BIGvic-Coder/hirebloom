@@ -451,7 +451,7 @@ export default function CandidateApplications() {
 
             <View className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 mb-5">
               <Text className="text-slate-900 font-extrabold text-base mb-1">
-                {currentApp?.candidateName || 'Victor Taiwo'}
+                {currentApp?.candidateName || currentUser?.name || 'Talent Applicant'}
               </Text>
               <Text className="text-emerald-700 font-bold text-xs mb-3">
                 {currentApp?.jobTitle || 'Customer Support Specialist'}
@@ -498,7 +498,7 @@ export default function CandidateApplications() {
           setEmailModalVisible(false);
           loadApplications();
         }}
-        userEmail={currentUser?.email || currentApp?.candidateEmail || 'victor@hirebloom.com'}
+        userEmail={currentUser?.email || currentApp?.candidateEmail || ''}
       />
     </SafeAreaView>
   );

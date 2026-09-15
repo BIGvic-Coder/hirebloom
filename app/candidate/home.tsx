@@ -46,7 +46,7 @@ export default function CandidateHome() {
       setCurrentUser(user);
 
       // Load unread emails
-      const emailCount = await EmailService.getUnreadCount(user?.email || 'victor@hirebloom.com');
+      const emailCount = await EmailService.getUnreadCount(user?.email || '');
       setUnreadEmailsCount(emailCount);
 
       // Load applications
@@ -81,8 +81,8 @@ export default function CandidateHome() {
     setRefreshing(false);
   };
 
-  const displayName = currentUser?.name || 'Victor Taiwo';
-  const displayInitials = currentUser?.initials || 'VT';
+  const displayName = currentUser?.name || 'Talent';
+  const displayInitials = currentUser?.initials || (currentUser?.name ? ApplicationsService.getInitials(currentUser.name, currentUser.email) : 'HB');
 
   return (
     <SafeAreaView className="flex-1 bg-canvas">
@@ -198,7 +198,7 @@ export default function CandidateHome() {
                   )}
                 </View>
                 <Text className="text-[11px] text-zinc-500" numberOfLines={1}>
-                  Confirmation emails & reviewer feedback sent to {currentUser?.email || 'victor@hirebloom.com'}
+                  Confirmation emails & reviewer feedback sent to {currentUser?.email || 'your registered inbox'}
                 </Text>
               </View>
             </View>
@@ -360,7 +360,7 @@ export default function CandidateHome() {
           setEmailModalVisible(false);
           loadHomeData();
         }}
-        userEmail={currentUser?.email || 'victor@hirebloom.com'}
+        userEmail={currentUser?.email || ''}
       />
     </SafeAreaView>
   );

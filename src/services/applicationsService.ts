@@ -274,7 +274,7 @@ export const ApplicationsService = {
     if (email) {
       return email.slice(0, 2).toUpperCase();
     }
-    return 'VT';
+    return 'HB';
   },
 
   // 1. Fetch all jobs
@@ -839,8 +839,9 @@ export const ApplicationsService = {
     uid: string;
     email: string;
     name: string;
-    role: 'candidate' | 'employer';
+    role: 'candidate' | 'employer' | 'recruiter';
     company?: string;
+    password?: string;
   }): Promise<void> {
     const cleanEmail = profile.email.trim().toLowerCase();
     const existing = await this.getRegisteredUsers();
@@ -849,6 +850,26 @@ export const ApplicationsService = {
       { ...profile, email: cleanEmail }
     ];
     await AsyncStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(updated));
+
+    // Also sync to Firestore 'users' collection so logins and cloud checks find the account
+    if (!IS_MOCK_FIREBASE && db) {
+      try {
+        await setDoc(
+          doc(db, 'users', profile.uid),
+          sanitizeForFirestore({
+            uid: profile.uid,
+            name: profile.name,
+            email: cleanEmail,
+            role: profile.role,
+            company: profile.company || null,
+            createdAt: new Date().toISOString(),
+          }),
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn('Firestore user profile sync warning:', err);
+      }
+    }
   },
 
   async checkUserExists(email: string): Promise<{

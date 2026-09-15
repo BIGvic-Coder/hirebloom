@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { ApplicationsService, JobItem, UserSession } from '@/services/applicationsService';
 import { EmailService } from '@/services/emailService';
 import EmailInboxModal from '@/components/ui/EmailInboxModal';
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function CandidateJobs() {
   const router = useRouter();
@@ -34,8 +35,8 @@ export default function CandidateJobs() {
   const [activeJobForModal, setActiveJobForModal] = useState<JobItem | null>(null);
   const [applicationNote, setApplicationNote] = useState('');
   const [attachedResume, setAttachedResume] = useState<{ name: string; size: string; url?: string }>({
-    name: 'victor_resume_2026.pdf',
-    size: '1.4 MB'
+    name: 'resume_document.pdf',
+    size: '1.2 MB'
   });
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,7 +78,7 @@ export default function CandidateJobs() {
     const existingApps = await ApplicationsService.getCandidateApplications(targetId);
     setAppliedJobIds(existingApps.map(a => a.jobId));
 
-    const emailCount = await EmailService.getUnreadCount(user?.email || 'victor@hirebloom.com');
+    const emailCount = await EmailService.getUnreadCount(user?.email || '');
     setUnreadEmailCount(emailCount);
   };
 
@@ -135,37 +136,68 @@ export default function CandidateJobs() {
     setApplicationNote('');
   };
 
-  // Resume Upload Handler (allows selecting or simulating upload of updated CV)
+  // Resume Upload Handler (opens native phone storage document picker or sample CV)
   const handlePickResume = () => {
     Alert.alert(
       "Attach Resume",
-      "Choose a document from your device or select an existing resume profile:",
+      "Choose an option to attach your resume:",
       [
         {
-          text: "Upload Standard CV (PDF)",
-          onPress: () => {
-            setIsUploadingResume(true);
-            setTimeout(() => {
-              const updated = { name: `${(currentUser?.name || 'Victor').toLowerCase()}_resume_2026.pdf`, size: '1.4 MB' };
-              setAttachedResume(updated);
-              ApplicationsService.saveCandidateResume(updated);
+          text: "📱 Choose File From Device",
+          onPress: async () => {
+            try {
+              setIsUploadingResume(true);
+              const result = await DocumentPicker.getDocumentAsync({
+                type: [
+                  'application/pdf',
+                  'application/msword',
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                  'text/plain',
+                ],
+                copyToCacheDirectory: true,
+              });
+
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                const file = result.assets[0];
+                let sizeStr = '1.2 MB';
+                if (file.size) {
+                  const sizeInKb = Math.round(file.size / 1024);
+                  if (sizeInKb > 1024) {
+                    sizeStr = `${(sizeInKb / 1024).toFixed(1)} MB`;
+                  } else {
+                    sizeStr = `${sizeInKb} KB`;
+                  }
+                }
+                const updated = {
+                  name: file.name,
+                  size: sizeStr,
+                  url: file.uri,
+                };
+                setAttachedResume(updated);
+                await ApplicationsService.saveCandidateResume(updated);
+                Alert.alert("Resume Attached", `Attached "${file.name}" (${sizeStr})`);
+              }
+            } catch (err: any) {
+              Alert.alert("File Picker Error", err.message || "Could not open document picker.");
+            } finally {
               setIsUploadingResume(false);
-              Alert.alert("Resume Attached", "Your PDF resume has been attached to this application.");
-            }, 600);
-          }
+            }
+          },
         },
         {
-          text: "Upload Tailored Support CV (DOCX)",
-          onPress: () => {
+          text: "📄 Pre-loaded Sample Resume",
+          onPress: async () => {
             setIsUploadingResume(true);
-            setTimeout(() => {
-              const updated = { name: `${(currentUser?.name || 'Victor').toLowerCase()}_support_specialist_cv.docx`, size: '890 KB' };
-              setAttachedResume(updated);
-              ApplicationsService.saveCandidateResume(updated);
-              setIsUploadingResume(false);
-              Alert.alert("Resume Attached", "Tailored support resume attached successfully.");
-            }, 600);
-          }
+            const candidatePrefix = (currentUser?.name || 'candidate').toLowerCase().replace(/\s+/g, '_');
+            const updated = {
+              name: `${candidatePrefix}_resume_2026.pdf`,
+              size: '1.4 MB'
+            };
+            setAttachedResume(updated);
+            await ApplicationsService.saveCandidateResume(updated);
+            setIsUploadingResume(false);
+            Alert.alert("Resume Attached", "Sample PDF resume attached successfully.");
+          },
         },
         {
           text: "Cancel",
@@ -179,9 +211,9 @@ export default function CandidateJobs() {
     if (!activeJobForModal) return;
     setIsSubmitting(true);
 
-    const candidateName = currentUser?.name || 'Victor Taiwo';
-    const candidateEmail = currentUser?.email || 'victor@hirebloom.com';
-    const candidateId = currentUser?.uid || 'demo-candidate-1';
+    const candidateName = currentUser?.name || 'Talent Applicant';
+    const candidateEmail = currentUser?.email || 'talent@hirebloom.com';
+    const candidateId = currentUser?.uid || `candidate-${Date.now()}`;
     const targetJob = activeJobForModal;
 
     const res = await ApplicationsService.applyForJob(targetJob, {
@@ -247,7 +279,7 @@ export default function CandidateJobs() {
         <View className="flex-row justify-between items-start mb-6">
           <View>
             <Text className="text-slate-500 font-medium text-sm mb-0.5">
-              Hello, {currentUser?.name || 'Victor'} 👋
+              Hello, {currentUser?.name || 'Talent'} 👋
             </Text>
             <Text className="text-3xl font-extrabold text-slate-900">Find your next</Text>
             <Text className="text-3xl font-extrabold text-forest">dream job</Text>

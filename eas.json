@@ -5,15 +5,43 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBsLggzQ0z6qrOprKYZvKguKoT8Fr6ofTE",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hirebloom-eca13.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hirebloom-eca13",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hirebloom-eca13.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "32893466508",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:32893466508:web:732172cab258480f91b162",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com"
+      }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBsLggzQ0z6qrOprKYZvKguKoT8Fr6ofTE",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hirebloom-eca13.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hirebloom-eca13",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hirebloom-eca13.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "32893466508",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:32893466508:web:732172cab258480f91b162",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com"
       }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBsLggzQ0z6qrOprKYZvKguKoT8Fr6ofTE",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hirebloom-eca13.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hirebloom-eca13",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hirebloom-eca13.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "32893466508",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:32893466508:web:732172cab258480f91b162",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com"
+      }
+    }
   },
   "submit": {
     "production": {}
