@@ -8,7 +8,9 @@
     "scheme": "hirebloom",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.victor.hirebloom",
+      "supportsTablet": true
     },
     "android": {
       "package": "com.victor.hirebloom",
