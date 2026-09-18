@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight } from 'lucide-react-native';
+import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Crown, Lock, Send, UserCheck } from 'lucide-react-native';
 import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
+import { EmailService } from '@/services/emailService';
+import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
 
 interface CandidateItem {
   id: string | number;
@@ -146,11 +148,28 @@ export default function EmployerCandidates() {
   const [aiAnalysisTab, setAiAnalysisTab] = useState<'summary' | 'loom' | 'resume' | 'scores' | 'transcript'>('summary');
   const [selectedStage, setSelectedStage] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentRole, setCurrentRole] = useState<'employer' | 'ceo'>('employer');
+  const [isPasscodeModalVisible, setIsPasscodeModalVisible] = useState(false);
 
-  // Sync with ApplicationsService on mount
+  // Sync with ApplicationsService and determine active authority on mount
   useEffect(() => {
     syncLiveApplications();
+    resolveRole();
   }, []);
+
+  const resolveRole = async () => {
+    try {
+      const user = await ApplicationsService.getCurrentUser();
+      const isCeoAuth = await ApplicationsService.isCeoAuthenticated();
+      if (user?.role === 'ceo' || isCeoAuth) {
+        setCurrentRole('ceo');
+      } else {
+        setCurrentRole('employer');
+      }
+    } catch {
+      setCurrentRole('employer');
+    }
+  };
 
   const syncLiveApplications = async () => {
     try {
@@ -211,7 +230,7 @@ export default function EmployerCandidates() {
     setModalVisible(true);
   };
 
-  // Decision Handlers that sync directly with Candidate's mobile app
+  // Decision Handlers that sync directly with Candidate's mobile app and Email Inbox
   const handleUpdateStage = async (newStage: string, applicationStatus: ApplicationStatus, feedback: string) => {
     if (!selectedCandidate) return;
 
@@ -233,12 +252,54 @@ export default function EmployerCandidates() {
         ? 'Candidate Selection Completed'
         : 'Recruiter Screening Active',
       feedbackReason: feedback,
-      notes: `Decision recorded by hiring team: Moved to ${newStage}`
+      notes: `Decision recorded: Moved to ${newStage}`
     });
+
+    // Also directly dispatch email to candidate inbox
+    try {
+      const activeUser = await ApplicationsService.getCurrentUser();
+      const candidateEmail = (selectedCandidate as any).email || (activeUser?.email || 'victor@hirebloom.com');
+      
+      if (applicationStatus === 'Offer Received') {
+        await EmailService.sendOfferEmail(
+          { name: selectedCandidate.name, email: candidateEmail },
+          { title: selectedCandidate.role, company: 'InnovateX' },
+          { salary: '$15.00 - $18.00 / hr', startDate: 'Within 2 weeks' }
+        );
+      } else if (applicationStatus === 'Interview Scheduled') {
+        await EmailService.sendInterviewInviteEmail(
+          { name: selectedCandidate.name, email: candidateEmail },
+          { title: selectedCandidate.role, company: 'DesignFlow' },
+          { date: 'Next Tuesday', time: '2:30 PM EST', meetUrl: 'https://meet.google.com/hbm-intr-vct' }
+        );
+      } else if (applicationStatus === 'Pending Final Review') {
+        await EmailService.sendFeedbackAndAdvanceEmail(
+          { name: selectedCandidate.name, email: candidateEmail },
+          { title: selectedCandidate.role, company: 'InnovateX' },
+          'Step 2: Match & Final Review',
+          feedback
+        );
+      }
+    } catch (emailErr) {
+      console.warn('Pipeline email dispatch warning:', emailErr);
+    }
 
     Alert.alert(
       'Candidate Decision Updated',
-      `${selectedCandidate.name} is now set to "${newStage}" (${applicationStatus}).\n\nThe candidate's mobile tracking screen updates immediately in real-time!`
+      `${selectedCandidate.name} is now set to "${newStage}" (${applicationStatus}).\n\nThe candidate's mobile tracking screen and Email Inbox update immediately in real-time!`
+    );
+  };
+
+  const handleRecommendCandidate = async () => {
+    if (!selectedCandidate) return;
+    await handleUpdateStage(
+      'Final Review',
+      'Pending Final Review',
+      'Employer submitted hiring recommendation. Awaiting CEO Victor final offer letter sign-off.'
+    );
+    Alert.alert(
+      'Recommendation Submitted to CEO Desk',
+      `You recommended ${selectedCandidate.name} for hiring!\n\nHireBloom Owner & CEO Victor will review the match and issue the binding contract offer at $13 - $15/hr flat rate.`
     );
   };
 
@@ -563,59 +624,140 @@ export default function EmployerCandidates() {
 
               {/* Pipeline Decision Panel */}
               <View className="bg-slate-900/90 p-4 rounded-2xl border border-mint/30 mt-2">
-                <Text className="text-mint font-extrabold text-[11px] uppercase tracking-wider mb-2.5">
-                  Make Pipeline Decision (Syncs to Candidate App)
-                </Text>
-                
-                {/* Row 1: Advance to Final Review + Schedule Interview */}
-                <View className="flex-row gap-2 mb-2">
-                  <TouchableOpacity 
-                    onPress={() => handleUpdateStage(
-                      'Final Review', 
-                      'Pending Final Review', 
-                      'Congratulations! You have advanced through the preliminary screening. Your application is now in Pending Final Review with the hiring team.'
-                    )}
-                    className="flex-1 bg-slate-800 border border-mint/40 py-2.5 rounded-xl items-center active:opacity-90"
-                  >
-                    <Text className="text-mint font-bold text-xs">Advance to Final Review</Text>
-                  </TouchableOpacity>
+                {currentRole === 'ceo' ? (
+                  <>
+                    <View className="flex-row items-center justify-between mb-2.5">
+                      <View className="flex-row items-center">
+                        <Crown size={14} color="#8ecfa9" style={{ marginRight: 6 }} />
+                        <Text className="text-mint font-extrabold text-[11px] uppercase tracking-wider">
+                          👑 CEO Executive Offer Authority
+                        </Text>
+                      </View>
+                      <View className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/40">
+                        <Text className="text-emerald-400 text-[9px] font-black uppercase">Authorized</Text>
+                      </View>
+                    </View>
 
-                  <TouchableOpacity 
-                    onPress={() => handleUpdateStage(
-                      'Interview', 
-                      'Interview Scheduled', 
-                      'Selected for live panel interview on Google Meet. Interview invitation sent.'
-                    )}
-                    className="flex-1 bg-purple-700 py-2.5 rounded-xl items-center active:opacity-90"
-                  >
-                    <Text className="text-white font-bold text-xs">Schedule Interview</Text>
-                  </TouchableOpacity>
-                </View>
+                    {/* CEO Row 1: Advance to Final Review + Schedule Interview */}
+                    <View className="flex-row gap-2 mb-2">
+                      <TouchableOpacity 
+                        onPress={() => handleUpdateStage(
+                          'Final Review', 
+                          'Pending Final Review', 
+                          'Congratulations! You have advanced through the preliminary screening. Your application is now in Pending Final Review with the hiring team.'
+                        )}
+                        className="flex-1 bg-slate-800 border border-mint/40 py-2.5 rounded-xl items-center active:opacity-90"
+                      >
+                        <Text className="text-mint font-bold text-xs">Advance to Final Review</Text>
+                      </TouchableOpacity>
 
-                {/* Row 2: Send Offer + Not Selected */}
-                <View className="flex-row gap-2">
-                  <TouchableOpacity 
-                    onPress={() => handleUpdateStage(
-                      'Offer Sent', 
-                      'Offer Received', 
-                      'Candidate selected for placement! Contract extended at standard $15/hr flat rate.'
-                    )}
-                    className="flex-1 bg-emerald-600 py-2.5 rounded-xl items-center active:opacity-90"
-                  >
-                    <Text className="text-white font-bold text-xs">Make Offer</Text>
-                  </TouchableOpacity>
+                      <TouchableOpacity 
+                        onPress={() => handleUpdateStage(
+                          'Interview', 
+                          'Interview Scheduled', 
+                          'Selected for live panel interview on Google Meet. Interview invitation sent.'
+                        )}
+                        className="flex-1 bg-purple-700 py-2.5 rounded-xl items-center active:opacity-90"
+                      >
+                        <Text className="text-white font-bold text-xs">Schedule Interview</Text>
+                      </TouchableOpacity>
+                    </View>
 
-                  <TouchableOpacity 
-                    onPress={() => handleUpdateStage(
-                      'Not Selected', 
-                      'Not Selected', 
-                      'Thank you for your application and interview. We were impressed with your background, but decided to move forward with a finalist whose immediate experience closely aligned with this role. Your profile remains active for upcoming roles!'
-                    )}
-                    className="flex-1 bg-red-500/20 border border-red-500/40 py-2.5 rounded-xl items-center active:opacity-85"
-                  >
-                    <Text className="text-red-300 font-bold text-xs">Not Selected</Text>
-                  </TouchableOpacity>
-                </View>
+                    {/* CEO Row 2: Send Binding Offer + Not Selected */}
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity 
+                        onPress={() => handleUpdateStage(
+                          'Offer Sent', 
+                          'Offer Received', 
+                          'Candidate selected for placement! Official binding offer extended at standard $15.00/hr flat rate.'
+                        )}
+                        className="flex-1 bg-emerald-600 py-2.5 rounded-xl items-center active:opacity-90 flex-row justify-center"
+                      >
+                        <Crown size={14} color="white" style={{ marginRight: 6 }} />
+                        <Text className="text-white font-bold text-xs">Issue Official Offer</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        onPress={() => handleUpdateStage(
+                          'Not Selected', 
+                          'Not Selected', 
+                          'Thank you for your application and interview. We were impressed with your background, but decided to move forward with a finalist whose immediate experience closely aligned with this role. Your profile remains active for upcoming roles!'
+                        )}
+                        className="flex-1 bg-red-500/20 border border-red-500/40 py-2.5 rounded-xl items-center active:opacity-85"
+                      >
+                        <Text className="text-red-300 font-bold text-xs">Not Selected</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center">
+                        <UserCheck size={14} color="#8ecfa9" style={{ marginRight: 6 }} />
+                        <Text className="text-mint font-extrabold text-[11px] uppercase tracking-wider">
+                          🏢 Employer Requisition Desk
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setIsPasscodeModalVisible(true)}
+                        className="flex-row items-center bg-white/10 px-2 py-0.5 rounded-full border border-white/20 active:opacity-75"
+                      >
+                        <Lock size={10} color="#8ecfa9" style={{ marginRight: 4 }} />
+                        <Text className="text-[#8ecfa9] text-[9px] font-bold">Unlock CEO Offer Mode</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text className="text-zinc-400 text-[10px] mb-2.5 leading-relaxed">
+                      Employers can schedule interviews or recommend talent. Binding contract offers are issued exclusively by the platform Owner / CEO.
+                    </Text>
+
+                    {/* Employer Row 1: Schedule Interview + Recommend to CEO */}
+                    <View className="flex-row gap-2 mb-2">
+                      <TouchableOpacity 
+                        onPress={() => handleUpdateStage(
+                          'Interview', 
+                          'Interview Scheduled', 
+                          'Selected for live client panel interview on Google Meet. Meeting invite dispatched.'
+                        )}
+                        className="flex-1 bg-purple-700 py-2.5 rounded-xl items-center active:opacity-90"
+                      >
+                        <Text className="text-white font-bold text-xs">Schedule Interview</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        onPress={handleRecommendCandidate}
+                        className="flex-1 bg-emerald-600 py-2.5 rounded-xl items-center active:opacity-90 flex-row justify-center"
+                      >
+                        <Send size={13} color="white" style={{ marginRight: 5 }} />
+                        <Text className="text-white font-bold text-xs">Recommend for Offer</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity 
+                        onPress={() => handleUpdateStage(
+                          'Final Review', 
+                          'Pending Final Review', 
+                          'Shortlisted by client for final review.'
+                        )}
+                        className="flex-1 bg-slate-800 border border-slate-700 py-2 rounded-xl items-center active:opacity-90"
+                      >
+                        <Text className="text-zinc-300 font-medium text-xs">Keep on Shortlist</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        onPress={() => handleUpdateStage(
+                          'Not Selected', 
+                          'Not Selected', 
+                          'Candidate profile archived for this requisition.'
+                        )}
+                        className="flex-1 bg-red-500/10 border border-red-500/30 py-2 rounded-xl items-center active:opacity-85"
+                      >
+                        <Text className="text-red-400 font-medium text-xs">Pass</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
               </View>
 
               <TouchableOpacity 
@@ -631,6 +773,21 @@ export default function EmployerCandidates() {
           )}
         </View>
       </Modal>
+
+      {/* CEO Passcode Elevation Modal */}
+      <ExecutivePasscodeModal
+        visible={isPasscodeModalVisible}
+        onClose={() => setIsPasscodeModalVisible(false)}
+        onSuccess={async () => {
+          await ApplicationsService.setCeoAuthenticated(true);
+          await ApplicationsService.elevateRoleTo('ceo');
+          setCurrentRole('ceo');
+          Alert.alert('Executive Authority Unlocked', 'You now have CEO Master Authority to issue binding employment offers.');
+        }}
+        title="CEO Offer Authority"
+        subtitle="Enter Master Key (2026) to issue official employment contracts"
+        targetRole="ceo"
+      />
     </SafeAreaView>
   );
 }

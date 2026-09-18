@@ -8,6 +8,7 @@ import { EmailService } from '@/services/emailService';
 import { ApplicationsService } from '@/services/applicationsService';
 import EmailInboxModal from './EmailInboxModal';
 import HireBloomLogoMark from './HireBloomLogoMark';
+import ExecutivePasscodeModal from './ExecutivePasscodeModal';
 
 interface HireBloomHeaderProps {
   portalTitle?: string;
@@ -32,6 +33,7 @@ export default function HireBloomHeader({
   const [activeInitials, setActiveInitials] = useState(userInitials || 'HB');
   const [emailModalVisible, setEmailModalVisible] = useState(false);
   const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
+  const [isPasscodeModalVisible, setIsPasscodeModalVisible] = useState(false);
 
   useEffect(() => {
     loadUnread();
@@ -69,12 +71,25 @@ export default function HireBloomHeader({
 
   const handleSwitchPerspective = async (targetRole: 'candidate' | 'employer' | 'ceo') => {
     setIsRoleModalVisible(false);
+    if (targetRole === 'ceo') {
+      const isUnlocked = await ApplicationsService.isCeoAuthenticated();
+      if (!isUnlocked) {
+        setIsPasscodeModalVisible(true);
+        return;
+      }
+    }
     await ApplicationsService.elevateRoleTo(targetRole);
     if (targetRole === 'candidate') {
       router.replace('/candidate');
     } else {
       router.replace('/employer');
     }
+  };
+
+  const handlePasscodeSuccess = async () => {
+    await ApplicationsService.setCeoAuthenticated(true);
+    await ApplicationsService.elevateRoleTo('ceo');
+    router.replace('/employer');
   };
 
   const handleSignOut = async () => {
@@ -257,6 +272,16 @@ export default function HireBloomHeader({
           </View>
         </View>
       </Modal>
+
+      {/* Executive Master Passcode Modal */}
+      <ExecutivePasscodeModal
+        visible={isPasscodeModalVisible}
+        onClose={() => setIsPasscodeModalVisible(false)}
+        onSuccess={handlePasscodeSuccess}
+        title="CEO Executive Suite"
+        subtitle="Enter Master Key (2026) to unlock Owner & CEO Authority"
+        targetRole="ceo"
+      />
     </View>
   );
 }

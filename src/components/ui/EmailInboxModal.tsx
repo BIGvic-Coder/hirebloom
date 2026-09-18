@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -360,6 +361,20 @@ export default function EmailInboxModal({
                       • <Text className="font-semibold">Contract Type:</Text> Full-time Remote (US Hours)
                     </Text>
                   </View>
+
+                  {/* Accept Offer Action */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        'Offer Accepted! 🎉',
+                        `Congratulations! You have accepted the placement offer for ${selectedEmail.metadata?.jobTitle || 'this role'} at ${selectedEmail.metadata?.company || 'our client partner'}!\n\nHireBloom Onboarding Desk has received your confirmation. Your onboarding specialist will contact you with hardware setup and client kickoff details.`
+                      );
+                    }}
+                    className="bg-emerald-600 py-3.5 rounded-2xl items-center justify-center flex-row shadow-sm active:opacity-85"
+                  >
+                    <CheckCircle size={16} color="white" style={{ marginRight: 6 }} />
+                    <Text className="text-white font-bold text-xs">Accept Offer & Confirm Onboarding</Text>
+                  </TouchableOpacity>
                 </View>
               )}
 

@@ -142,36 +142,90 @@ export const EmailService = {
 
       // Filter by recipient email if provided
       if (cleanEmail) {
-        const matches = list.filter(
+        let matches = list.filter(
           (e) =>
             e.toEmail.toLowerCase() === cleanEmail ||
-            (cleanEmail === 'victor@hirebloom.com' && e.toEmail.toLowerCase() === 'victor@hirebloom.com')
+            (cleanEmail.includes('victor') && e.toEmail.toLowerCase().includes('victor'))
         );
 
-        if (matches.length > 0) {
-          // Always ensure the Founder Welcome email is in their inbox
-          const hasWelcome = matches.some((e) => e.template === 'founder_welcome');
-          if (!hasWelcome) {
-            const userFirstName = cleanEmail.split('@')[0];
-            const founderEmail: EmailMessage = {
-              ...INITIAL_SEED_EMAILS[1],
-              id: `founder-${cleanEmail}`,
-              toEmail: cleanEmail,
-              toName: userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1),
-            };
-            return [matches[0], founderEmail, ...matches.slice(1)];
-          }
-          return matches;
-        } else {
-          // If no specific emails submitted yet, return personalized welcome email for this user
+        if (matches.length === 0) {
+          // If no specific emails submitted yet, provide realistic active candidate inbox
+          // including active offers, interviews, and founder welcome for this user
           const userFirstName = cleanEmail.split('@')[0];
           const formattedName = userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1);
-          return INITIAL_SEED_EMAILS.map((e) => ({
-            ...e,
-            toEmail: cleanEmail,
-            toName: formattedName,
-          }));
+          
+          const personalizedSeed: EmailMessage[] = [
+            {
+              id: `offer-${cleanEmail}-1`,
+              toEmail: cleanEmail,
+              toName: formattedName,
+              fromName: 'Bloom Placements',
+              fromEmail: 'offers@hirebloom.com',
+              subject: 'Formal Offer Extended: Senior Customer Support Lead at InnovateX! 🎉',
+              preview: `Congratulations ${formattedName}! You have received an employment offer for Senior Customer Support Lead at $15.00 - $18.00 / hr.`,
+              template: 'offer_letter',
+              date: 'Today',
+              timestamp: Date.now(),
+              read: false,
+              metadata: {
+                jobTitle: 'Senior Customer Support Lead',
+                company: 'InnovateX',
+                stage: 'Offer Received',
+                salary: '$15.00 - $18.00 / hr',
+                startDate: 'Within 2 weeks',
+              },
+              body: `Hi ${formattedName},\n\nWe are thrilled to extend a formal placement offer for the role of Senior Customer Support Lead at InnovateX!\n\nOffer Details:\n• Compensation: $15.00 - $18.00 / hr (Standard Latin American Flat Rate)\n• Target Start Date: Within 2 weeks\n• Work Setup: Remote (US Business Hours)\n\nPlease visit your Hire Bloom Talent Portal to review the full contract terms and accept your offer to begin onboarding.\n\nCongratulations on this remarkable achievement!\nEric Engebretsen & The Bloom Team`,
+            },
+            {
+              id: `interview-${cleanEmail}-2`,
+              toEmail: cleanEmail,
+              toName: formattedName,
+              fromName: 'Bloom Interview Desk',
+              fromEmail: 'interviews@hirebloom.com',
+              subject: 'Interview Scheduled: Technical Onboarding Specialist at DesignFlow',
+              preview: `You're invited to interview for Technical Onboarding Specialist! Date: Upcoming at Confirmed EST.`,
+              template: 'interview_invite',
+              date: 'Yesterday',
+              timestamp: Date.now() - 1000 * 60 * 60 * 24,
+              read: false,
+              metadata: {
+                jobTitle: 'Technical Onboarding Specialist',
+                company: 'DesignFlow',
+                stage: 'Interview Scheduled',
+                interviewDate: 'Upcoming Week',
+                interviewTime: '2:30 PM EST',
+                meetUrl: 'https://meet.google.com/hbm-intr-vct',
+              },
+              body: `Hi ${formattedName},\n\nCongratulations! The hiring team at DesignFlow was very impressed with your profile and would like to invite you to a Panel Video Interview.\n\nInterview Details:\n• Position: Technical Onboarding Specialist\n• Date: Upcoming Week\n• Time: 2:30 PM EST\n• Video Room: https://meet.google.com/hbm-intr-vct\n\nPlease make sure your camera and headset are tested beforehand. Best of luck!\nThe Bloom Talent Team`,
+            },
+            ...INITIAL_SEED_EMAILS.map((e) => ({
+              ...e,
+              toEmail: cleanEmail,
+              toName: formattedName,
+            })),
+          ];
+
+          // Persist so subsequent reads and unread counters retain them
+          list.unshift(...personalizedSeed);
+          await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
+          return personalizedSeed;
         }
+
+        // Always ensure the Founder Welcome email is in their inbox
+        const hasWelcome = matches.some((e) => e.template === 'founder_welcome');
+        if (!hasWelcome) {
+          const userFirstName = cleanEmail.split('@')[0];
+          const founderEmail: EmailMessage = {
+            ...INITIAL_SEED_EMAILS[1],
+            id: `founder-${cleanEmail}`,
+            toEmail: cleanEmail,
+            toName: userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1),
+          };
+          matches.push(founderEmail);
+        }
+
+        matches.sort((a, b) => b.timestamp - a.timestamp);
+        return matches;
       }
 
       return list;

@@ -9,6 +9,7 @@ import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ApplicationsService } from '@/services/applicationsService';
 import { GoogleSignin, statusCodes, isGoogleSigninAvailable } from '@/services/googleAuth';
+import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
 
 // Custom Official Google Multi-Colored Vector Logo
 const GoogleLogo = () => (
@@ -38,6 +39,7 @@ export default function Login() {
   const [authLoading, setAuthLoading] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'emailCode' | 'password'>('emailCode');
   const [otpStep, setOtpStep] = useState<'enterEmail' | 'enterCode'>('enterEmail');
+  const [isCeoPasscodeVisible, setIsCeoPasscodeVisible] = useState(false);
 
   const [email, setEmail] = useState(params.email || '');
   const [otpCode, setOtpCode] = useState('');
@@ -679,10 +681,7 @@ export default function Login() {
                 <Text className="text-forest font-extrabold text-[10px]">Employer</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                onPress={async () => {
-                  await ApplicationsService.elevateRoleTo('ceo');
-                  router.push('/employer');
-                }}
+                onPress={() => setIsCeoPasscodeVisible(true)}
                 className="flex-1 bg-mint/20 border border-mint/40 py-2.5 rounded-xl items-center justify-center active:opacity-70"
               >
                 <Text className="text-forest font-extrabold text-[10px]">👑 CEO Suite</Text>
@@ -692,6 +691,20 @@ export default function Login() {
 
         </View>
       </ScrollView>
+
+      {/* CEO Executive Passcode Modal */}
+      <ExecutivePasscodeModal
+        visible={isCeoPasscodeVisible}
+        onClose={() => setIsCeoPasscodeVisible(false)}
+        onSuccess={async () => {
+          await ApplicationsService.setCeoAuthenticated(true);
+          await ApplicationsService.elevateRoleTo('ceo');
+          router.push('/employer');
+        }}
+        title="CEO Executive Access"
+        subtitle="Enter Master Key (2026) to enter Owner Mode"
+        targetRole="ceo"
+      />
     </SafeAreaView>
   );
 }

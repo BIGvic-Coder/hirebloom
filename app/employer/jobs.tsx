@@ -259,8 +259,14 @@ export default function EmployerJobs() {
                   <Briefcase color="#113c2c" size={20} />
                 </View>
                 <View>
-                  <Text className="text-xl font-bold text-slate-900">Post New Role</Text>
-                  <Text className="text-slate-400 text-xs">Publishing with authority: <Text className="font-bold text-forest uppercase">{currentRole}</Text></Text>
+                  <Text className="text-xl font-bold text-slate-900">
+                    {currentRole === 'ceo' ? 'Publish Priority Job' : 'Talent Requisition Form'}
+                  </Text>
+                  <Text className="text-slate-400 text-xs">
+                    {currentRole === 'ceo' 
+                      ? 'Publishing with CEO Executive Authority' 
+                      : 'Requesting role: Routes to HireBloom CEO desk'}
+                  </Text>
                 </View>
               </View>
               <TouchableOpacity 
@@ -274,7 +280,7 @@ export default function EmployerJobs() {
             {/* Form Fields */}
             <View className="space-y-4 mb-5">
               <View>
-                <Text className="text-slate-700 font-bold text-xs mb-1.5 uppercase tracking-wide">Role Title</Text>
+                <Text className="text-slate-700 font-bold text-xs mb-1.5 uppercase tracking-wide">Role Title Needed</Text>
                 <TextInput
                   value={newTitle}
                   onChangeText={setNewTitle}
@@ -337,8 +343,12 @@ export default function EmployerJobs() {
                 <View className="flex-row items-center flex-1 pr-2">
                   <Crown size={16} color={isCeoPriority ? '#113c2c' : '#64748b'} style={{ marginRight: 8 }} />
                   <View className="flex-1">
-                    <Text className="font-bold text-xs text-slate-900">CEO Priority Requisition</Text>
-                    <Text className="text-slate-500 text-[10px]">Pins to top of talent portal with verified employer badge</Text>
+                    <Text className="font-bold text-xs text-slate-900">
+                      {currentRole === 'ceo' ? 'CEO Priority Opening' : 'Mark as Urgent Requisition'}
+                    </Text>
+                    <Text className="text-slate-500 text-[10px]">
+                      {currentRole === 'ceo' ? 'Pins to top of talent portal with verified employer badge' : 'Fast-tracks candidate matching with CEO Victor'}
+                    </Text>
                   </View>
                 </View>
                 <View className={`w-6 h-6 rounded-full items-center justify-center ${isCeoPriority ? 'bg-forest' : 'bg-slate-200'}`}>
@@ -351,7 +361,7 @@ export default function EmployerJobs() {
             <View className="bg-mint/10 border border-mint/25 rounded-2xl p-3 mb-5 flex-row items-center">
               <CheckCircle size={16} color="#113c2c" style={{ marginRight: 8 }} />
               <Text className="text-forest text-[11px] font-medium leading-snug flex-1">
-                Embedded teams standard flat rate: <Text className="font-bold">$13.00/hour</Text>. Published directly to verified candidate matching.
+                Embedded teams standard flat rate: <Text className="font-bold">$13.00/hour</Text>. {currentRole === 'ceo' ? 'Published live to talent portal.' : 'HireBloom team vets candidates and presents best matches.'}
               </Text>
             </View>
 
@@ -362,7 +372,11 @@ export default function EmployerJobs() {
               className="w-full bg-forest py-4 rounded-2xl items-center justify-center active:opacity-90 shadow-md shadow-forest/20"
             >
               <Text className="text-white font-bold text-sm">
-                {isPublishing ? 'Publishing Requisition...' : 'Publish Opening Now'}
+                {isPublishing 
+                  ? 'Submitting Requisition...' 
+                  : currentRole === 'ceo' 
+                  ? '👑 Publish Opening to Candidates' 
+                  : 'Submit Hire Request to CEO'}
               </Text>
             </TouchableOpacity>
           </View>
