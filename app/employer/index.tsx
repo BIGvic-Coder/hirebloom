@@ -1,20 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Briefcase, Users, TrendingUp, ChevronRight, Sparkles, ShieldCheck, DollarSign, Calendar, Crown, CheckCircle2, Award, Zap } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';
 import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
 import { ApplicationsService, JobApplication } from '@/services/applicationsService';
 import { JobsService } from '@/services/jobsService';
 
 export default function EmployerDashboard() {
-  const router = useRouter();
+  const router = useRouter() as any;
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'employer' | 'ceo'>('employer');
   const [signedOfferId, setSignedOfferId] = useState<string | null>(null);
   const [isPasscodeModalVisible, setIsPasscodeModalVisible] = useState(false);
+
+  // Sync authentication and view mode on every screen focus
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboardData();
+    }, [])
+  );
 
   useEffect(() => {
     loadDashboardData();
@@ -22,9 +29,12 @@ export default function EmployerDashboard() {
 
   const loadDashboardData = async () => {
     try {
+      const isAuth = await ApplicationsService.isCeoAuthenticated();
       const user = await ApplicationsService.getCurrentUser();
-      if (user?.role === 'ceo') {
+      if (isAuth || user?.role === 'ceo') {
         setViewMode('ceo');
+      } else {
+        setViewMode('employer');
       }
 
       const apps = await ApplicationsService.getAllApplications();
@@ -89,33 +99,37 @@ export default function EmployerDashboard() {
       />
 
       <ScrollView 
-        className="flex-1 px-5 pt-4" 
+        className="flex-1 bg-canvas" 
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ paddingBottom: 110 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 120, paddingHorizontal: 20 }}
       >
         {/* Perspective Mode Switcher: Employer Workspace vs CEO Executive Suite */}
-        <View className="flex-row bg-slate-200/70 p-1 rounded-2xl mb-5">
+        <View className="flex-row bg-slate-200/80 p-1.5 rounded-2xl mb-6 shadow-sm">
           <TouchableOpacity
             onPress={() => handleSwitchMode('employer')}
-            className={`flex-1 py-2.5 rounded-xl items-center flex-row justify-center ${
+            activeOpacity={0.8}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            className={`flex-1 py-3 rounded-xl items-center flex-row justify-center ${
               viewMode === 'employer' ? 'bg-white shadow-sm' : 'bg-transparent'
             }`}
           >
-            <Briefcase size={14} color={viewMode === 'employer' ? '#113c2c' : '#64748b'} style={{ marginRight: 6 }} />
-            <Text className={`font-bold text-xs ${viewMode === 'employer' ? 'text-forest' : 'text-slate-500'}`}>
+            <Briefcase size={15} color={viewMode === 'employer' ? '#113c2c' : '#64748b'} style={{ marginRight: 6 }} />
+            <Text className={`font-bold text-xs ${viewMode === 'employer' ? 'text-forest font-extrabold' : 'text-slate-500'}`}>
               Employer Workspace
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => handleSwitchMode('ceo')}
-            className={`flex-1 py-2.5 rounded-xl items-center flex-row justify-center ${
+            activeOpacity={0.8}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            className={`flex-1 py-3 rounded-xl items-center flex-row justify-center ${
               viewMode === 'ceo' ? 'bg-forest shadow-sm' : 'bg-transparent'
             }`}
           >
-            <Crown size={14} color={viewMode === 'ceo' ? '#8ecfa9' : '#64748b'} style={{ marginRight: 6 }} />
-            <Text className={`font-bold text-xs ${viewMode === 'ceo' ? 'text-mint' : 'text-slate-500'}`}>
+            <Crown size={15} color={viewMode === 'ceo' ? '#8ecfa9' : '#64748b'} style={{ marginRight: 6 }} />
+            <Text className={`font-bold text-xs ${viewMode === 'ceo' ? 'text-mint font-extrabold' : 'text-slate-500'}`}>
               👑 CEO Executive Suite
             </Text>
           </TouchableOpacity>
@@ -416,18 +430,20 @@ export default function EmployerDashboard() {
       </ScrollView>
 
       {/* CEO Executive Passcode Modal */}
-      <ExecutivePasscodeModal
-        visible={isPasscodeModalVisible}
-        onClose={() => setIsPasscodeModalVisible(false)}
-        onSuccess={async () => {
-          await ApplicationsService.setCeoAuthenticated(true);
-          await ApplicationsService.elevateRoleTo('ceo');
-          setViewMode('ceo');
-        }}
-        title="CEO Executive Suite"
-        subtitle="Enter Master Key (2026) to unlock Owner Mode"
-        targetRole="ceo"
-      />
+      {isPasscodeModalVisible && (
+        <ExecutivePasscodeModal
+          visible={isPasscodeModalVisible}
+          onClose={() => setIsPasscodeModalVisible(false)}
+          onSuccess={async () => {
+            await ApplicationsService.setCeoAuthenticated(true);
+            await ApplicationsService.elevateRoleTo('ceo');
+            setViewMode('ceo');
+          }}
+          title="CEO Executive Suite"
+          subtitle="Enter Master Key (2026) to unlock Owner Mode"
+          targetRole="ceo"
+        />
+      )}
     </SafeAreaView>
   );
 }

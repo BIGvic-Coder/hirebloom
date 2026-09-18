@@ -116,6 +116,8 @@ export default function ExecutivePasscodeModal({
     onClose();
   };
 
+  if (!visible) return null;
+
   return (
     <Modal
       visible={visible}

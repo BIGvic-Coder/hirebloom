@@ -244,12 +244,13 @@ export default function EmployerJobs() {
       </View>
 
       {/* Post a Job Modal (Role-Restricted) */}
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
+      {isModalVisible && (
+        <Modal
+          visible={isModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsModalVisible(false)}
+        >
         <View className="flex-1 bg-black/60 justify-end">
           <View className="bg-white rounded-t-3xl p-6 border-t border-slate-200">
             {/* Modal Header */}
@@ -382,14 +383,16 @@ export default function EmployerJobs() {
           </View>
         </View>
       </Modal>
+      )}
 
       {/* Unauthorized Access Modal with 1-Tap Upgrade */}
-      <Modal
-        visible={isUnauthorizedModalVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setIsUnauthorizedModalVisible(false)}
-      >
+      {isUnauthorizedModalVisible && (
+        <Modal
+          visible={isUnauthorizedModalVisible}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setIsUnauthorizedModalVisible(false)}
+        >
         <View className="flex-1 bg-black/75 justify-center items-center px-6">
           <View className="bg-white rounded-3xl p-6 w-full max-w-sm border border-slate-200 items-center">
             <View className="w-14 h-14 rounded-full bg-amber-100 items-center justify-center mb-4">
@@ -427,6 +430,7 @@ export default function EmployerJobs() {
           </View>
         </View>
       </Modal>
+      )}
     </SafeAreaView>
   );
 }

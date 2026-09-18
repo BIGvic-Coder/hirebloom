@@ -665,7 +665,7 @@ export default function Login() {
               <TouchableOpacity 
                 onPress={async () => {
                   await ApplicationsService.elevateRoleTo('candidate');
-                  router.push('/candidate');
+                  router.replace('/candidate');
                 }}
                 className="flex-1 bg-zinc-50 border border-zinc-200 py-2.5 rounded-xl items-center justify-center active:opacity-70 mr-1.5"
               >
@@ -674,7 +674,7 @@ export default function Login() {
               <TouchableOpacity 
                 onPress={async () => {
                   await ApplicationsService.elevateRoleTo('employer');
-                  router.push('/employer');
+                  router.replace('/employer');
                 }}
                 className="flex-1 bg-zinc-50 border border-zinc-200 py-2.5 rounded-xl items-center justify-center active:opacity-70 mr-1.5"
               >
@@ -699,7 +699,7 @@ export default function Login() {
         onSuccess={async () => {
           await ApplicationsService.setCeoAuthenticated(true);
           await ApplicationsService.elevateRoleTo('ceo');
-          router.push('/employer');
+          router.replace('/employer');
         }}
         title="CEO Executive Access"
         subtitle="Enter Master Key (2026) to enter Owner Mode"

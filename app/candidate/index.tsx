@@ -481,12 +481,13 @@ export default function CandidateJobs() {
       </View>
 
       {/* Application Confirmation Modal with Resume Upload */}
-      <Modal
-        visible={!!activeJobForModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setActiveJobForModal(null)}
-      >
+      {Boolean(activeJobForModal) && (
+        <Modal
+          visible={!!activeJobForModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setActiveJobForModal(null)}
+        >
         <View className="flex-1 bg-black/70 justify-end">
           {activeJobForModal && (
             <View className="bg-white rounded-t-3xl p-6 border-t border-slate-200 max-h-[90%]">
@@ -637,6 +638,7 @@ export default function CandidateJobs() {
           )}
         </View>
       </Modal>
+      )}
 
       {/* Embedded Mobile Email Inbox Modal */}
       <EmailInboxModal

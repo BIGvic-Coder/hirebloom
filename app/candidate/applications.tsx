@@ -431,12 +431,13 @@ export default function CandidateApplications() {
       </ScrollView>
 
       {/* Resume Preview Modal */}
-      <Modal
-        visible={resumeModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setResumeModalVisible(false)}
-      >
+      {resumeModalVisible && (
+        <Modal
+          visible={resumeModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setResumeModalVisible(false)}
+        >
         <View className="flex-1 bg-black/70 justify-end">
           <View className="bg-white rounded-t-3xl p-6 border-t border-zinc-200 max-h-[85%]">
             <View className="flex-row justify-between items-center mb-4">
@@ -490,6 +491,7 @@ export default function CandidateApplications() {
           </View>
         </View>
       </Modal>
+      )}
 
       {/* Official Email Inbox Modal */}
       <EmailInboxModal

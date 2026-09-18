@@ -442,15 +442,16 @@ export default function EmployerCandidates() {
       </View>
 
       {/* Candidate Decision & Review Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => {
-          setModalVisible(false);
-          setSelectedCandidate(null);
-        }}
-      >
+      {modalVisible && (
+        <Modal
+          visible={modalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => {
+            setModalVisible(false);
+            setSelectedCandidate(null);
+          }}
+        >
         <View className="flex-1 bg-black/85 justify-end">
           {selectedCandidate && (
             <View className="bg-forest-card rounded-t-3xl p-6 border-t border-mint/30 max-h-[92%]">
@@ -773,6 +774,7 @@ export default function EmployerCandidates() {
           )}
         </View>
       </Modal>
+      )}
 
       {/* CEO Passcode Elevation Modal */}
       <ExecutivePasscodeModal
