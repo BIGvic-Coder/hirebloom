@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight } from 'lucide-react-native';
 import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
@@ -13,6 +13,7 @@ interface CandidateItem {
   match: string;
   image: string;
   videoUrl: string;
+  loomUrl?: string;
   summary: string;
   resumeName: string;
   resumeSize: string;
@@ -31,6 +32,7 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     match: '97%',
     image: 'VT',
     videoUrl: 'https://youtu.be/HO4sLYt4xE4',
+    loomUrl: 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403',
     resumeName: 'victor_resume_2026.pdf',
     resumeSize: '1.4 MB',
     appliedDate: 'Sep 08, 2026',
@@ -141,7 +143,7 @@ export default function EmployerCandidates() {
   const [candidateList, setCandidateList] = useState<CandidateItem[]>(DEFAULT_CANDIDATES);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [aiAnalysisTab, setAiAnalysisTab] = useState<'summary' | 'scores' | 'transcript' | 'resume'>('summary');
+  const [aiAnalysisTab, setAiAnalysisTab] = useState<'summary' | 'loom' | 'resume' | 'scores' | 'transcript'>('summary');
   const [selectedStage, setSelectedStage] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -172,6 +174,7 @@ export default function EmployerCandidates() {
             match: existingMatch?.match || '95%',
             image: app.candidateInitials || ApplicationsService.getInitials(app.candidateName, app.candidateEmail),
             videoUrl: existingMatch?.videoUrl || 'https://youtu.be/HO4sLYt4xE4',
+            loomUrl: app.loomUrl || existingMatch?.loomUrl || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403',
             resumeName: app.resumeName || 'candidate_resume.pdf',
             resumeSize: app.resumeSize || '1.4 MB',
             appliedDate: app.appliedDate,
@@ -338,16 +341,27 @@ export default function EmployerCandidates() {
                 </View>
               </View>
 
-              {/* Resume Badge Preview on Card */}
-              <View className="bg-zinc-50 border border-zinc-200 rounded-xl p-2.5 flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center flex-1 pr-2">
-                  <FileText size={15} color="#dc2626" style={{ marginRight: 6 }} />
-                  <Text className="text-slate-800 font-semibold text-xs" numberOfLines={1}>
-                    {c.resumeName}
-                  </Text>
-                  <Text className="text-zinc-400 text-[10px] ml-2">({c.resumeSize})</Text>
+              {/* Resume & Loom Pitch Badges on Card */}
+              <View className="flex-row gap-2 mb-3">
+                <View className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl p-2.5 flex-row items-center justify-between">
+                  <View className="flex-row items-center flex-1 pr-1">
+                    <FileText size={14} color="#dc2626" style={{ marginRight: 5 }} />
+                    <Text className="text-slate-800 font-semibold text-[11px]" numberOfLines={1}>
+                      {c.resumeName}
+                    </Text>
+                  </View>
+                  <Text className="text-emerald-700 font-bold text-[9px]">CV</Text>
                 </View>
-                <Text className="text-emerald-700 font-bold text-[10px]">Attached</Text>
+
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(c.loomUrl || c.videoUrl || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403')}
+                  className="bg-indigo-50 border border-indigo-200 rounded-xl px-2.5 py-2 flex-row items-center active:opacity-80"
+                >
+                  <View className="w-4 h-4 rounded-full bg-indigo-600 items-center justify-center mr-1.5 shadow-sm">
+                    <Text className="text-white text-[8px] font-black">▶</Text>
+                  </View>
+                  <Text className="text-indigo-800 font-bold text-[10px]">Loom Pitch</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Card Footer */}
@@ -416,16 +430,16 @@ export default function EmployerCandidates() {
 
               {/* Tab Navigation */}
               <View className="flex-row border-b border-zinc-800 mb-4">
-                {(['summary', 'resume', 'scores', 'transcript'] as const).map((tab) => {
+                {(['summary', 'loom', 'resume', 'scores', 'transcript'] as const).map((tab) => {
                   const isActive = aiAnalysisTab === tab;
-                  const label = tab === 'summary' ? 'Summary' : tab === 'resume' ? 'Resume / CV' : tab === 'scores' ? 'Scores' : 'Questions';
+                  const label = tab === 'summary' ? 'Summary' : tab === 'loom' ? '📹 Loom' : tab === 'resume' ? 'Resume' : tab === 'scores' ? 'Scores' : 'Q&A';
                   return (
                     <TouchableOpacity 
                       key={tab}
                       onPress={() => setAiAnalysisTab(tab)}
                       className={`flex-1 pb-2.5 items-center ${isActive ? 'border-b-2 border-mint' : ''}`}
                     >
-                      <Text className={`text-xs font-bold ${isActive ? 'text-mint' : 'text-zinc-400'}`}>
+                      <Text className={`text-[11px] font-bold ${isActive ? 'text-mint' : 'text-zinc-400'}`}>
                         {label}
                       </Text>
                     </TouchableOpacity>
@@ -444,6 +458,53 @@ export default function EmployerCandidates() {
                     <View className="flex-row items-center bg-emerald-950/60 p-3 rounded-lg border border-emerald-900/40">
                       <CheckCircle size={15} color="#10b981" style={{ marginRight: 6 }} />
                       <Text className="text-[11px] text-zinc-300">Identity, C1 English fluency, and workstation verified.</Text>
+                    </View>
+                  </View>
+                )}
+
+                {aiAnalysisTab === 'loom' && (
+                  <View className="bg-forest/40 border border-mint/20 p-4 rounded-2xl">
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-row items-center flex-1 pr-2">
+                        <View className="w-8 h-8 rounded-full bg-indigo-600 items-center justify-center mr-2.5 shadow-sm">
+                          <Text className="text-white text-xs font-black">▶</Text>
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-white font-bold text-xs">2-Min Loom Video Pitch</Text>
+                          <Text className="text-zinc-400 text-[10px]">Candidate Walkthrough & Spoken English</Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(selectedCandidate.loomUrl || selectedCandidate.videoUrl || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403')}
+                        className="bg-indigo-600 px-3 py-1.5 rounded-lg active:opacity-85 flex-row items-center shadow-sm"
+                      >
+                        <Text className="text-white font-bold text-xs">Watch Video ▶</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View className="bg-black/40 p-2.5 rounded-xl border border-white/10 mb-3">
+                      <Text className="text-zinc-300 text-[11px] leading-relaxed font-mono" numberOfLines={1}>
+                        🔗 {selectedCandidate.loomUrl || selectedCandidate.videoUrl}
+                      </Text>
+                    </View>
+
+                    <View className="space-y-1.5">
+                      <View className="flex-row justify-between items-center py-1 border-b border-white/5">
+                        <Text className="text-zinc-300 text-xs">Verbal English Fluency</Text>
+                        <Text className="text-mint font-bold text-xs">9.8/10 (Fluent C1)</Text>
+                      </View>
+                      <View className="flex-row justify-between items-center py-1 border-b border-white/5">
+                        <Text className="text-zinc-300 text-xs">Communication Clarity</Text>
+                        <Text className="text-mint font-bold text-xs">98% Approved</Text>
+                      </View>
+                      <View className="flex-row justify-between items-center py-1 border-b border-white/5">
+                        <Text className="text-zinc-300 text-xs">Camera & Presentation</Text>
+                        <Text className="text-mint font-bold text-xs">Passed (HD)</Text>
+                      </View>
+                      <View className="flex-row justify-between items-center py-1">
+                        <Text className="text-zinc-300 text-xs">Workstation & Audio</Text>
+                        <Text className="text-emerald-400 font-bold text-xs">Passed (Fiber & UPS)</Text>
+                      </View>
                     </View>
                   </View>
                 )}

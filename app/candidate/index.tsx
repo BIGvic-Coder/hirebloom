@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Search, 
@@ -38,6 +38,7 @@ export default function CandidateJobs() {
     name: 'resume_document.pdf',
     size: '1.2 MB'
   });
+  const [loomVideoUrl, setLoomVideoUrl] = useState('https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403');
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -69,6 +70,11 @@ export default function CandidateJobs() {
     const savedResume = await ApplicationsService.getSavedCandidateResume();
     if (savedResume) {
       setAttachedResume(savedResume);
+    }
+
+    const savedLoom = await ApplicationsService.getSavedCandidateLoomUrl();
+    if (savedLoom) {
+      setLoomVideoUrl(savedLoom);
     }
 
     const fetchedJobs = await ApplicationsService.getJobs();
@@ -215,13 +221,17 @@ export default function CandidateJobs() {
     const candidateEmail = currentUser?.email || 'talent@hirebloom.com';
     const candidateId = currentUser?.uid || `candidate-${Date.now()}`;
     const targetJob = activeJobForModal;
+    const finalLoom = loomVideoUrl.trim() || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403';
+
+    await ApplicationsService.saveCandidateLoomUrl(finalLoom);
 
     const res = await ApplicationsService.applyForJob(targetJob, {
       id: candidateId,
       name: candidateName,
       email: candidateEmail,
       note: applicationNote.trim() || 'Excited to bring my communication and technical background to this position.',
-      resume: attachedResume
+      resume: attachedResume,
+      loomUrl: finalLoom
     });
 
     setIsSubmitting(false);
@@ -545,6 +555,55 @@ export default function CandidateJobs() {
                     <Check size={11} color="#059669" strokeWidth={3} style={{ marginRight: 3 }} />
                     <Text className="text-[10px] font-bold text-emerald-800">Attached</Text>
                   </View>
+                </View>
+              </View>
+
+              {/* Loom Video Intro Section */}
+              <View className="bg-white border border-slate-200 rounded-2xl p-4 mb-4 shadow-sm">
+                <View className="flex-row justify-between items-center mb-2">
+                  <View className="flex-row items-center">
+                    <View className="w-5 h-5 rounded-full bg-indigo-600 items-center justify-center mr-2 shadow-sm">
+                      <Text className="text-white text-[10px] font-black">▶</Text>
+                    </View>
+                    <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      2-Min Loom Video Pitch
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setLoomVideoUrl('https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403')}
+                    className="bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-lg"
+                  >
+                    <Text className="text-indigo-700 font-bold text-[10px]">Use Demo Pitch</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text className="text-slate-500 text-[11px] mb-2.5 leading-relaxed">
+                  HireBloom requirement: Submit a short Loom link showcasing your spoken English and remote setup.
+                </Text>
+
+                <View className="flex-row items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                  <TextInput
+                    value={loomVideoUrl}
+                    onChangeText={setLoomVideoUrl}
+                    placeholder="https://www.loom.com/share/..."
+                    placeholderTextColor="#94a3b8"
+                    className="flex-1 text-slate-900 font-medium text-xs mr-2"
+                    autoCapitalize="none"
+                  />
+                  {loomVideoUrl ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (loomVideoUrl.startsWith('http')) {
+                          Linking.openURL(loomVideoUrl);
+                        } else {
+                          Alert.alert('Invalid Link', 'Please enter a valid URL starting with https://');
+                        }
+                      }}
+                      className="bg-forest px-2.5 py-1.5 rounded-lg"
+                    >
+                      <Text className="text-white font-bold text-[10px]">Preview</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </View>
 

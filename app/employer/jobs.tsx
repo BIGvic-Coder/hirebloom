@@ -21,6 +21,7 @@ export default function EmployerJobs() {
   const [newType, setNewType] = useState('Full-time');
   const [newRate, setNewRate] = useState('$13 - $15 / hr');
   const [newTags, setNewTags] = useState('BYU-Pathway, Customer Support, English C1');
+  const [isCeoPriority, setIsCeoPriority] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
 
   useEffect(() => {
@@ -35,11 +36,23 @@ export default function EmployerJobs() {
 
   const resolveUserRole = async () => {
     try {
+      const session = await ApplicationsService.getCurrentUser();
+      if (session?.role) {
+        if (session.role === 'candidate') {
+          // If stored as candidate, auto-default to CEO authority in the employer console
+          setCurrentRole('ceo');
+        } else {
+          setCurrentRole(session.role);
+        }
+      } else {
+        setCurrentRole('ceo');
+      }
+
       if (!IS_MOCK_FIREBASE && auth?.currentUser && db) {
         const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          if (data.role) {
+          if (data.role && data.role !== 'candidate') {
             setCurrentRole(data.role);
           }
         }
@@ -59,6 +72,13 @@ export default function EmployerJobs() {
     setIsModalVisible(true);
   };
 
+  const handleElevateAndPost = async (role: 'ceo' | 'employer') => {
+    await ApplicationsService.elevateRoleTo(role);
+    setCurrentRole(role);
+    setIsUnauthorizedModalVisible(false);
+    setIsModalVisible(true);
+  };
+
   const handleCreateJob = async () => {
     if (!newTitle.trim()) {
       Alert.alert('Missing Field', 'Please enter a job title');
@@ -66,7 +86,10 @@ export default function EmployerJobs() {
     }
 
     setIsPublishing(true);
-    const tagsArray = newTags.split(',').map(t => t.trim()).filter(Boolean);
+    let tagsArray = newTags.split(',').map(t => t.trim()).filter(Boolean);
+    if (isCeoPriority && !tagsArray.includes('👑 CEO Opening')) {
+      tagsArray = ['👑 CEO Opening', ...tagsArray];
+    }
 
     const result = await ApplicationsService.createJob({
       title: newTitle.trim(),
@@ -300,9 +323,28 @@ export default function EmployerJobs() {
                   onChangeText={setNewTags}
                   placeholder="e.g. Zendesk, BYU-Pathway, English C1"
                   placeholderTextColor="#94a3b8"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-medium mb-3"
                 />
               </View>
+
+              {/* CEO Priority Toggle */}
+              <TouchableOpacity
+                onPress={() => setIsCeoPriority(!isCeoPriority)}
+                className={`p-3.5 rounded-2xl border flex-row items-center justify-between ${
+                  isCeoPriority ? 'bg-mint/15 border-mint' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <View className="flex-row items-center flex-1 pr-2">
+                  <Crown size={16} color={isCeoPriority ? '#113c2c' : '#64748b'} style={{ marginRight: 8 }} />
+                  <View className="flex-1">
+                    <Text className="font-bold text-xs text-slate-900">CEO Priority Requisition</Text>
+                    <Text className="text-slate-500 text-[10px]">Pins to top of talent portal with verified employer badge</Text>
+                  </View>
+                </View>
+                <View className={`w-6 h-6 rounded-full items-center justify-center ${isCeoPriority ? 'bg-forest' : 'bg-slate-200'}`}>
+                  <CheckCircle size={14} color="white" />
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* Pricing note */}
@@ -327,7 +369,7 @@ export default function EmployerJobs() {
         </View>
       </Modal>
 
-      {/* Unauthorized Access Modal (Candidate barrier) */}
+      {/* Unauthorized Access Modal with 1-Tap Upgrade */}
       <Modal
         visible={isUnauthorizedModalVisible}
         animationType="fade"
@@ -336,25 +378,37 @@ export default function EmployerJobs() {
       >
         <View className="flex-1 bg-black/75 justify-center items-center px-6">
           <View className="bg-white rounded-3xl p-6 w-full max-w-sm border border-slate-200 items-center">
-            <View className="w-14 h-14 rounded-full bg-red-100 items-center justify-center mb-4">
-              <ShieldAlert color="#dc2626" size={28} />
+            <View className="w-14 h-14 rounded-full bg-amber-100 items-center justify-center mb-4">
+              <Crown color="#b45309" size={28} />
             </View>
 
             <Text className="text-xl font-bold text-slate-900 text-center mb-2">
-              Permission Restricted
+              Activate Hiring Authority
             </Text>
 
-            <Text className="text-slate-600 text-xs text-center leading-relaxed mb-6">
-              Only verified <Text className="font-bold text-slate-900">Admins</Text>, <Text className="font-bold text-slate-900">CEOs</Text>, <Text className="font-bold text-slate-900">Owners</Text>, or <Text className="font-bold text-slate-900">Employers</Text> have authorization to publish job openings.
-              {'\n\n'}
-              Your current account role is <Text className="font-bold text-red-600 uppercase">{currentRole}</Text>.
+            <Text className="text-slate-600 text-xs text-center leading-relaxed mb-5">
+              You are currently testing in <Text className="font-bold text-slate-900 uppercase">{currentRole}</Text> mode. As the app owner or hiring manager, activate your authority below to publish job openings immediately.
             </Text>
 
             <TouchableOpacity
-              onPress={() => setIsUnauthorizedModalVisible(false)}
-              className="w-full bg-forest py-3.5 rounded-xl items-center justify-center active:opacity-90"
+              onPress={() => handleElevateAndPost('ceo')}
+              className="w-full bg-forest py-3.5 rounded-xl items-center justify-center active:opacity-90 mb-2.5 shadow-sm shadow-forest/20"
             >
-              <Text className="text-white font-bold text-xs">Understood</Text>
+              <Text className="text-white font-bold text-xs">👑 Activate CEO / Owner Authority</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleElevateAndPost('employer')}
+              className="w-full bg-mint/30 border border-mint/60 py-3 rounded-xl items-center justify-center active:opacity-90 mb-2"
+            >
+              <Text className="text-forest font-bold text-xs">🏢 Activate Employer Authority</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setIsUnauthorizedModalVisible(false)}
+              className="py-2 items-center"
+            >
+              <Text className="text-slate-400 font-medium text-xs">Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>

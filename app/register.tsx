@@ -20,7 +20,8 @@ import {
   Eye,
   EyeOff,
   ChevronLeft,
-  ShieldCheck
+  ShieldCheck,
+  Crown
 } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -61,8 +62,8 @@ export default function Register() {
   const router = useRouter() as any;
   const params = useLocalSearchParams<{ role?: string; email?: string }>();
 
-  const [role, setRole] = useState<'candidate' | 'employer'>(
-    params.role === 'employer' ? 'employer' : 'candidate'
+  const [role, setRole] = useState<'candidate' | 'employer' | 'ceo'>(
+    params.role === 'ceo' ? 'ceo' : params.role === 'employer' ? 'employer' : 'candidate'
   );
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -97,7 +98,9 @@ export default function Register() {
 
   // Update role if params change
   useEffect(() => {
-    if (params.role === 'employer') {
+    if (params.role === 'ceo') {
+      setRole('ceo');
+    } else if (params.role === 'employer') {
       setRole('employer');
     } else if (params.role === 'candidate') {
       setRole('candidate');
@@ -105,7 +108,7 @@ export default function Register() {
   }, [params.role]);
 
   // Helper to persist user profile & session
-  const saveUserProfileAndRoute = async (user: any, nameToUse: string, userRole: 'candidate' | 'employer') => {
+  const saveUserProfileAndRoute = async (user: any, nameToUse: string, userRole: 'candidate' | 'employer' | 'ceo') => {
     const cleanEmail = (user.email || email).trim().toLowerCase();
 
     // 1. Clear any prior cached session first so there is zero bleed-over
@@ -129,7 +132,7 @@ export default function Register() {
         name: nameToUse,
         email: cleanEmail,
         role: userRole,
-        company: userRole === 'employer' ? companyName.trim() : undefined,
+        company: userRole === 'employer' ? companyName.trim() : userRole === 'ceo' ? (companyName.trim() || 'HireBloom HQ') : undefined,
         password: password.trim(),
       });
     } catch (e) {
@@ -146,7 +149,7 @@ export default function Register() {
             name: nameToUse,
             email: cleanEmail,
             role: userRole,
-            company: userRole === 'employer' ? companyName.trim() : null,
+            company: userRole === 'employer' ? companyName.trim() : userRole === 'ceo' ? (companyName.trim() || 'HireBloom HQ') : null,
             createdAt: new Date().toISOString(),
           },
           { merge: true }
@@ -156,7 +159,7 @@ export default function Register() {
       console.warn('Firestore setDoc user warning:', e);
     }
 
-    router.replace(userRole === 'employer' ? '/employer' : '/candidate');
+    router.replace(userRole === 'employer' || userRole === 'ceo' ? '/employer' : '/candidate');
   };
 
   // 1. Register with Names, Email & Password
@@ -408,11 +411,11 @@ export default function Register() {
             Join thousands of vetted remote professionals and leading companies.
           </Text>
 
-          {/* Role Switcher */}
-          <View className="flex-row gap-3 mb-5">
+          {/* Role Switcher (3-Way: Candidate, Employer, CEO) */}
+          <View className="flex-row gap-2 mb-5">
             <TouchableOpacity
               onPress={() => setRole('candidate')}
-              className={`flex-1 p-3.5 rounded-2xl border flex-row items-center justify-center ${
+              className={`flex-1 p-3 rounded-2xl border items-center justify-center ${
                 role === 'candidate'
                   ? 'bg-mint/15 border-forest shadow-sm'
                   : 'bg-zinc-50 border-zinc-200'
@@ -420,24 +423,22 @@ export default function Register() {
             >
               <Briefcase
                 color={role === 'candidate' ? '#113c2c' : '#94a3b8'}
-                size={18}
-                style={{ marginRight: 6 }}
+                size={16}
+                style={{ marginBottom: 4 }}
               />
-              <View>
-                <Text
-                  className={`font-bold text-xs ${
-                    role === 'candidate' ? 'text-forest' : 'text-zinc-500'
-                  }`}
-                >
-                  Candidate
-                </Text>
-                <Text className="text-[10px] text-zinc-400">$13/hr standard</Text>
-              </View>
+              <Text
+                className={`font-bold text-xs ${
+                  role === 'candidate' ? 'text-forest' : 'text-zinc-500'
+                }`}
+              >
+                Candidate
+              </Text>
+              <Text className="text-[9px] text-zinc-400">$13/hr standard</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setRole('employer')}
-              className={`flex-1 p-3.5 rounded-2xl border flex-row items-center justify-center ${
+              className={`flex-1 p-3 rounded-2xl border items-center justify-center ${
                 role === 'employer'
                   ? 'bg-mint/15 border-forest shadow-sm'
                   : 'bg-zinc-50 border-zinc-200'
@@ -445,19 +446,40 @@ export default function Register() {
             >
               <Building2
                 color={role === 'employer' ? '#113c2c' : '#94a3b8'}
-                size={18}
-                style={{ marginRight: 6 }}
+                size={16}
+                style={{ marginBottom: 4 }}
               />
-              <View>
-                <Text
-                  className={`font-bold text-xs ${
-                    role === 'employer' ? 'text-forest' : 'text-zinc-500'
-                  }`}
-                >
-                  Employer
-                </Text>
-                <Text className="text-[10px] text-zinc-400">Hire talent</Text>
-              </View>
+              <Text
+                className={`font-bold text-xs ${
+                  role === 'employer' ? 'text-forest' : 'text-zinc-500'
+                }`}
+              >
+                Employer
+              </Text>
+              <Text className="text-[9px] text-zinc-400">Hire talent</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setRole('ceo')}
+              className={`flex-1 p-3 rounded-2xl border items-center justify-center ${
+                role === 'ceo'
+                  ? 'bg-mint/20 border-forest shadow-sm'
+                  : 'bg-zinc-50 border-zinc-200'
+              }`}
+            >
+              <Crown
+                color={role === 'ceo' ? '#113c2c' : '#94a3b8'}
+                size={16}
+                style={{ marginBottom: 4 }}
+              />
+              <Text
+                className={`font-bold text-xs ${
+                  role === 'ceo' ? 'text-forest' : 'text-zinc-500'
+                }`}
+              >
+                👑 CEO
+              </Text>
+              <Text className="text-[9px] text-zinc-400">App Owner</Text>
             </TouchableOpacity>
           </View>
 

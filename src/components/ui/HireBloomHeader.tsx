@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { Bell, HelpCircle, Mail } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, Modal } from 'react-native';
+import { Bell, HelpCircle, Mail, Crown, Briefcase, Building2, LogOut, ChevronRight, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { NotificationsService } from '@/services/notificationsService';
@@ -31,6 +31,7 @@ export default function HireBloomHeader({
   const [activeEmail, setActiveEmail] = useState(userEmail || '');
   const [activeInitials, setActiveInitials] = useState(userInitials || 'HB');
   const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
 
   useEffect(() => {
     loadUnread();
@@ -66,6 +67,22 @@ export default function HireBloomHeader({
     }
   };
 
+  const handleSwitchPerspective = async (targetRole: 'candidate' | 'employer' | 'ceo') => {
+    setIsRoleModalVisible(false);
+    await ApplicationsService.elevateRoleTo(targetRole);
+    if (targetRole === 'candidate') {
+      router.replace('/candidate');
+    } else {
+      router.replace('/employer');
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsRoleModalVisible(false);
+    await ApplicationsService.clearCurrentUser();
+    router.replace('/login');
+  };
+
   return (
     <View className="px-5 py-3.5 bg-white border-b border-border flex-row justify-between items-center z-30">
       {/* Brand & Portal Badge */}
@@ -77,11 +94,18 @@ export default function HireBloomHeader({
               {portalTitle}
             </Text>
             {portalBadge ? (
-              <View className="ml-2 bg-mintLight/50 border border-mint/40 px-2 py-0.5 rounded-full">
+              <TouchableOpacity 
+                onPress={() => setIsRoleModalVisible(true)}
+                activeOpacity={0.7}
+                className="ml-2 bg-mintLight/50 border border-mint/40 px-2 py-0.5 rounded-full flex-row items-center"
+              >
+                {portalBadge.includes('CEO') ? (
+                  <Crown size={10} color="#113c2c" style={{ marginRight: 3 }} />
+                ) : null}
                 <Text className="text-[10px] font-bold text-forest uppercase tracking-wider">
                   {portalBadge}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ) : null}
           </View>
         </View>
@@ -121,11 +145,15 @@ export default function HireBloomHeader({
         </TouchableOpacity>
 
         {activeInitials ? (
-          <View className="w-9 h-9 rounded-full bg-forest items-center justify-center shadow-sm">
+          <TouchableOpacity
+            onPress={() => setIsRoleModalVisible(true)}
+            activeOpacity={0.8}
+            className="w-9 h-9 rounded-full bg-forest items-center justify-center shadow-sm"
+          >
             <Text className="text-white font-bold text-xs tracking-wider">
               {activeInitials}
             </Text>
-          </View>
+          </TouchableOpacity>
         ) : null}
       </View>
 
@@ -138,6 +166,97 @@ export default function HireBloomHeader({
         }}
         userEmail={activeEmail}
       />
+
+      {/* Quick Perspective Switcher Modal */}
+      <Modal
+        visible={isRoleModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsRoleModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/70 justify-center items-center px-5">
+          <View className="bg-white rounded-3xl p-6 w-full max-w-sm border border-slate-200">
+            <View className="flex-row justify-between items-center mb-4">
+              <View className="flex-row items-center">
+                <HireBloomLogoMark size={22} />
+                <Text className="text-base font-extrabold text-slate-900 ml-2">Switch Perspective</Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsRoleModalVisible(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 items-center justify-center"
+              >
+                <X size={16} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-slate-500 text-xs mb-4">
+              Switch roles seamlessly to test all experiences on your phone:
+            </Text>
+
+            <View className="space-y-2 mb-4">
+              {/* Option 1: CEO Suite */}
+              <TouchableOpacity
+                onPress={() => handleSwitchPerspective('ceo')}
+                className="bg-forest p-3.5 rounded-2xl flex-row items-center justify-between shadow-sm active:opacity-90 mb-2"
+              >
+                <View className="flex-row items-center flex-1 pr-2">
+                  <View className="w-8 h-8 bg-mint/20 rounded-xl items-center justify-center mr-3">
+                    <Crown size={16} color="#8ecfa9" />
+                  </View>
+                  <View>
+                    <Text className="text-white font-bold text-xs">👑 CEO Executive Suite</Text>
+                    <Text className="text-mint text-[10px]">Strategic metrics, post CEO jobs, 1-tap offer sign-off</Text>
+                  </View>
+                </View>
+                <ChevronRight size={16} color="#8ecfa9" />
+              </TouchableOpacity>
+
+              {/* Option 2: Employer */}
+              <TouchableOpacity
+                onPress={() => handleSwitchPerspective('employer')}
+                className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl flex-row items-center justify-between active:opacity-85 mb-2"
+              >
+                <View className="flex-row items-center flex-1 pr-2">
+                  <View className="w-8 h-8 bg-slate-200 rounded-xl items-center justify-center mr-3">
+                    <Building2 size={16} color="#113c2c" />
+                  </View>
+                  <View>
+                    <Text className="text-slate-900 font-bold text-xs">🏢 Employer Workspace</Text>
+                    <Text className="text-slate-500 text-[10px]">Manage requisitions, review candidate Loom & CVs</Text>
+                  </View>
+                </View>
+                <ChevronRight size={16} color="#64748b" />
+              </TouchableOpacity>
+
+              {/* Option 3: Candidate */}
+              <TouchableOpacity
+                onPress={() => handleSwitchPerspective('candidate')}
+                className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl flex-row items-center justify-between active:opacity-85"
+              >
+                <View className="flex-row items-center flex-1 pr-2">
+                  <View className="w-8 h-8 bg-mintLight/50 rounded-xl items-center justify-center mr-3">
+                    <Briefcase size={16} color="#113c2c" />
+                  </View>
+                  <View>
+                    <Text className="text-slate-900 font-bold text-xs">🌟 Talent Portal (Candidate)</Text>
+                    <Text className="text-slate-500 text-[10px]">Browse roles, submit resume & Loom video pitches</Text>
+                  </View>
+                </View>
+                <ChevronRight size={16} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Log Out option */}
+            <TouchableOpacity
+              onPress={handleSignOut}
+              className="py-2.5 flex-row items-center justify-center border-t border-slate-100"
+            >
+              <LogOut size={14} color="#dc2626" style={{ marginRight: 6 }} />
+              <Text className="text-red-600 font-bold text-xs">Sign Out to Login Page</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -139,7 +139,7 @@ export default function Login() {
       // Handled silently
     }
     
-    router.replace(role === 'employer' ? '/employer' : role === 'recruiter' ? '/recruiter' : '/candidate');
+    router.replace(role === 'employer' || role === 'ceo' ? '/employer' : role === 'recruiter' ? '/recruiter' : '/candidate');
   };
 
   // 1. Send Email Verification Code (OTP) Flow (Old vs New User Detection)
@@ -211,7 +211,7 @@ export default function Login() {
       const res = await ApplicationsService.verifyEmailOtp(cleanEmail, cleanCode);
       if (res.success && res.user) {
         const userRole = res.user.role;
-        router.replace(userRole === 'employer' ? '/employer' : userRole === 'recruiter' ? '/recruiter' : '/candidate');
+        router.replace(userRole === 'employer' || userRole === 'ceo' ? '/employer' : userRole === 'recruiter' ? '/recruiter' : '/candidate');
       } else {
         Alert.alert("Verification Failed", res.error || "Invalid verification code.");
       }
@@ -661,22 +661,31 @@ export default function Login() {
             </Text>
             <View className="flex-row justify-between space-x-2">
               <TouchableOpacity 
-                onPress={() => router.push('/candidate')}
-                className="flex-1 bg-zinc-50 border border-zinc-200 py-2 rounded-xl items-center justify-center active:opacity-70 mr-1.5"
+                onPress={async () => {
+                  await ApplicationsService.elevateRoleTo('candidate');
+                  router.push('/candidate');
+                }}
+                className="flex-1 bg-zinc-50 border border-zinc-200 py-2.5 rounded-xl items-center justify-center active:opacity-70 mr-1.5"
               >
                 <Text className="text-forest font-extrabold text-[10px]">Talent Portal</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                onPress={() => router.push('/employer')}
-                className="flex-1 bg-zinc-50 border border-zinc-200 py-2 rounded-xl items-center justify-center active:opacity-70 mr-1.5"
+                onPress={async () => {
+                  await ApplicationsService.elevateRoleTo('employer');
+                  router.push('/employer');
+                }}
+                className="flex-1 bg-zinc-50 border border-zinc-200 py-2.5 rounded-xl items-center justify-center active:opacity-70 mr-1.5"
               >
                 <Text className="text-forest font-extrabold text-[10px]">Employer</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                onPress={() => router.push('/recruiter')}
-                className="flex-1 bg-zinc-50 border border-zinc-200 py-2 rounded-xl items-center justify-center active:opacity-70"
+                onPress={async () => {
+                  await ApplicationsService.elevateRoleTo('ceo');
+                  router.push('/employer');
+                }}
+                className="flex-1 bg-mint/20 border border-mint/40 py-2.5 rounded-xl items-center justify-center active:opacity-70"
               >
-                <Text className="text-forest font-extrabold text-[10px]">Recruiter</Text>
+                <Text className="text-forest font-extrabold text-[10px]">👑 CEO Suite</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -59,6 +59,8 @@ export interface JobApplication {
   resumeSize?: string;
   resumeUrl?: string;
   resumeUploadedAt?: string;
+  // Loom Video submission
+  loomUrl?: string;
   // Interview / Offer metadata
   interviewDetails?: {
     date: string;
@@ -77,7 +79,7 @@ export interface UserSession {
   uid: string;
   email: string;
   name: string;
-  role: 'candidate' | 'employer' | 'recruiter' | 'admin';
+  role: 'candidate' | 'employer' | 'recruiter' | 'admin' | 'ceo';
   initials: string;
 }
 
@@ -187,6 +189,7 @@ const DEFAULT_APPLICATIONS: JobApplication[] = [
     notes: 'Client was impressed with BYU-Pathway communication background.',
     resumeName: 'victor_resume_2026.pdf',
     resumeSize: '1.4 MB',
+    loomUrl: 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403',
     offerDetails: {
       salary: '$15 - $16 / hr',
       startDate: 'Sep 25, 2026',
@@ -210,6 +213,7 @@ const DEFAULT_APPLICATIONS: JobApplication[] = [
     notes: 'Verified remote setup and strong verbal English.',
     resumeName: 'victor_resume_2026.pdf',
     resumeSize: '1.4 MB',
+    loomUrl: 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403',
     interviewDetails: {
       date: 'Sep 14, 2026',
       time: '3:00 PM EST',
@@ -223,15 +227,23 @@ const JOBS_STORAGE_KEY = '@hirebloom_jobs_cache';
 const APPS_STORAGE_KEY = '@hirebloom_applications_cache';
 const CURRENT_USER_KEY = '@hirebloom_current_user';
 const RESUME_STORAGE_KEY = '@hirebloom_saved_resume';
+const LOOM_STORAGE_KEY = '@hirebloom_saved_loom_url';
 const REGISTERED_USERS_KEY = '@hirebloom_registered_users';
 
 const DEFAULT_EXISTING_USERS: Array<{
   uid: string;
   email: string;
   name: string;
-  role: 'candidate' | 'employer' | 'recruiter';
+  role: 'candidate' | 'employer' | 'recruiter' | 'ceo';
   company?: string;
 }> = [
+  {
+    uid: 'user-ceo-1',
+    email: 'ceo@hirebloom.com',
+    name: 'Victor Taiwo (CEO)',
+    role: 'ceo',
+    company: 'HireBloom HQ',
+  },
   {
     uid: 'user-victor-1',
     email: 'victor@hirebloom.com',
@@ -354,7 +366,8 @@ export const ApplicationsService = {
       name: string; 
       email: string; 
       note?: string; 
-      resume?: { name: string; size: string; url?: string } 
+      resume?: { name: string; size: string; url?: string };
+      loomUrl?: string;
     }
   ): Promise<{ success: boolean; application?: JobApplication; error?: string }> {
     try {
@@ -388,6 +401,8 @@ export const ApplicationsService = {
         size: '1.4 MB',
       };
 
+      const loomPitch = candidate.loomUrl || await this.getSavedCandidateLoomUrl() || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403';
+
       const newApp: JobApplication = {
         id: appId,
         jobId: job.id,
@@ -407,6 +422,7 @@ export const ApplicationsService = {
         resumeSize: resumeInfo.size,
         resumeUrl: resumeInfo.url || '',
         resumeUploadedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        loomUrl: loomPitch,
       };
 
       // 2. Save authoritative local storage first
@@ -750,7 +766,7 @@ export const ApplicationsService = {
     await AsyncStorage.removeItem('@hirebloom_emails_cache');
   },
 
-  // 7. Resume Storage & Management
+  // 7. Resume & Loom Storage & Management
   async saveCandidateResume(resume: { name: string; size: string; url?: string }): Promise<void> {
     await AsyncStorage.setItem(RESUME_STORAGE_KEY, JSON.stringify(resume));
   },
@@ -766,6 +782,20 @@ export const ApplicationsService = {
       };
     } catch {
       return null;
+    }
+  },
+
+  async saveCandidateLoomUrl(url: string): Promise<void> {
+    await AsyncStorage.setItem(LOOM_STORAGE_KEY, url);
+  },
+
+  async getSavedCandidateLoomUrl(): Promise<string> {
+    try {
+      const saved = await AsyncStorage.getItem(LOOM_STORAGE_KEY);
+      if (saved) return saved;
+      return 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403';
+    } catch {
+      return 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403';
     }
   },
 
@@ -817,7 +847,7 @@ export const ApplicationsService = {
     uid: string;
     email: string;
     name: string;
-    role: 'candidate' | 'employer' | 'recruiter';
+    role: 'candidate' | 'employer' | 'recruiter' | 'ceo';
     company?: string;
   }>> {
     try {
@@ -839,7 +869,7 @@ export const ApplicationsService = {
     uid: string;
     email: string;
     name: string;
-    role: 'candidate' | 'employer' | 'recruiter';
+    role: 'candidate' | 'employer' | 'recruiter' | 'ceo';
     company?: string;
     password?: string;
   }): Promise<void> {
@@ -878,7 +908,7 @@ export const ApplicationsService = {
       uid: string;
       email: string;
       name: string;
-      role: 'candidate' | 'employer' | 'recruiter';
+      role: 'candidate' | 'employer' | 'recruiter' | 'ceo';
       company?: string;
     };
   }> {
@@ -1022,6 +1052,34 @@ export const ApplicationsService = {
 
   async setCurrentUser(user: UserSession): Promise<void> {
     await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  },
+
+  async elevateRoleTo(role: 'employer' | 'ceo' | 'candidate'): Promise<UserSession> {
+    const current = await this.getCurrentUser();
+    if (!current) {
+      const newSession: UserSession = {
+        uid: `user-${Date.now()}`,
+        email: role === 'ceo' ? 'ceo@hirebloom.com' : role === 'employer' ? 'employer@apextech.com' : 'talent@hirebloom.com',
+        name: role === 'ceo' ? 'Victor Taiwo (CEO)' : role === 'employer' ? 'Apex Tech Hiring Team' : 'Talent Candidate',
+        role: role,
+        initials: role === 'ceo' ? 'CEO' : role === 'employer' ? 'AT' : 'TC'
+      };
+      await this.setCurrentUser(newSession);
+      return newSession;
+    }
+    const updated: UserSession = {
+      ...current,
+      role: role,
+      name: role === 'ceo' && !current.name.includes('CEO') ? `${current.name} (CEO)` : current.name,
+      initials: role === 'ceo' ? 'CEO' : current.initials,
+    };
+    await this.setCurrentUser(updated);
+    if (!IS_MOCK_FIREBASE && db) {
+      try {
+        await setDoc(doc(db, 'users', updated.uid), { role }, { merge: true });
+      } catch {}
+    }
+    return updated;
   },
 
   async clearCurrentUser(): Promise<void> {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, Edit2, FileText, Globe, Award, Briefcase, Plus, ChevronRight, LogOut, UploadCloud, Check } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -16,6 +16,7 @@ export default function CandidateProfile() {
     name: 'resume_document.pdf',
     size: '1.2 MB'
   });
+  const [loomUrl, setLoomUrl] = useState('https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403');
   const [appCount, setAppCount] = useState(3);
 
   useEffect(() => {
@@ -28,6 +29,9 @@ export default function CandidateProfile() {
 
     const saved = await ApplicationsService.getSavedCandidateResume();
     if (saved) setResume(saved);
+
+    const savedLoom = await ApplicationsService.getSavedCandidateLoomUrl();
+    if (savedLoom) setLoomUrl(savedLoom);
 
     const apps = await ApplicationsService.getCandidateApplications();
     setAppCount(apps.length);
@@ -238,6 +242,41 @@ export default function CandidateProfile() {
               </View>
               <ChevronRight color="#cbd5e1" size={20} />
             </TouchableOpacity>
+          </View>
+
+          {/* Loom Video Pitch Card */}
+          <View className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
+            <View className="flex-row justify-between items-center mb-2">
+              <View className="flex-row items-center">
+                <View className="w-6 h-6 rounded-full bg-indigo-600 items-center justify-center mr-2 shadow-sm">
+                  <Text className="text-white text-[11px] font-black">▶</Text>
+                </View>
+                <Text className="text-slate-900 font-bold text-sm">Loom Video Pitch</Text>
+              </View>
+              <View className="bg-emerald-100 px-2 py-0.5 rounded-md flex-row items-center">
+                <Check size={11} color="#059669" strokeWidth={3} style={{ marginRight: 3 }} />
+                <Text className="text-[10px] font-bold text-emerald-800">Verified</Text>
+              </View>
+            </View>
+
+            <Text className="text-slate-500 text-xs mb-3 leading-relaxed">
+              Your 2-minute introductory video is attached to every application for client partners to review verbal fluency.
+            </Text>
+
+            <View className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3 flex-row items-center justify-between">
+              <View className="flex-1 pr-2">
+                <Text className="text-indigo-950 font-bold text-xs" numberOfLines={1}>
+                  {loomUrl}
+                </Text>
+                <Text className="text-indigo-700 text-[10px]">C1 English & Workstation Walkthrough</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => Linking.openURL(loomUrl)}
+                className="bg-indigo-600 px-3 py-1.5 rounded-lg active:opacity-90"
+              >
+                <Text className="text-white font-bold text-xs">Watch</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Vetting Status Card */}
