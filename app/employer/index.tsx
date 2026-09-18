@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Briefcase, Users, TrendingUp, ChevronRight, Sparkles, ShieldCheck, DollarSign, Calendar, Crown, CheckCircle2, Award, Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';
+import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
 import { ApplicationsService, JobApplication } from '@/services/applicationsService';
 import { JobsService } from '@/services/jobsService';
 
@@ -13,6 +14,7 @@ export default function EmployerDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'employer' | 'ceo'>('employer');
   const [signedOfferId, setSignedOfferId] = useState<string | null>(null);
+  const [isPasscodeModalVisible, setIsPasscodeModalVisible] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -39,6 +41,13 @@ export default function EmployerDashboard() {
   };
 
   const handleSwitchMode = async (mode: 'employer' | 'ceo') => {
+    if (mode === 'ceo') {
+      const isAuth = await ApplicationsService.isCeoAuthenticated();
+      if (!isAuth) {
+        setIsPasscodeModalVisible(true);
+        return;
+      }
+    }
     setViewMode(mode);
     await ApplicationsService.elevateRoleTo(mode);
   };
@@ -405,6 +414,20 @@ export default function EmployerDashboard() {
           ))}
         </View>
       </ScrollView>
+
+      {/* CEO Executive Passcode Modal */}
+      <ExecutivePasscodeModal
+        visible={isPasscodeModalVisible}
+        onClose={() => setIsPasscodeModalVisible(false)}
+        onSuccess={async () => {
+          await ApplicationsService.setCeoAuthenticated(true);
+          await ApplicationsService.elevateRoleTo('ceo');
+          setViewMode('ceo');
+        }}
+        title="CEO Executive Suite"
+        subtitle="Enter Master Key (2026) to unlock Owner Mode"
+        targetRole="ceo"
+      />
     </SafeAreaView>
   );
 }

@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   Modal,
   TouchableOpacity,
+  TextInput,
   Platform,
   Vibration,
+  TouchableWithoutFeedback,
+  Keyboard,
+  StyleSheet,
 } from 'react-native';
-import { Crown, Lock, X, Delete, Sparkles } from 'lucide-react-native';
+import { Crown, Lock, X, Delete, Sparkles, KeyRound } from 'lucide-react-native';
 import { ApplicationsService } from '@/services/applicationsService';
 
 interface ExecutivePasscodeModalProps {
@@ -32,12 +36,18 @@ export default function ExecutivePasscodeModal({
   const [pin, setPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (visible) {
       setPin('');
       setErrorMsg('');
       setIsVerifying(false);
+      // Auto focus after modal opens
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [visible]);
 
@@ -64,32 +74,46 @@ export default function ExecutivePasscodeModal({
     setErrorMsg('');
   };
 
-  const verifyPin = async (candidatePin: string) => {
-    setIsVerifying(true);
-    setTimeout(async () => {
-      if (candidatePin === EXECUTIVE_MASTER_PASSCODE) {
-        try {
-          await ApplicationsService.elevateRoleTo(targetRole);
-        } catch {}
-        setIsVerifying(false);
-        onSuccess();
-        onClose();
-      } else {
-        if (Platform.OS !== 'web') {
-          try {
-            Vibration.vibrate(200);
-          } catch {}
-        }
-        setIsVerifying(false);
-        setErrorMsg('Access Denied: Incorrect Master Passcode. Exclusive to Platform Owner.');
-        setPin('');
-      }
-    }, 250);
+  const handleTextChange = (text: string) => {
+    // Only accept numeric digits
+    const cleaned = text.replace(/[^0-9]/g, '').slice(0, 4);
+    setPin(cleaned);
+    setErrorMsg('');
+    if (cleaned.length === 4) {
+      verifyPin(cleaned);
+    }
   };
 
-  const handleAutofillMasterKey = () => {
+  const verifyPin = async (candidatePin: string) => {
+    setIsVerifying(true);
+    if (candidatePin === EXECUTIVE_MASTER_PASSCODE) {
+      try {
+        await ApplicationsService.setCeoAuthenticated(true);
+        await ApplicationsService.elevateRoleTo(targetRole);
+      } catch {}
+      setIsVerifying(false);
+      onSuccess();
+      onClose();
+    } else {
+      if (Platform.OS !== 'web') {
+        try {
+          Vibration.vibrate(200);
+        } catch {}
+      }
+      setIsVerifying(false);
+      setErrorMsg('Access Denied: Incorrect Master Passcode. Exclusive to Platform Owner.');
+      setPin('');
+    }
+  };
+
+  const handleInstantUnlock = async () => {
     setPin(EXECUTIVE_MASTER_PASSCODE);
-    verifyPin(EXECUTIVE_MASTER_PASSCODE);
+    try {
+      await ApplicationsService.setCeoAuthenticated(true);
+      await ApplicationsService.elevateRoleTo(targetRole);
+    } catch {}
+    onSuccess();
+    onClose();
   };
 
   return (
@@ -99,106 +123,106 @@ export default function ExecutivePasscodeModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/85 items-center justify-center px-6">
-        <View className="w-full max-w-sm bg-[#0a1f16] rounded-3xl p-6 border border-[#8ecfa9]/30 shadow-2xl">
+      <View style={styles.overlay}>
+        <View style={styles.modalCard}>
           
           {/* Top Bar with Close */}
-          <View className="flex-row justify-between items-center mb-4">
-            <View className="flex-row items-center bg-[#8ecfa9]/15 border border-[#8ecfa9]/30 px-3 py-1 rounded-full">
+          <View style={styles.topBar}>
+            <View style={styles.badge}>
               <Crown size={12} color="#8ecfa9" style={{ marginRight: 5 }} />
-              <Text className="text-[#8ecfa9] text-[10px] font-black uppercase tracking-wider">
-                Restricted Owner Area
-              </Text>
+              <Text style={styles.badgeText}>Restricted Owner Area</Text>
             </View>
             <TouchableOpacity
               onPress={onClose}
-              className="w-8 h-8 rounded-full bg-white/10 items-center justify-center active:opacity-70"
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.closeBtn}
             >
-              <X size={16} color="white" />
+              <X size={18} color="white" />
             </TouchableOpacity>
           </View>
 
           {/* Icon & Title */}
-          <View className="items-center mb-6">
-            <View className="w-16 h-16 rounded-2xl bg-[#0d281e] border-2 border-[#8ecfa9]/40 items-center justify-center mb-3 shadow-lg">
-              <Lock size={28} color="#8ecfa9" />
+          <View style={styles.header}>
+            <View style={styles.lockIconBox}>
+              <Lock size={26} color="#8ecfa9" />
             </View>
-            <Text className="text-white font-extrabold text-xl text-center">
-              {title}
-            </Text>
-            <Text className="text-zinc-400 text-xs text-center mt-1 px-4 leading-relaxed">
-              {subtitle}
-            </Text>
+            <Text style={styles.titleText}>{title}</Text>
+            <Text style={styles.subtitleText}>{subtitle}</Text>
           </View>
 
-          {/* 4-Digit Indicator */}
-          <View className="flex-row justify-center items-center gap-4 mb-4">
-            {[0, 1, 2, 3].map((index) => {
-              const isFilled = pin.length > index;
-              return (
-                <View
-                  key={index}
-                  className={`w-12 h-14 rounded-2xl items-center justify-center border-2 transition-all ${
-                    isFilled
-                      ? 'border-[#8ecfa9] bg-[#8ecfa9]/20 shadow-md'
-                      : errorMsg
-                      ? 'border-red-500/60 bg-red-500/10'
-                      : 'border-zinc-700 bg-white/5'
-                  }`}
-                >
-                  <Text className="text-white text-2xl font-mono font-bold">
-                    {isFilled ? '●' : '—'}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
+          {/* Clickable 4-Digit Display & Hidden Input */}
+          <TouchableWithoutFeedback onPress={() => inputRef.current?.focus()}>
+            <View style={styles.pinDisplayRow}>
+              {[0, 1, 2, 3].map((index) => {
+                const isFilled = pin.length > index;
+                return (
+                  <View
+                    key={index}
+                    style={[
+                      styles.pinBox,
+                      isFilled ? styles.pinBoxFilled : styles.pinBoxEmpty,
+                      errorMsg ? styles.pinBoxError : null,
+                    ]}
+                  >
+                    <Text style={styles.pinDigitText}>
+                      {isFilled ? '●' : '—'}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </TouchableWithoutFeedback>
+
+          {/* Hidden/Native TextInput for keyboard typing */}
+          <TextInput
+            ref={inputRef}
+            value={pin}
+            onChangeText={handleTextChange}
+            keyboardType="number-pad"
+            maxLength={4}
+            secureTextEntry={false}
+            style={styles.hiddenInput}
+            caretHidden={true}
+          />
 
           {/* Error Message */}
           {errorMsg ? (
-            <View className="bg-red-950/70 border border-red-500/40 rounded-xl p-2.5 mb-4">
-              <Text className="text-red-300 text-center text-xs font-semibold">
-                {errorMsg}
-              </Text>
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{errorMsg}</Text>
             </View>
           ) : null}
 
-          {/* Quick Demo Key Helper */}
+          {/* One-Tap Unlock Button */}
           <TouchableOpacity
-            onPress={handleAutofillMasterKey}
-            className="bg-[#8ecfa9]/10 border border-[#8ecfa9]/30 rounded-xl p-2.5 mb-5 flex-row items-center justify-between active:opacity-80"
+            onPress={handleInstantUnlock}
+            activeOpacity={0.8}
+            style={styles.oneTapButton}
           >
-            <View className="flex-row items-center">
-              <Sparkles size={14} color="#8ecfa9" style={{ marginRight: 6 }} />
-              <Text className="text-[#8ecfa9] text-xs font-semibold">
-                Demo Key: <Text className="font-mono font-black tracking-wider text-white">2026</Text>
-              </Text>
-            </View>
-            <Text className="text-[#8ecfa9] text-xs font-bold underline">
-              Tap to Unlock
+            <Sparkles size={16} color="#071912" style={{ marginRight: 8 }} />
+            <Text style={styles.oneTapButtonText}>
+              One-Tap Unlock: Master Key <Text style={{ fontWeight: '900' }}>2026</Text>
             </Text>
           </TouchableOpacity>
 
-          {/* Keypad */}
-          <View className="space-y-2 mb-2">
+          {/* On-Screen Keypad with Explicit Styles */}
+          <View style={styles.keypad}>
             {[
               ['1', '2', '3'],
               ['4', '5', '6'],
               ['7', '8', '9'],
               ['clear', '0', 'backspace'],
             ].map((row, rowIdx) => (
-              <View key={rowIdx} className="flex-row justify-between gap-2 mb-2">
+              <View key={rowIdx} style={styles.keypadRow}>
                 {row.map((btn) => {
                   if (btn === 'clear') {
                     return (
                       <TouchableOpacity
                         key={btn}
                         onPress={handleClear}
-                        className="flex-1 h-12 rounded-xl bg-white/5 items-center justify-center active:opacity-60"
+                        activeOpacity={0.6}
+                        style={[styles.keypadBtn, styles.specialKeypadBtn]}
                       >
-                        <Text className="text-zinc-400 font-bold text-xs uppercase">
-                          Clear
-                        </Text>
+                        <Text style={styles.specialKeypadText}>Clear</Text>
                       </TouchableOpacity>
                     );
                   }
@@ -207,9 +231,10 @@ export default function ExecutivePasscodeModal({
                       <TouchableOpacity
                         key={btn}
                         onPress={handleDelete}
-                        className="flex-1 h-12 rounded-xl bg-white/5 items-center justify-center active:opacity-60"
+                        activeOpacity={0.6}
+                        style={[styles.keypadBtn, styles.specialKeypadBtn]}
                       >
-                        <Delete size={18} color="#94a3b8" />
+                        <Delete size={20} color="#94a3b8" />
                       </TouchableOpacity>
                     );
                   }
@@ -217,11 +242,10 @@ export default function ExecutivePasscodeModal({
                     <TouchableOpacity
                       key={btn}
                       onPress={() => handleKeyPress(btn)}
-                      className="flex-1 h-12 rounded-xl bg-white/10 items-center justify-center active:bg-[#8ecfa9]/30 border border-white/5"
+                      activeOpacity={0.6}
+                      style={styles.keypadBtn}
                     >
-                      <Text className="text-white text-xl font-bold font-mono">
-                        {btn}
-                      </Text>
+                      <Text style={styles.keypadDigitText}>{btn}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -229,8 +253,8 @@ export default function ExecutivePasscodeModal({
             ))}
           </View>
 
-          {/* Footer note */}
-          <Text className="text-zinc-500 text-[10px] text-center mt-2">
+          {/* Footer */}
+          <Text style={styles.footerNote}>
             Differentiates standard applicants & clients from the platform owner.
           </Text>
 
@@ -239,3 +263,199 @@ export default function ExecutivePasscodeModal({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#0a1f16',
+    borderRadius: 28,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(142, 207, 169, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(142, 207, 169, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(142, 207, 169, 0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  badgeText: {
+    color: '#8ecfa9',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  lockIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: '#0d281e',
+    borderWidth: 1.5,
+    borderColor: 'rgba(142, 207, 169, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  titleText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  subtitleText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
+    paddingHorizontal: 12,
+    lineHeight: 16,
+  },
+  pinDisplayRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  pinBox: {
+    width: 50,
+    height: 56,
+    borderRadius: 14,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pinBoxEmpty: {
+    borderColor: '#334155',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  pinBoxFilled: {
+    borderColor: '#8ecfa9',
+    backgroundColor: 'rgba(142, 207, 169, 0.2)',
+  },
+  pinBoxError: {
+    borderColor: 'rgba(239, 68, 68, 0.7)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  pinDigitText: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontWeight: '700',
+  },
+  hiddenInput: {
+    position: 'absolute',
+    opacity: 0.01,
+    width: 1,
+    height: 1,
+  },
+  errorBox: {
+    backgroundColor: 'rgba(153, 27, 27, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderRadius: 10,
+    padding: 8,
+    marginBottom: 10,
+  },
+  errorText: {
+    color: '#fca5a5',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  oneTapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8ecfa9',
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 14,
+    shadowColor: '#8ecfa9',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  oneTapButtonText: {
+    color: '#071912',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  keypad: {
+    marginBottom: 8,
+  },
+  keypadRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  keypadBtn: {
+    flex: 1,
+    height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.09)',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  keypadDigitText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  specialKeypadBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  specialKeypadText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  footerNote: {
+    color: '#64748b',
+    fontSize: 9.5,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+});

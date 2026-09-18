@@ -318,7 +318,16 @@ export const ApplicationsService = {
         jobs = DEFAULT_JOBS;
         await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(jobs));
       }
-      return jobs;
+
+      // Deduplicate jobs by unique ID
+      const seenJobIds = new Set<string>();
+      const uniqueJobs = jobs.filter((j) => {
+        if (!j || !j.id || seenJobIds.has(j.id)) return false;
+        seenJobIds.add(j.id);
+        return true;
+      });
+
+      return uniqueJobs;
     } catch {
       return DEFAULT_JOBS;
     }

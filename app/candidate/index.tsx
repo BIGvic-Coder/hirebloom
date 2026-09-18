@@ -404,13 +404,13 @@ export default function CandidateJobs() {
               <Text className="text-slate-400 text-xs text-center mt-1">Try refining your search keyword.</Text>
             </View>
           ) : (
-            filteredJobs.map((job) => {
+            filteredJobs.map((job, idx) => {
               const isApplied = appliedJobIds.includes(job.id);
               const isBookmarked = !!bookmarkedIds[job.id];
 
               return (
                 <View 
-                  key={job.id} 
+                  key={`${job.id}-${idx}`} 
                   className="bg-white rounded-3xl p-5 mb-4 border border-slate-100 shadow-sm"
                 >
                   <View className="flex-row justify-between items-start mb-3">

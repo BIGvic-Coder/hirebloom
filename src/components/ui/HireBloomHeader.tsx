@@ -74,7 +74,9 @@ export default function HireBloomHeader({
     if (targetRole === 'ceo') {
       const isUnlocked = await ApplicationsService.isCeoAuthenticated();
       if (!isUnlocked) {
-        setIsPasscodeModalVisible(true);
+        setTimeout(() => {
+          setIsPasscodeModalVisible(true);
+        }, 120);
         return;
       }
     }
