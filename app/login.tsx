@@ -390,7 +390,11 @@ export default function Login() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 20 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 20 }} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         
         {/* Brand Logo Container */}
         <View className="flex-row items-center mb-6 self-center">
@@ -626,7 +630,12 @@ export default function Login() {
 
               <View className="flex-row items-center justify-center mb-2">
                 <Text className="text-zinc-500 font-medium text-xs">Don&apos;t have an account? </Text>
-                <TouchableOpacity onPress={() => router.push('/register')}>
+                <TouchableOpacity 
+                  onPress={() => router.push('/register')}
+                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                  activeOpacity={0.7}
+                  className="py-1 px-1.5"
+                >
                   <Text className="text-forest font-extrabold text-xs">Sign up</Text>
                 </TouchableOpacity>
               </View>
@@ -693,18 +702,20 @@ export default function Login() {
       </ScrollView>
 
       {/* CEO Executive Passcode Modal */}
-      <ExecutivePasscodeModal
-        visible={isCeoPasscodeVisible}
-        onClose={() => setIsCeoPasscodeVisible(false)}
-        onSuccess={async () => {
-          await ApplicationsService.setCeoAuthenticated(true);
-          await ApplicationsService.elevateRoleTo('ceo');
-          router.replace('/employer');
-        }}
-        title="CEO Executive Access"
-        subtitle="Enter Master Key (2026) to enter Owner Mode"
-        targetRole="ceo"
-      />
+      {isCeoPasscodeVisible && (
+        <ExecutivePasscodeModal
+          visible={isCeoPasscodeVisible}
+          onClose={() => setIsCeoPasscodeVisible(false)}
+          onSuccess={async () => {
+            await ApplicationsService.setCeoAuthenticated(true);
+            await ApplicationsService.elevateRoleTo('ceo');
+            router.replace('/employer');
+          }}
+          title="CEO Executive Access"
+          subtitle="Enter Master Key (2026) to enter Owner Mode"
+          targetRole="ceo"
+        />
+      )}
     </SafeAreaView>
   );
 }

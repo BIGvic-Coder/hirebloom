@@ -99,6 +99,7 @@ export default function Home() {
         <ScrollView 
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 24 }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           bounces={false}
         >
           {/* Top Logo & Branding */}

@@ -101,7 +101,7 @@ export default function HireBloomHeader({
   };
 
   return (
-    <View className="px-5 py-3.5 bg-white border-b border-border flex-row justify-between items-center z-30">
+    <View className="px-5 py-3.5 bg-white border-b border-border flex-row justify-between items-center">
       {/* Brand & Portal Badge */}
       <View className="flex-row items-center">
         <HireBloomLogoMark size={28} />
@@ -175,14 +175,16 @@ export default function HireBloomHeader({
       </View>
 
       {/* Embedded Email Inbox Modal */}
-      <EmailInboxModal
-        visible={emailModalVisible}
-        onClose={() => {
-          setEmailModalVisible(false);
-          loadUnread();
-        }}
-        userEmail={activeEmail}
-      />
+      {emailModalVisible && (
+        <EmailInboxModal
+          visible={emailModalVisible}
+          onClose={() => {
+            setEmailModalVisible(false);
+            loadUnread();
+          }}
+          userEmail={activeEmail}
+        />
+      )}
 
       {/* Quick Perspective Switcher Modal */}
       {isRoleModalVisible && (

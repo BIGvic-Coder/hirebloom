@@ -62,6 +62,14 @@ export default function EmployerDashboard() {
     await ApplicationsService.elevateRoleTo(mode);
   };
 
+  const navigateTo = (path: string) => {
+    try {
+      router.navigate(path);
+    } catch {
+      router.push(path);
+    }
+  };
+
   const handleCeoOfferSignOff = async (app: JobApplication) => {
     try {
       const success = await ApplicationsService.makeOffer(app.id, {
@@ -101,6 +109,7 @@ export default function EmployerDashboard() {
       <ScrollView 
         className="flex-1 bg-canvas" 
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingTop: 16, paddingBottom: 120, paddingHorizontal: 20 }}
       >
@@ -109,7 +118,7 @@ export default function EmployerDashboard() {
           <TouchableOpacity
             onPress={() => handleSwitchMode('employer')}
             activeOpacity={0.8}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             className={`flex-1 py-3 rounded-xl items-center flex-row justify-center ${
               viewMode === 'employer' ? 'bg-white shadow-sm' : 'bg-transparent'
             }`}
@@ -123,7 +132,7 @@ export default function EmployerDashboard() {
           <TouchableOpacity
             onPress={() => handleSwitchMode('ceo')}
             activeOpacity={0.8}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             className={`flex-1 py-3 rounded-xl items-center flex-row justify-center ${
               viewMode === 'ceo' ? 'bg-forest shadow-sm' : 'bg-transparent'
             }`}
@@ -159,14 +168,18 @@ export default function EmployerDashboard() {
             {/* CEO Action Quick Row */}
             <View className="flex-row gap-3 mb-6">
               <TouchableOpacity 
-                onPress={() => router.push('/employer/jobs')}
+                onPress={() => navigateTo('/employer/jobs')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.8}
                 className="flex-1 bg-forest py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
               >
                 <Briefcase color="#8ecfa9" size={16} style={{ marginRight: 6 }} />
                 <Text className="text-white font-bold text-xs">👑 Post CEO Requisition</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                onPress={() => router.push('/employer/candidates')}
+                onPress={() => navigateTo('/employer/candidates')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.8}
                 className="flex-1 bg-white border border-border py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
               >
                 <Users color="#113C2C" size={16} style={{ marginRight: 6 }} />
@@ -245,8 +258,10 @@ export default function EmployerDashboard() {
                     <Text className="text-indigo-800 font-bold text-xs">📹 Play Loom Pitch</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    onPress={() => router.push('/employer/candidates')}
-                    className="flex-1 bg-slate-100 border border-slate-200 py-2 rounded-xl flex-row items-center justify-center active:opacity-80"
+                    onPress={() => navigateTo('/employer/candidates')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.8}
+                    className="flex-1 bg-slate-100 border border-slate-200 py-2.5 rounded-xl flex-row items-center justify-center active:opacity-80"
                   >
                     <Text className="text-slate-700 font-bold text-xs">📄 Inspect Resume</Text>
                   </TouchableOpacity>
@@ -255,13 +270,15 @@ export default function EmployerDashboard() {
                 <TouchableOpacity
                   onPress={() => handleCeoOfferSignOff(topMatchCandidate)}
                   disabled={signedOfferId === topMatchCandidate.id || topMatchCandidate.status === 'Offer Received'}
-                  className={`w-full py-3.5 rounded-2xl items-center justify-center shadow-sm flex-row ${
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  activeOpacity={0.8}
+                  className={`w-full py-4 rounded-2xl items-center justify-center shadow-sm flex-row ${
                     signedOfferId === topMatchCandidate.id || topMatchCandidate.status === 'Offer Received'
                       ? 'bg-emerald-700'
                       : 'bg-forest active:opacity-90'
                   }`}
                 >
-                  <Crown size={15} color="#8ecfa9" style={{ marginRight: 6 }} />
+                  <Crown size={16} color="#8ecfa9" style={{ marginRight: 6 }} />
                   <Text className="text-white font-extrabold text-xs tracking-wider">
                     {signedOfferId === topMatchCandidate.id || topMatchCandidate.status === 'Offer Received'
                       ? '✓ Executive Offer Extended ($15/hr flat rate)'
@@ -290,14 +307,18 @@ export default function EmployerDashboard() {
             {/* Action Buttons */}
             <View className="flex-row gap-3 mb-6">
               <TouchableOpacity 
-                onPress={() => router.push('/employer/jobs')}
+                onPress={() => navigateTo('/employer/jobs')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.8}
                 className="flex-1 bg-forest py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
               >
                 <Briefcase color="white" size={16} style={{ marginRight: 6 }} />
                 <Text className="text-white font-bold text-xs">Post Requisition</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                onPress={() => router.push('/employer/candidates')}
+                onPress={() => navigateTo('/employer/candidates')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.8}
                 className="flex-1 bg-white border border-border py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
               >
                 <Users color="#113C2C" size={16} style={{ marginRight: 6 }} />
@@ -341,7 +362,9 @@ export default function EmployerDashboard() {
             <Text className="text-sm font-bold text-ink mb-3">Pipeline Activity</Text>
             <View className="flex-row flex-wrap gap-3 mb-6">
               <TouchableOpacity 
-                onPress={() => router.push('/employer/jobs')}
+                onPress={() => navigateTo('/employer/jobs')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.8}
                 className="w-[48%] bg-white p-4 rounded-2xl border border-border shadow-sm active:opacity-85"
               >
                 <View className="w-8 h-8 bg-mintLight/40 rounded-xl items-center justify-center mb-2">
@@ -352,7 +375,9 @@ export default function EmployerDashboard() {
               </TouchableOpacity>
 
               <TouchableOpacity 
-                onPress={() => router.push('/employer/candidates')}
+                onPress={() => navigateTo('/employer/candidates')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.8}
                 className="w-[48%] bg-white p-4 rounded-2xl border border-border shadow-sm active:opacity-85"
               >
                 <View className="w-8 h-8 bg-amber-50 rounded-xl items-center justify-center mb-2">
@@ -363,7 +388,9 @@ export default function EmployerDashboard() {
               </TouchableOpacity>
 
               <TouchableOpacity 
-                onPress={() => router.push('/employer/candidates')}
+                onPress={() => navigateTo('/employer/candidates')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.8}
                 className="w-[48%] bg-white p-4 rounded-2xl border border-border shadow-sm active:opacity-85"
               >
                 <View className="w-8 h-8 bg-purple-50 rounded-xl items-center justify-center mb-2">
@@ -374,7 +401,9 @@ export default function EmployerDashboard() {
               </TouchableOpacity>
 
               <TouchableOpacity 
-                onPress={() => router.push('/employer/candidates')}
+                onPress={() => navigateTo('/employer/candidates')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.8}
                 className="w-[48%] bg-white p-4 rounded-2xl border border-border shadow-sm active:opacity-85"
               >
                 <View className="w-8 h-8 bg-emerald-50 rounded-xl items-center justify-center mb-2">
@@ -390,7 +419,11 @@ export default function EmployerDashboard() {
         {/* Recent Candidate Applicants with Loom Pitch indicator */}
         <View className="flex-row justify-between items-center mb-3">
           <Text className="text-sm font-bold text-ink">Recent Candidates & Loom Submissions</Text>
-          <TouchableOpacity onPress={() => router.push('/employer/candidates')}>
+          <TouchableOpacity 
+            onPress={() => navigateTo('/employer/candidates')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+          >
             <Text className="text-forest font-bold text-xs">View All Pipeline</Text>
           </TouchableOpacity>
         </View>
@@ -399,7 +432,9 @@ export default function EmployerDashboard() {
           {applications.slice(0, 3).map((app, i) => (
             <TouchableOpacity 
               key={app.id} 
-              onPress={() => router.push('/employer/candidates')}
+              onPress={() => navigateTo('/employer/candidates')}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              activeOpacity={0.75}
               className={`flex-row items-center justify-between p-4 active:opacity-75 ${i !== 2 ? 'border-b border-border' : ''}`}
             >
               <View className="flex-row items-center flex-1 pr-2">

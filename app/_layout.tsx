@@ -1,3 +1,7 @@
+import 'react-native-gesture-handler';
+import React from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import '../src/global.css';
 import { StyleSheet, LogBox } from 'react-native';
@@ -24,18 +28,22 @@ if (typeof (StyleSheet as any).setFlag === 'function') {
   (StyleSheet as any).setFlag('darkMode', 'class');
 }
 
-
 export default function RootLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="login" />
-      <Stack.Screen name="register" />
-      <Stack.Screen name="candidate" />
-      <Stack.Screen name="employer" />
-      <Stack.Screen name="recruiter" />
-      <Stack.Screen name="notifications" />
-      <Stack.Screen name="help" />
-    </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name="candidate" />
+          <Stack.Screen name="employer" />
+          <Stack.Screen name="recruiter" />
+          <Stack.Screen name="notifications" />
+          <Stack.Screen name="help" />
+        </Stack>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+

@@ -400,6 +400,7 @@ export default function Register() {
           paddingVertical: 16,
         }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Main Card Container */}
         <View className="bg-white p-6 rounded-3xl border border-zinc-200/70 shadow-lg">
@@ -587,6 +588,8 @@ export default function Register() {
             className="w-full bg-forest py-4 rounded-2xl flex-row items-center justify-center shadow active:opacity-90 mb-4"
             onPress={handleEmailRegister}
             disabled={authLoading}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.8}
           >
             <Text className="text-white font-bold text-sm mr-2">
               {authLoading ? 'Creating Account...' : `Register as ${role === 'employer' ? 'Employer' : 'Candidate'}`}
