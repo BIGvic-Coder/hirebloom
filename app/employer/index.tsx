@@ -16,6 +16,16 @@ export default function EmployerDashboard() {
   const [signedOfferId, setSignedOfferId] = useState<string | null>(null);
   const [isPasscodeModalVisible, setIsPasscodeModalVisible] = useState(false);
 
+  // Android Watchdog: Ensure pull-to-refresh spinner never stays stuck on screen
+  useEffect(() => {
+    if (refreshing) {
+      const timer = setTimeout(() => {
+        setRefreshing(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [refreshing]);
+
   // Sync authentication and view mode on every screen focus
   useFocusEffect(
     useCallback(() => {
@@ -46,8 +56,16 @@ export default function EmployerDashboard() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadDashboardData();
-    setRefreshing(false);
+    try {
+      await Promise.race([
+        loadDashboardData(),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
+    } catch (e) {
+      console.warn('Error during employer dashboard refresh:', e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleSwitchMode = async (mode: 'employer' | 'ceo') => {
@@ -57,9 +75,12 @@ export default function EmployerDashboard() {
         setIsPasscodeModalVisible(true);
         return;
       }
+      setViewMode('ceo');
+      await ApplicationsService.elevateRoleTo('ceo');
+    } else {
+      setViewMode('employer');
+      await ApplicationsService.elevateRoleTo('employer');
     }
-    setViewMode(mode);
-    await ApplicationsService.elevateRoleTo(mode);
   };
 
   const navigateTo = (path: string) => {
@@ -106,19 +127,13 @@ export default function EmployerDashboard() {
         userInitials={viewMode === 'ceo' ? "CEO" : "TN"} 
       />
 
-      <ScrollView 
-        className="flex-1 bg-canvas" 
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 120, paddingHorizontal: 20 }}
-      >
-        {/* Perspective Mode Switcher: Employer Workspace vs CEO Executive Suite */}
-        <View className="flex-row bg-slate-200/80 p-1.5 rounded-2xl mb-6 shadow-sm">
+      {/* Pinned Perspective Mode Switcher: Outside ScrollView so touch gestures are NEVER captured by RefreshControl */}
+      <View className="px-5 pt-3 pb-2 bg-canvas z-10">
+        <View className="flex-row bg-slate-200/80 p-1.5 rounded-2xl shadow-sm">
           <TouchableOpacity
             onPress={() => handleSwitchMode('employer')}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             className={`flex-1 py-3 rounded-xl items-center flex-row justify-center ${
               viewMode === 'employer' ? 'bg-white shadow-sm' : 'bg-transparent'
             }`}
@@ -131,8 +146,8 @@ export default function EmployerDashboard() {
 
           <TouchableOpacity
             onPress={() => handleSwitchMode('ceo')}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             className={`flex-1 py-3 rounded-xl items-center flex-row justify-center ${
               viewMode === 'ceo' ? 'bg-forest shadow-sm' : 'bg-transparent'
             }`}
@@ -143,6 +158,16 @@ export default function EmployerDashboard() {
             </Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      <ScrollView 
+        className="flex-1 bg-canvas" 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled={true}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 120, paddingHorizontal: 20 }}
+      >
 
         {/* ======================= VIEW A: CEO EXECUTIVE SUITE ======================= */}
         {viewMode === 'ceo' && (
@@ -473,6 +498,7 @@ export default function EmployerDashboard() {
             await ApplicationsService.setCeoAuthenticated(true);
             await ApplicationsService.elevateRoleTo('ceo');
             setViewMode('ceo');
+            setIsPasscodeModalVisible(false);
           }}
           title="CEO Executive Suite"
           subtitle="Enter Master Key (2026) to unlock Owner Mode"

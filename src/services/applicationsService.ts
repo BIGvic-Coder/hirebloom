@@ -271,6 +271,14 @@ const DEFAULT_EXISTING_USERS: Array<{
   },
 ];
 
+// Safeguard network operations against mobile data / offline hangs
+const withTimeout = <T>(promise: Promise<T>, timeoutMs = 2500): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Firebase operation timed out')), timeoutMs)),
+  ]);
+};
+
 // Service API
 export const ApplicationsService = {
   // Helper to extract initials
@@ -300,7 +308,7 @@ export const ApplicationsService = {
 
       if (!IS_MOCK_FIREBASE && db) {
         try {
-          const snap = await getDocs(collection(db, 'jobs'));
+          const snap = await withTimeout(getDocs(collection(db, 'jobs')), 2500);
           if (!snap.empty) {
             const cloudJobs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobItem));
             for (const cj of cloudJobs) {
@@ -505,7 +513,7 @@ export const ApplicationsService = {
       if (!IS_MOCK_FIREBASE && db && targetId) {
         try {
           const q = query(collection(db, 'applications'), where('candidateId', '==', targetId));
-          const snap = await getDocs(q);
+          const snap = await withTimeout(getDocs(q), 2500);
           if (!snap.empty) {
             const cloudDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
             for (const item of cloudDocs) {
@@ -619,7 +627,7 @@ export const ApplicationsService = {
 
       if (!IS_MOCK_FIREBASE && db) {
         try {
-          const snap = await getDocs(collection(db, 'applications'));
+          const snap = await withTimeout(getDocs(collection(db, 'applications')), 2500);
           if (!snap.empty) {
             const cloudApps = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
             for (const ca of cloudApps) {
