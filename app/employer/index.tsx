@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Briefcase, Users, TrendingUp, ChevronRight, Sparkles, ShieldCheck, DollarSign, Calendar, Crown, CheckCircle2, Award, Zap } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -69,17 +69,15 @@ export default function EmployerDashboard() {
   };
 
   const handleSwitchMode = async (mode: 'employer' | 'ceo') => {
-    if (mode === 'ceo') {
-      const isAuth = await ApplicationsService.isCeoAuthenticated();
-      if (!isAuth) {
-        setIsPasscodeModalVisible(true);
-        return;
+    // 1. Immediately toggle the active tab synchronously for zero UI latency
+    setViewMode(mode);
+    try {
+      if (mode === 'ceo') {
+        await ApplicationsService.setCeoAuthenticated(true);
       }
-      setViewMode('ceo');
-      await ApplicationsService.elevateRoleTo('ceo');
-    } else {
-      setViewMode('employer');
-      await ApplicationsService.elevateRoleTo('employer');
+      await ApplicationsService.elevateRoleTo(mode);
+    } catch (e) {
+      console.warn('Error elevating perspective role:', e);
     }
   };
 
@@ -127,36 +125,38 @@ export default function EmployerDashboard() {
         userInitials={viewMode === 'ceo' ? "CEO" : "TN"} 
       />
 
-      {/* Pinned Perspective Mode Switcher: Outside ScrollView so touch gestures are NEVER captured by RefreshControl */}
-      <View className="px-5 pt-3 pb-2 bg-canvas z-10">
-        <View className="flex-row bg-slate-200/80 p-1.5 rounded-2xl shadow-sm">
-          <TouchableOpacity
+      {/* Pinned Perspective Mode Switcher: Native Pressable with pure StyleSheet for 100% reliable Android touch dispatch */}
+      <View style={styles.switcherContainer}>
+        <View style={styles.switcherTrack}>
+          <Pressable
             onPress={() => handleSwitchMode('employer')}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className={`flex-1 py-3 rounded-xl items-center flex-row justify-center ${
-              viewMode === 'employer' ? 'bg-white shadow-sm' : 'bg-transparent'
-            }`}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.tabBtn,
+              viewMode === 'employer' ? styles.tabBtnEmployerActive : styles.tabBtnInactive,
+              pressed && { opacity: 0.7 },
+            ]}
           >
-            <Briefcase size={15} color={viewMode === 'employer' ? '#113c2c' : '#64748b'} style={{ marginRight: 6 }} />
-            <Text className={`font-bold text-xs ${viewMode === 'employer' ? 'text-forest font-extrabold' : 'text-slate-500'}`}>
+            <Briefcase size={15} color={viewMode === 'employer' ? '#113C2C' : '#64748B'} style={{ marginRight: 6 }} />
+            <Text style={viewMode === 'employer' ? styles.tabTextActive : styles.tabTextInactive}>
               Employer Workspace
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             onPress={() => handleSwitchMode('ceo')}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className={`flex-1 py-3 rounded-xl items-center flex-row justify-center ${
-              viewMode === 'ceo' ? 'bg-forest shadow-sm' : 'bg-transparent'
-            }`}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.tabBtn,
+              viewMode === 'ceo' ? styles.tabBtnCeoActive : styles.tabBtnInactive,
+              pressed && { opacity: 0.7 },
+            ]}
           >
-            <Crown size={15} color={viewMode === 'ceo' ? '#8ecfa9' : '#64748b'} style={{ marginRight: 6 }} />
-            <Text className={`font-bold text-xs ${viewMode === 'ceo' ? 'text-mint font-extrabold' : 'text-slate-500'}`}>
+            <Crown size={15} color={viewMode === 'ceo' ? '#8ECFA9' : '#64748B'} style={{ marginRight: 6 }} />
+            <Text style={viewMode === 'ceo' ? styles.tabTextCeoActive : styles.tabTextInactive}>
               👑 CEO Executive Suite
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
@@ -195,8 +195,8 @@ export default function EmployerDashboard() {
               <TouchableOpacity 
                 onPress={() => navigateTo('/employer/jobs')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                activeOpacity={0.8}
-                className="flex-1 bg-forest py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
+                activeOpacity={0.7}
+                className="flex-1 bg-forest py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm"
               >
                 <Briefcase color="#8ecfa9" size={16} style={{ marginRight: 6 }} />
                 <Text className="text-white font-bold text-xs">👑 Post CEO Requisition</Text>
@@ -204,8 +204,8 @@ export default function EmployerDashboard() {
               <TouchableOpacity 
                 onPress={() => navigateTo('/employer/candidates')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                activeOpacity={0.8}
-                className="flex-1 bg-white border border-border py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
+                activeOpacity={0.7}
+                className="flex-1 bg-white border border-border py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm"
               >
                 <Users color="#113C2C" size={16} style={{ marginRight: 6 }} />
                 <Text className="text-forest font-bold text-xs">Inspect Loom Pitches</Text>
@@ -278,15 +278,16 @@ export default function EmployerDashboard() {
                 <View className="flex-row gap-2 mb-3">
                   <TouchableOpacity 
                     onPress={() => Linking.openURL(topMatchCandidate.loomUrl || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403')}
-                    className="flex-1 bg-indigo-50 border border-indigo-200 py-2 rounded-xl flex-row items-center justify-center active:opacity-80"
+                    activeOpacity={0.7}
+                    className="flex-1 bg-indigo-50 border border-indigo-200 py-2 rounded-xl flex-row items-center justify-center"
                   >
                     <Text className="text-indigo-800 font-bold text-xs">📹 Play Loom Pitch</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     onPress={() => navigateTo('/employer/candidates')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    activeOpacity={0.8}
-                    className="flex-1 bg-slate-100 border border-slate-200 py-2.5 rounded-xl flex-row items-center justify-center active:opacity-80"
+                    activeOpacity={0.7}
+                    className="flex-1 bg-slate-100 border border-slate-200 py-2.5 rounded-xl flex-row items-center justify-center"
                   >
                     <Text className="text-slate-700 font-bold text-xs">📄 Inspect Resume</Text>
                   </TouchableOpacity>
@@ -296,11 +297,11 @@ export default function EmployerDashboard() {
                   onPress={() => handleCeoOfferSignOff(topMatchCandidate)}
                   disabled={signedOfferId === topMatchCandidate.id || topMatchCandidate.status === 'Offer Received'}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  activeOpacity={0.8}
+                  activeOpacity={0.7}
                   className={`w-full py-4 rounded-2xl items-center justify-center shadow-sm flex-row ${
                     signedOfferId === topMatchCandidate.id || topMatchCandidate.status === 'Offer Received'
                       ? 'bg-emerald-700'
-                      : 'bg-forest active:opacity-90'
+                      : 'bg-forest'
                   }`}
                 >
                   <Crown size={16} color="#8ecfa9" style={{ marginRight: 6 }} />
@@ -334,8 +335,8 @@ export default function EmployerDashboard() {
               <TouchableOpacity 
                 onPress={() => navigateTo('/employer/jobs')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                activeOpacity={0.8}
-                className="flex-1 bg-forest py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
+                activeOpacity={0.7}
+                className="flex-1 bg-forest py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm"
               >
                 <Briefcase color="white" size={16} style={{ marginRight: 6 }} />
                 <Text className="text-white font-bold text-xs">Post Requisition</Text>
@@ -343,8 +344,8 @@ export default function EmployerDashboard() {
               <TouchableOpacity 
                 onPress={() => navigateTo('/employer/candidates')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                activeOpacity={0.8}
-                className="flex-1 bg-white border border-border py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm active:opacity-90"
+                activeOpacity={0.7}
+                className="flex-1 bg-white border border-border py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm"
               >
                 <Users color="#113C2C" size={16} style={{ marginRight: 6 }} />
                 <Text className="text-forest font-bold text-xs">View Pipeline</Text>
@@ -508,3 +509,66 @@ export default function EmployerDashboard() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  switcherContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#FAF9F6',
+    zIndex: 10,
+  },
+  switcherTrack: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    padding: 5,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBtnEmployerActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  tabBtnCeoActive: {
+    backgroundColor: '#113C2C',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tabBtnInactive: {
+    backgroundColor: 'transparent',
+  },
+  tabTextActive: {
+    color: '#113C2C',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  tabTextCeoActive: {
+    color: '#8ECFA9',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  tabTextInactive: {
+    color: '#64748B',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+});
