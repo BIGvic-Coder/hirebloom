@@ -190,39 +190,12 @@ export default function Home() {
             <TouchableOpacity
               onPress={() => router.push('/register')}
               activeOpacity={0.85}
-              className="w-full bg-white/10 border border-white/20 py-3.5 rounded-2xl items-center justify-center mb-4"
+              className="w-full bg-white/10 border border-white/20 py-3.5 rounded-2xl items-center justify-center"
             >
               <Text className="text-white font-bold text-xs">
                 Create New Account
               </Text>
             </TouchableOpacity>
-
-            {/* Quick Demo Access Switcher */}
-            <View className="pt-2 border-t border-white/10">
-              <Text className="text-zinc-400 text-[9px] uppercase tracking-widest text-center mb-2 font-bold">
-                Instant Demo Access
-              </Text>
-              <View className="flex-row gap-2">
-                <TouchableOpacity
-                  onPress={() => handleQuickEnterPortal('candidate')}
-                  className="flex-1 bg-white/10 border border-white/15 py-2.5 rounded-xl items-center"
-                >
-                  <Text className="text-mint font-bold text-[10px]">Talent</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleQuickEnterPortal('employer')}
-                  className="flex-1 bg-white/10 border border-white/15 py-2.5 rounded-xl items-center"
-                >
-                  <Text className="text-white font-bold text-[10px]">Employer</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleQuickEnterPortal('ceo')}
-                  className="flex-1 bg-mint/20 border border-mint/40 py-2.5 rounded-xl items-center"
-                >
-                  <Text className="text-mint font-extrabold text-[10px]">👑 CEO</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
         </ScrollView>
 
