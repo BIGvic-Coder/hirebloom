@@ -467,7 +467,12 @@ export const ApplicationsService = {
         type: 'application',
         title: 'Application Submitted',
         body: `Your application for ${job.title} at ${job.company} is in our review queue.`,
-        deepLink: '/candidate/applications',
+        deepLink: `/candidate/applications?appId=${newApp.id}`,
+        metadata: {
+          applicationId: newApp.id,
+          jobTitle: job.title,
+          company: job.company,
+        },
       });
 
       // 3. Record in audit trail
@@ -532,78 +537,11 @@ export const ApplicationsService = {
 
       if (targetId) {
         const cleanTarget = targetId.trim().toLowerCase();
-        let userApps = apps.filter(
+        const userApps = apps.filter(
           (a) =>
-            a.candidateId.toLowerCase() === cleanTarget ||
-            a.candidateEmail.toLowerCase() === cleanTarget ||
-            (cleanTarget.includes('victor') && a.candidateId === 'demo-candidate-1')
+            (a.candidateId && a.candidateId.toLowerCase() === cleanTarget) ||
+            (a.candidateEmail && a.candidateEmail.toLowerCase() === cleanTarget)
         );
-
-        // If this candidate has no registered applications yet (e.g. test user 'IC' or guest),
-        // link them to active demo applications so they can test status updates, interview schedules,
-        // and offers right away instead of seeing an empty "No active applications" screen!
-        if (userApps.length === 0) {
-          const userPrefix = cleanTarget.includes('@') ? cleanTarget.split('@')[0] : cleanTarget;
-          const candidateName = userPrefix.charAt(0).toUpperCase() + userPrefix.slice(1);
-          const candidateInitials = cleanTarget.slice(0, 2).toUpperCase() || 'HB';
-          const candidateEmail = cleanTarget.includes('@') ? cleanTarget : `${cleanTarget}@hirebloom.com`;
-
-          const seededApps: JobApplication[] = [
-            {
-              id: `app-user-${cleanTarget.replace(/[^a-z0-9]/g, '')}-1`,
-              jobId: 'job-1',
-              jobTitle: 'Senior Customer Support Lead',
-              company: 'InnovateX',
-              candidateId: targetId,
-              candidateName: candidateName,
-              candidateEmail: candidateEmail,
-              candidateInitials: candidateInitials,
-              status: 'Offer Received',
-              statusColor: '#059669',
-              statusBg: '#d1fae5',
-              appliedDate: 'Sep 10, 2026',
-              step: 'Formal Placement Offer Extended ($15.00/hr)',
-              notes: 'Passed 6-layer vetting and English proficiency assessment (Native C1).',
-              resumeName: `${userPrefix}_resume_2026.pdf`,
-              resumeSize: '1.2 MB',
-              loomUrl: 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403',
-              offerDetails: {
-                salary: '$15.00 - $18.00 / hr',
-                startDate: 'Within 2 weeks',
-                role: 'Senior Customer Support Lead'
-              }
-            },
-            {
-              id: `app-user-${cleanTarget.replace(/[^a-z0-9]/g, '')}-2`,
-              jobId: 'job-2',
-              jobTitle: 'Technical Onboarding Specialist',
-              company: 'DesignFlow',
-              candidateId: targetId,
-              candidateName: candidateName,
-              candidateEmail: candidateEmail,
-              candidateInitials: candidateInitials,
-              status: 'Interview Scheduled',
-              statusColor: '#7c3aed',
-              statusBg: '#ede9fe',
-              appliedDate: 'Sep 14, 2026',
-              step: 'Live Client Panel Interview on Google Meet',
-              notes: 'Selected for live panel interview.',
-              resumeName: `${userPrefix}_resume_2026.pdf`,
-              resumeSize: '1.2 MB',
-              loomUrl: 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403',
-              interviewDetails: {
-                date: 'Sep 24, 2026',
-                time: '2:30 PM EST',
-                meetUrl: 'https://meet.google.com/hbm-intr-vct',
-                type: 'Client Panel Video Meeting'
-              }
-            }
-          ];
-
-          apps.unshift(...seededApps);
-          await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(apps));
-          userApps = seededApps;
-        }
 
         return userApps;
       }
@@ -729,7 +667,19 @@ export const ApplicationsService = {
           type: notifType,
           title: notifTitle,
           body: notifBody,
-          deepLink: newStatus === 'Interview Scheduled' ? '/candidate/interviews' : '/candidate/applications',
+          deepLink: newStatus === 'Interview Scheduled'
+            ? `/candidate/interviews?appId=${targetApp.id}`
+            : `/candidate/applications?appId=${targetApp.id}`,
+          metadata: {
+            applicationId: targetApp.id,
+            jobTitle: targetApp.jobTitle,
+            company: targetApp.company,
+            salary: targetApp.offerDetails?.salary || options?.offerDetails?.salary,
+            startDate: targetApp.offerDetails?.startDate || options?.offerDetails?.startDate,
+            meetUrl: targetApp.interviewDetails?.meetUrl || options?.interviewDetails?.meetUrl,
+            interviewDate: targetApp.interviewDetails?.date || options?.interviewDetails?.date,
+            interviewTime: targetApp.interviewDetails?.time || options?.interviewDetails?.time,
+          },
         });
 
         // ==================== DISPATCH OFFICIAL EMAIL NOTIFICATIONS ====================
@@ -848,6 +798,7 @@ export const ApplicationsService = {
   async resetTestApplications(): Promise<void> {
     await AsyncStorage.removeItem(APPS_STORAGE_KEY);
     await AsyncStorage.removeItem('@hirebloom_emails_cache');
+    await NotificationsService.clearAllNotifications();
   },
 
   // 7. Resume & Loom Storage & Management

@@ -412,11 +412,11 @@ export default function Register() {
             Join thousands of vetted remote professionals and leading companies.
           </Text>
 
-          {/* Role Switcher (3-Way: Candidate, Employer, CEO) */}
-          <View className="flex-row gap-2 mb-5">
+          {/* Role Switcher (Candidate vs Employer) */}
+          <View className="flex-row gap-3 mb-5">
             <TouchableOpacity
               onPress={() => setRole('candidate')}
-              className={`flex-1 p-3 rounded-2xl border items-center justify-center ${
+              className={`flex-1 p-3.5 rounded-2xl border items-center justify-center ${
                 role === 'candidate'
                   ? 'bg-mint/15 border-forest shadow-sm'
                   : 'bg-zinc-50 border-zinc-200'
@@ -424,7 +424,7 @@ export default function Register() {
             >
               <Briefcase
                 color={role === 'candidate' ? '#113c2c' : '#94a3b8'}
-                size={16}
+                size={18}
                 style={{ marginBottom: 4 }}
               />
               <Text
@@ -434,12 +434,12 @@ export default function Register() {
               >
                 Candidate
               </Text>
-              <Text className="text-[9px] text-zinc-400">$13/hr standard</Text>
+              <Text className="text-[10px] text-zinc-400">Apply to roles</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setRole('employer')}
-              className={`flex-1 p-3 rounded-2xl border items-center justify-center ${
+              className={`flex-1 p-3.5 rounded-2xl border items-center justify-center ${
                 role === 'employer'
                   ? 'bg-mint/15 border-forest shadow-sm'
                   : 'bg-zinc-50 border-zinc-200'
@@ -447,7 +447,7 @@ export default function Register() {
             >
               <Building2
                 color={role === 'employer' ? '#113c2c' : '#94a3b8'}
-                size={16}
+                size={18}
                 style={{ marginBottom: 4 }}
               />
               <Text
@@ -457,30 +457,7 @@ export default function Register() {
               >
                 Employer
               </Text>
-              <Text className="text-[9px] text-zinc-400">Hire talent</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setRole('ceo')}
-              className={`flex-1 p-3 rounded-2xl border items-center justify-center ${
-                role === 'ceo'
-                  ? 'bg-mint/20 border-forest shadow-sm'
-                  : 'bg-zinc-50 border-zinc-200'
-              }`}
-            >
-              <Crown
-                color={role === 'ceo' ? '#113c2c' : '#94a3b8'}
-                size={16}
-                style={{ marginBottom: 4 }}
-              />
-              <Text
-                className={`font-bold text-xs ${
-                  role === 'ceo' ? 'text-forest' : 'text-zinc-500'
-                }`}
-              >
-                👑 CEO
-              </Text>
-              <Text className="text-[9px] text-zinc-400">App Owner</Text>
+              <Text className="text-[10px] text-zinc-400">Hire verified talent</Text>
             </TouchableOpacity>
           </View>
 

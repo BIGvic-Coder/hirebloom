@@ -13,50 +13,30 @@ export interface NotificationItem {
   deepLink?: string;
   read: boolean;
   createdAt: string;
+  metadata?: {
+    applicationId?: string;
+    jobTitle?: string;
+    company?: string;
+    salary?: string;
+    startDate?: string;
+    meetUrl?: string;
+    interviewDate?: string;
+    interviewTime?: string;
+  };
 }
 
 const NOTIFICATIONS_STORAGE_KEY = '@hirebloom_notifications_cache';
 
 const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   {
-    id: 'notif-1',
-    userId: 'demo-candidate-1',
-    type: 'application',
-    title: 'Matched to Client Requisition',
-    body: 'Your vetted profile has been matched to InnovateX for Senior Customer Support Lead.',
-    deepLink: '/candidate/applications',
-    read: false,
-    createdAt: '10 minutes ago',
-  },
-  {
-    id: 'notif-2',
-    userId: 'demo-candidate-1',
-    type: 'interview',
-    title: 'Interview Scheduled',
-    body: 'Client panel interview confirmed for Wednesday at 2:00 PM EST via Google Meet.',
-    deepLink: '/candidate/interviews',
-    read: false,
-    createdAt: '2 hours ago',
-  },
-  {
-    id: 'notif-3',
-    userId: 'demo-candidate-1',
-    type: 'offer',
-    title: 'Contract Offer Extended',
-    body: 'DesignFlow extended a formal remote placement offer ($15 - $16 / hr).',
-    deepLink: '/candidate/applications',
-    read: true,
-    createdAt: '1 day ago',
-  },
-  {
-    id: 'notif-4',
-    userId: 'demo-candidate-1',
+    id: 'notif-welcome',
+    userId: 'all',
     type: 'system',
-    title: 'Welcome to Hire Bloom',
-    body: 'Your profile has completed initial verification with C1 English status.',
-    deepLink: '/candidate/profile',
-    read: true,
-    createdAt: '3 days ago',
+    title: 'Welcome to HireBloom',
+    body: 'Explore open roles, apply with your resume, and track your interviews and offers in real-time.',
+    deepLink: '/candidate',
+    read: false,
+    createdAt: 'Just now',
   },
 ];
 
@@ -107,15 +87,14 @@ export const NotificationsService = {
         const cleanUser = userId.trim().toLowerCase();
         return uniqueList.filter(
           (n) =>
-            n.userId.toLowerCase() === cleanUser ||
-            n.userId === 'demo-candidate-1' ||
-            n.type === 'system'
+            (n.userId && n.userId.toLowerCase() === cleanUser) ||
+            (n.type === 'system' && (!n.userId || n.userId === 'all'))
         );
       }
 
       return uniqueList;
     } catch {
-      return INITIAL_NOTIFICATIONS;
+      return [];
     }
   },
 
@@ -178,5 +157,13 @@ export const NotificationsService = {
     }
 
     return newNotif;
+  },
+
+  async clearAllNotifications(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
+    } catch {
+      // Handled silently
+    }
   }
 };

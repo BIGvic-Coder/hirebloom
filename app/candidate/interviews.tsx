@@ -39,7 +39,7 @@ const DEFAULT_INTERVIEWS: InterviewCardItem[] = [
 ];
 
 export default function CandidateInterviews() {
-  const [interviews, setInterviews] = useState<InterviewCardItem[]>(DEFAULT_INTERVIEWS);
+  const [interviews, setInterviews] = useState<InterviewCardItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -62,17 +62,9 @@ export default function CandidateInterviews() {
           link: app.interviewDetails?.meetUrl || 'https://meet.google.com/hbm-intr-vct',
           type: app.interviewDetails?.type || 'Live Panel Interview',
         }));
-
-        // Merge without duplicate companies
-        const combined = [...liveInterviews];
-        DEFAULT_INTERVIEWS.forEach((def) => {
-          if (!combined.some((c) => c.company === def.company)) {
-            combined.push(def);
-          }
-        });
-        setInterviews(combined);
+        setInterviews(liveInterviews);
       } else {
-        setInterviews(DEFAULT_INTERVIEWS);
+        setInterviews([]);
       }
     } catch (e) {
       console.warn('Error loading interviews:', e);
@@ -100,61 +92,73 @@ export default function CandidateInterviews() {
           contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-          {interviews.map((item, index) => (
-            <View
-              key={`${item.id}-${index}`}
-              className="bg-white rounded-3xl border border-zinc-200/60 shadow-sm p-5 mb-5"
-            >
-              {/* Card Title & Type */}
-              <View className="flex-row justify-between items-start mb-4">
-                <View>
-                  <Text className="text-lg font-bold text-forest leading-tight mb-1">{item.title}</Text>
-                  <Text className="text-zinc-400 font-bold text-xs">{item.company}</Text>
-                </View>
-                <View className="bg-forest/10 px-2.5 py-1 rounded-lg">
-                  <Text className="text-forest font-extrabold text-[10px] uppercase">
-                    {item.type}
-                  </Text>
-                </View>
+          {interviews.length === 0 ? (
+            <View className="bg-white rounded-3xl border border-zinc-200/60 p-8 items-center justify-center my-4">
+              <View className="w-14 h-14 rounded-2xl bg-zinc-100 items-center justify-center mb-3">
+                <Video size={24} color="#94a3b8" />
               </View>
-
-              {/* Schedule Info */}
-              <View className="space-y-3 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 mb-5">
-                <View className="flex-row items-center">
-                  <Calendar color="#113c2c" size={14} style={{ marginRight: 8 }} />
-                  <Text className="text-forest text-xs font-semibold">{item.date}</Text>
-                </View>
-                <View className="flex-row items-center">
-                  <Clock color="#113c2c" size={14} style={{ marginRight: 8 }} />
-                  <Text className="text-forest text-xs font-semibold">{item.time}</Text>
-                </View>
-                <View className="flex-row items-center border-t border-zinc-200/40 pt-2.5 mt-1">
-                  <User color="#113c2c" size={14} style={{ marginRight: 8 }} />
-                  <Text className="text-zinc-500 text-xs font-medium">
-                    Host: <Text className="font-bold text-forest">{item.interviewer}</Text>
-                  </Text>
-                </View>
-              </View>
-
-              {/* Join Action Buttons */}
-              <View className="flex-row space-x-2">
-                <TouchableOpacity
-                  onPress={() => handleJoinCall(item.link)}
-                  className="flex-1 bg-forest py-3.5 rounded-xl flex-row items-center justify-center active:opacity-90 shadow-sm"
-                >
-                  <Video color="white" size={16} style={{ marginRight: 6 }} />
-                  <Text className="text-white font-bold text-xs">Join Google Meet</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  onPress={() => handleJoinCall(item.link)}
-                  className="w-12 bg-zinc-100 border border-zinc-200/60 rounded-xl items-center justify-center active:opacity-75"
-                >
-                  <ExternalLink color="#113c2c" size={16} />
-                </TouchableOpacity>
-              </View>
+              <Text className="text-slate-900 font-bold text-base mb-1">No upcoming interviews</Text>
+              <Text className="text-zinc-500 text-xs text-center leading-relaxed">
+                When an employer or hiring team schedules a video interview for an application you submitted, your meeting details will appear here.
+              </Text>
             </View>
-          ))}
+          ) : (
+            interviews.map((item, index) => (
+              <View
+                key={`${item.id}-${index}`}
+                className="bg-white rounded-3xl border border-zinc-200/60 shadow-sm p-5 mb-5"
+              >
+                {/* Card Title & Type */}
+                <View className="flex-row justify-between items-start mb-4">
+                  <View>
+                    <Text className="text-lg font-bold text-forest leading-tight mb-1">{item.title}</Text>
+                    <Text className="text-zinc-400 font-bold text-xs">{item.company}</Text>
+                  </View>
+                  <View className="bg-forest/10 px-2.5 py-1 rounded-lg">
+                    <Text className="text-forest font-extrabold text-[10px] uppercase">
+                      {item.type}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Schedule Info */}
+                <View className="space-y-3 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 mb-5">
+                  <View className="flex-row items-center">
+                    <Calendar color="#113c2c" size={14} style={{ marginRight: 8 }} />
+                    <Text className="text-forest text-xs font-semibold">{item.date}</Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Clock color="#113c2c" size={14} style={{ marginRight: 8 }} />
+                    <Text className="text-forest text-xs font-semibold">{item.time}</Text>
+                  </View>
+                  <View className="flex-row items-center border-t border-zinc-200/40 pt-2.5 mt-1">
+                    <User color="#113c2c" size={14} style={{ marginRight: 8 }} />
+                    <Text className="text-zinc-500 text-xs font-medium">
+                      Host: <Text className="font-bold text-forest">{item.interviewer}</Text>
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Join Action Buttons */}
+                <View className="flex-row space-x-2">
+                  <TouchableOpacity
+                    onPress={() => handleJoinCall(item.link)}
+                    className="flex-1 bg-forest py-3.5 rounded-xl flex-row items-center justify-center active:opacity-90 shadow-sm"
+                  >
+                    <Video color="white" size={16} style={{ marginRight: 6 }} />
+                    <Text className="text-white font-bold text-xs">Join Google Meet</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => handleJoinCall(item.link)}
+                    className="w-12 bg-zinc-100 border border-zinc-200/60 rounded-xl items-center justify-center active:opacity-75"
+                  >
+                    <ExternalLink color="#113c2c" size={16} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
           
           <View className="bg-mint/10 border border-mint/25 rounded-3xl p-5 mt-4 items-center">
             <Text className="text-forest font-bold text-sm text-center mb-1">Need to Reschedule?</Text>

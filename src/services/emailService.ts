@@ -143,72 +143,51 @@ export const EmailService = {
       // Filter by recipient email if provided
       if (cleanEmail) {
         let matches = list.filter(
-          (e) =>
-            e.toEmail.toLowerCase() === cleanEmail ||
-            (cleanEmail.includes('victor') && e.toEmail.toLowerCase().includes('victor'))
+          (e) => e.toEmail.toLowerCase() === cleanEmail
         );
 
         if (matches.length === 0) {
-          // If no specific emails submitted yet, provide realistic active candidate inbox
-          // including active offers, interviews, and founder welcome for this user
+          // For a new user with no emails yet, provide ONLY an official Welcome email.
+          // Real application submissions, interview invites, and offer letters will be sent
+          // ONLY when the candidate actually applies and is reviewed by the hiring team.
           const userFirstName = cleanEmail.split('@')[0];
           const formattedName = userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1);
           
-          const personalizedSeed: EmailMessage[] = [
-            {
-              id: `offer-${cleanEmail}-1`,
-              toEmail: cleanEmail,
-              toName: formattedName,
-              fromName: 'Bloom Placements',
-              fromEmail: 'offers@hirebloom.com',
-              subject: 'Formal Offer Extended: Senior Customer Support Lead at InnovateX! 🎉',
-              preview: `Congratulations ${formattedName}! You have received an employment offer for Senior Customer Support Lead at $15.00 - $18.00 / hr.`,
-              template: 'offer_letter',
-              date: 'Today',
-              timestamp: Date.now(),
-              read: false,
-              metadata: {
-                jobTitle: 'Senior Customer Support Lead',
-                company: 'InnovateX',
-                stage: 'Offer Received',
-                salary: '$15.00 - $18.00 / hr',
-                startDate: 'Within 2 weeks',
-              },
-              body: `Hi ${formattedName},\n\nWe are thrilled to extend a formal placement offer for the role of Senior Customer Support Lead at InnovateX!\n\nOffer Details:\n• Compensation: $15.00 - $18.00 / hr (Standard Latin American Flat Rate)\n• Target Start Date: Within 2 weeks\n• Work Setup: Remote (US Business Hours)\n\nPlease visit your Hire Bloom Talent Portal to review the full contract terms and accept your offer to begin onboarding.\n\nCongratulations on this remarkable achievement!\nEric Engebretsen & The Bloom Team`,
+          const welcomeEmail: EmailMessage = {
+            id: `welcome-${cleanEmail}`,
+            toEmail: cleanEmail,
+            toName: formattedName,
+            fromName: 'Bloom',
+            fromEmail: 'welcome@hirebloom.com',
+            subject: 'Welcome to HireBloom — your remote career journey begins 🙌',
+            preview: `Hi ${formattedName}! Welcome to HireBloom. Browse verified remote opportunities, apply in one click, and track your interviews and offers right here.`,
+            template: 'founder_welcome',
+            date: 'Today',
+            timestamp: Date.now(),
+            read: false,
+            metadata: {
+              reviewerName: 'Eric Engebretsen',
             },
-            {
-              id: `interview-${cleanEmail}-2`,
-              toEmail: cleanEmail,
-              toName: formattedName,
-              fromName: 'Bloom Interview Desk',
-              fromEmail: 'interviews@hirebloom.com',
-              subject: 'Interview Scheduled: Technical Onboarding Specialist at DesignFlow',
-              preview: `You're invited to interview for Technical Onboarding Specialist! Date: Upcoming at Confirmed EST.`,
-              template: 'interview_invite',
-              date: 'Yesterday',
-              timestamp: Date.now() - 1000 * 60 * 60 * 24,
-              read: false,
-              metadata: {
-                jobTitle: 'Technical Onboarding Specialist',
-                company: 'DesignFlow',
-                stage: 'Interview Scheduled',
-                interviewDate: 'Upcoming Week',
-                interviewTime: '2:30 PM EST',
-                meetUrl: 'https://meet.google.com/hbm-intr-vct',
-              },
-              body: `Hi ${formattedName},\n\nCongratulations! The hiring team at DesignFlow was very impressed with your profile and would like to invite you to a Panel Video Interview.\n\nInterview Details:\n• Position: Technical Onboarding Specialist\n• Date: Upcoming Week\n• Time: 2:30 PM EST\n• Video Room: https://meet.google.com/hbm-intr-vct\n\nPlease make sure your camera and headset are tested beforehand. Best of luck!\nThe Bloom Talent Team`,
-            },
-            ...INITIAL_SEED_EMAILS.map((e) => ({
-              ...e,
-              toEmail: cleanEmail,
-              toName: formattedName,
-            })),
-          ];
+            body: `Hi ${formattedName},
 
-          // Persist so subsequent reads and unread counters retain them
-          list.unshift(...personalizedSeed);
+Welcome to HireBloom! Our mission is to help 10,000 professionals get matched with top remote companies for high-paying roles.
+
+Here is how the process works:
+1. Browse open positions in the Find Jobs tab.
+2. Submit your application along with your resume or Loom video.
+3. Our vetting desk and client partners will review your qualifications.
+4. Official status updates, interview invitations, and formal offer letters will be delivered straight to this inbox once decisions are made.
+
+We are thrilled to support your career journey. Good luck with your applications!
+
+Best regards,
+Eric Engebretsen
+Co-Founder @ Bloom`,
+          };
+
+          list.unshift(welcomeEmail);
           await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
-          return personalizedSeed;
+          return [welcomeEmail];
         }
 
         // Always ensure the Founder Welcome email is in their inbox
@@ -230,7 +209,7 @@ export const EmailService = {
 
       return list;
     } catch {
-      return INITIAL_SEED_EMAILS;
+      return [];
     }
   },
 

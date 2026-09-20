@@ -5,11 +5,13 @@ import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Crown, 
 import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
 import { EmailService } from '@/services/emailService';
 import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
+import { useRouter } from 'expo-router';
 
 interface CandidateItem {
   id: string | number;
   appId?: string;
   name: string;
+  email?: string;
   role: string;
   stage: string;
   match: string;
@@ -142,6 +144,7 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
 ];
 
 export default function EmployerCandidates() {
+  const router = useRouter() as any;
   const [candidateList, setCandidateList] = useState<CandidateItem[]>(DEFAULT_CANDIDATES);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -188,6 +191,7 @@ export default function EmployerCandidates() {
             id: app.id,
             appId: app.id,
             name: app.candidateName || 'Applicant',
+            email: app.candidateEmail,
             role: app.jobTitle || 'Role',
             stage: stageLabel,
             match: existingMatch?.match || '95%',
@@ -241,6 +245,8 @@ export default function EmployerCandidates() {
 
     const targetAppId = selectedCandidate.appId ? String(selectedCandidate.appId) : `app-${selectedCandidate.id}`;
 
+    // ApplicationsService.updateApplicationStatus handles updating status, recording audit logs,
+    // dispatching real-time in-app notifications, and sending official stage emails to the candidate who applied.
     await ApplicationsService.updateApplicationStatus(targetAppId, applicationStatus, {
       step: newStage === 'Final Review'
         ? 'Hiring Team Final Review'
@@ -254,35 +260,6 @@ export default function EmployerCandidates() {
       feedbackReason: feedback,
       notes: `Decision recorded: Moved to ${newStage}`
     });
-
-    // Also directly dispatch email to candidate inbox
-    try {
-      const activeUser = await ApplicationsService.getCurrentUser();
-      const candidateEmail = (selectedCandidate as any).email || (activeUser?.email || 'victor@hirebloom.com');
-      
-      if (applicationStatus === 'Offer Received') {
-        await EmailService.sendOfferEmail(
-          { name: selectedCandidate.name, email: candidateEmail },
-          { title: selectedCandidate.role, company: 'InnovateX' },
-          { salary: '$15.00 - $18.00 / hr', startDate: 'Within 2 weeks' }
-        );
-      } else if (applicationStatus === 'Interview Scheduled') {
-        await EmailService.sendInterviewInviteEmail(
-          { name: selectedCandidate.name, email: candidateEmail },
-          { title: selectedCandidate.role, company: 'DesignFlow' },
-          { date: 'Next Tuesday', time: '2:30 PM EST', meetUrl: 'https://meet.google.com/hbm-intr-vct' }
-        );
-      } else if (applicationStatus === 'Pending Final Review') {
-        await EmailService.sendFeedbackAndAdvanceEmail(
-          { name: selectedCandidate.name, email: candidateEmail },
-          { title: selectedCandidate.role, company: 'InnovateX' },
-          'Step 2: Match & Final Review',
-          feedback
-        );
-      }
-    } catch (emailErr) {
-      console.warn('Pipeline email dispatch warning:', emailErr);
-    }
 
     Alert.alert(
       'Candidate Decision Updated',
@@ -341,6 +318,26 @@ export default function EmployerCandidates() {
               </TouchableOpacity>
             ) : null}
           </View>
+        </View>
+
+        {/* Recruiter & Vetting Desk Collaboration Bar */}
+        <View className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 mb-3 flex-row items-center justify-between">
+          <View className="flex-1 pr-2">
+            <View className="flex-row items-center mb-0.5">
+              <Sparkles size={14} color="#059669" style={{ marginRight: 5 }} />
+              <Text className="text-emerald-950 font-bold text-xs">Vetting Operations Team</Text>
+            </View>
+            <Text className="text-emerald-800 text-[10px]">
+              Recruiters monitor applications, grade C1 English & coordinate panel interviews.
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push('/recruiter/talent')}
+            className="bg-emerald-700 px-3 py-1.5 rounded-xl flex-row items-center active:opacity-85 shadow-sm"
+          >
+            <Text className="text-white font-bold text-[10px]">Recruiter Hub</Text>
+            <ArrowUpRight size={11} color="white" style={{ marginLeft: 3 }} />
+          </TouchableOpacity>
         </View>
 
         {/* Stage Filter Pills */}

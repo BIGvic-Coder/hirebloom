@@ -541,16 +541,16 @@ export default function Login() {
                     />
                   </View>
 
-                  {/* Auto-fill test code if generated */}
+                  {/* Quick Code Autofill */}
                   {generatedCodeHint ? (
                     <TouchableOpacity 
                       onPress={() => setOtpCode(generatedCodeHint)}
-                      className="bg-mint/20 border border-mint/40 rounded-xl p-2.5 mb-4 flex-row items-center justify-between"
+                      className="bg-mint/15 border border-mint/40 rounded-xl p-2.5 mb-4 flex-row items-center justify-between"
                     >
-                      <Text className="text-forest font-semibold text-xs">
-                        Tap to autofill demo code: <Text className="font-mono font-bold">{generatedCodeHint}</Text>
+                      <Text className="text-forest font-medium text-xs">
+                        Verification code: <Text className="font-mono font-bold">{generatedCodeHint}</Text>
                       </Text>
-                      <Text className="text-forest font-bold text-xs">Use Code</Text>
+                      <Text className="text-forest font-bold text-xs">Insert</Text>
                     </TouchableOpacity>
                   ) : null}
 
@@ -664,40 +664,6 @@ export default function Login() {
           <Text className="text-zinc-400 text-[11px] text-center leading-tight">
             By continuing you agree to our Terms and Privacy Policy.
           </Text>
-
-          {/* Quick Demo Portals for Review */}
-          <View className="border-t border-zinc-100 pt-5 mt-5">
-            <Text className="text-zinc-400 font-bold text-[9px] text-center uppercase tracking-widest mb-3">
-              Explore Demo Portals
-            </Text>
-            <View className="flex-row justify-between space-x-2">
-              <TouchableOpacity 
-                onPress={async () => {
-                  await ApplicationsService.elevateRoleTo('candidate');
-                  router.replace('/candidate');
-                }}
-                className="flex-1 bg-zinc-50 border border-zinc-200 py-2.5 rounded-xl items-center justify-center active:opacity-70 mr-1.5"
-              >
-                <Text className="text-forest font-extrabold text-[10px]">Talent Portal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={async () => {
-                  await ApplicationsService.elevateRoleTo('employer');
-                  router.replace('/employer');
-                }}
-                className="flex-1 bg-zinc-50 border border-zinc-200 py-2.5 rounded-xl items-center justify-center active:opacity-70 mr-1.5"
-              >
-                <Text className="text-forest font-extrabold text-[10px]">Employer</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => setIsCeoPasscodeVisible(true)}
-                className="flex-1 bg-mint/20 border border-mint/40 py-2.5 rounded-xl items-center justify-center active:opacity-70"
-              >
-                <Text className="text-forest font-extrabold text-[10px]">👑 CEO Suite</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
         </View>
       </ScrollView>
 

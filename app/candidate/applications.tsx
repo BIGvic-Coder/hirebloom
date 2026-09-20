@@ -19,7 +19,7 @@ import {
   Mail,
   MessageSquare
 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';
 import WorkflowStepper from '@/components/ui/WorkflowStepper';
 import EmailInboxModal from '@/components/ui/EmailInboxModal';
@@ -29,6 +29,7 @@ import { EmailService } from '@/services/emailService';
 
 export default function CandidateApplications() {
   const router = useRouter() as any;
+  const params = useLocalSearchParams<{ appId?: string }>();
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [selectedApp, setSelectedApp] = useState<JobApplication | null>(null);
@@ -44,8 +45,16 @@ export default function CandidateApplications() {
     const apps = await ApplicationsService.getCandidateApplications(targetId);
     setApplications(apps);
     if (apps.length > 0) {
-      const match = selectedApp ? apps.find(a => a.id === selectedApp.id) : null;
-      setSelectedApp(match || apps[0]);
+      let targetIndex = 0;
+      if (params.appId) {
+        const foundIndex = apps.findIndex((a) => a.id === params.appId);
+        if (foundIndex >= 0) targetIndex = foundIndex;
+      } else if (selectedApp) {
+        const existingIndex = apps.findIndex((a) => a.id === selectedApp.id);
+        if (existingIndex >= 0) targetIndex = existingIndex;
+      }
+      setActiveAppIndex(targetIndex);
+      setSelectedApp(apps[targetIndex]);
     } else {
       setSelectedApp(null);
     }
@@ -53,7 +62,7 @@ export default function CandidateApplications() {
 
   useEffect(() => {
     loadApplications();
-  }, []);
+  }, [params.appId]);
 
   const onRefresh = async () => {
     setRefreshing(true);

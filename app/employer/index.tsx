@@ -313,6 +313,56 @@ export default function EmployerDashboard() {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* Talent Operations & Recruiter Team Section */}
+            <View className="bg-white border border-border rounded-3xl p-5 mb-6 shadow-sm">
+              <View className="flex-row justify-between items-center mb-3">
+                <View className="flex-row items-center">
+                  <ShieldCheck size={16} color="#059669" style={{ marginRight: 6 }} />
+                  <Text className="text-forest font-bold text-xs uppercase tracking-wider">
+                    Talent Operations & Recruiter Desk
+                  </Text>
+                </View>
+                <View className="bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                  <Text className="text-emerald-900 text-[9px] font-extrabold">Active Team</Text>
+                </View>
+              </View>
+
+              <Text className="text-zinc-500 text-xs leading-relaxed mb-4">
+                Our recruitment specialists and vetting coordinators monitor incoming applications, verify verbal English, and schedule client panel interviews so the CEO and executives only need to sign off on final contract offers.
+              </Text>
+
+              {/* Team Members List */}
+              <View className="space-y-2 mb-4">
+                <View className="flex-row items-center bg-zinc-50 p-2.5 rounded-xl border border-zinc-200">
+                  <View className="w-8 h-8 rounded-lg bg-purple-700 items-center justify-center mr-2.5">
+                    <Text className="text-white text-xs font-bold">SJ</Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-slate-900 text-xs font-bold">Sarah Jenkins</Text>
+                    <Text className="text-zinc-500 text-[10px]">Lead Vetting Specialist • C1 Proficiency & Resume Review</Text>
+                  </View>
+                </View>
+
+                <View className="flex-row items-center bg-zinc-50 p-2.5 rounded-xl border border-zinc-200">
+                  <View className="w-8 h-8 rounded-lg bg-emerald-700 items-center justify-center mr-2.5">
+                    <Text className="text-white text-xs font-bold">DV</Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-slate-900 text-xs font-bold">David Vance</Text>
+                    <Text className="text-zinc-500 text-[10px]">Placement Coordinator • Client Panel Interview Scheduling</Text>
+                  </View>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => router.push('/recruiter/talent')}
+                className="w-full bg-forest py-3 rounded-xl items-center justify-center flex-row active:opacity-90 shadow-sm"
+              >
+                <Text className="text-white font-bold text-xs mr-1">Open Recruiter Vetting Desk</Text>
+                <ChevronRight size={14} color="white" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
