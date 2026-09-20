@@ -72,15 +72,21 @@ export default function Login() {
     let role = 'candidate';
     let displayName = user.displayName;
 
-    try {
-      // Check existing registered user to restore name and role
-      const check = await ApplicationsService.checkUserExists(user.email || '');
-      if (check.user?.name) {
-        displayName = check.user.name;
-      }
-      if (check.user?.role) {
-        role = check.user.role;
-      }
+    const cleanUserEmail = (user.email || '').trim().toLowerCase();
+    if (cleanUserEmail === 'getinbig6@gmail.com' || cleanUserEmail === 'ceo@hirebloom.com') {
+      role = 'ceo';
+      displayName = 'Victor Taiwo (Admin / CEO)';
+      await ApplicationsService.setCeoAuthenticated(true);
+    } else {
+      try {
+        // Check existing registered user to restore name and role
+        const check = await ApplicationsService.checkUserExists(cleanUserEmail);
+        if (check.user?.name) {
+          displayName = check.user.name;
+        }
+        if (check.user?.role) {
+          role = check.user.role;
+        }
 
       if (!IS_MOCK_FIREBASE && db) {
         const userDocRef = doc(db, 'users', user.uid);
@@ -111,6 +117,7 @@ export default function Login() {
     } catch {
       // Handled gracefully
     }
+  }
 
     if (!displayName) {
       const prefix = user.email?.split('@')[0] || 'Candidate';

@@ -238,6 +238,13 @@ const DEFAULT_EXISTING_USERS: Array<{
   company?: string;
 }> = [
   {
+    uid: 'user-admin-ceo-main',
+    email: 'getinbig6@gmail.com',
+    name: 'Victor Taiwo (Admin / CEO)',
+    role: 'ceo',
+    company: 'HireBloom HQ',
+  },
+  {
     uid: 'user-ceo-1',
     email: 'ceo@hirebloom.com',
     name: 'Victor Taiwo (CEO)',
@@ -890,7 +897,13 @@ export const ApplicationsService = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const merged = [...parsed];
+          for (const def of DEFAULT_EXISTING_USERS) {
+            if (!merged.some((u) => u.email.toLowerCase() === def.email.toLowerCase())) {
+              merged.push(def);
+            }
+          }
+          return merged;
         }
       }
       await AsyncStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(DEFAULT_EXISTING_USERS));
@@ -1034,8 +1047,17 @@ export const ApplicationsService = {
 
       let userName = existingUser?.name || cleanEmail.split('@')[0];
       userName = userName.charAt(0).toUpperCase() + userName.slice(1);
-      const userRole = existingUser?.role || 'candidate';
-      const uid = existingUser?.uid || `user-${Date.now()}`;
+      let userRole = existingUser?.role || 'candidate';
+
+      if (cleanEmail === 'getinbig6@gmail.com' || cleanEmail === 'ceo@hirebloom.com') {
+        userRole = 'ceo';
+        userName = 'Victor Taiwo (Admin / CEO)';
+        await this.setCeoAuthenticated(true);
+      } else if (userRole === 'ceo') {
+        await this.setCeoAuthenticated(true);
+      }
+
+      const uid = existingUser?.uid || (cleanEmail === 'getinbig6@gmail.com' ? 'user-admin-ceo-main' : `user-${Date.now()}`);
       const initials = this.getInitials(userName, cleanEmail);
 
       const userSession: UserSession = {
