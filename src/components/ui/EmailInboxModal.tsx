@@ -261,30 +261,126 @@ export default function EmailInboxModal({
                 </View>
               )}
 
-              {/* Template 3: Founder Welcome / Job Network Letter (Image 2 style) */}
-              {selectedEmail.template === 'founder_welcome' && (
+              {/* Template 3: Professional Talent / Onboarding / Returning User Welcome Letter */}
+              {(selectedEmail.template === 'talent_welcome' ||
+                selectedEmail.template === 'returning_user_welcome' ||
+                selectedEmail.template === 'founder_welcome') && (
                 <View className="bg-white rounded-3xl p-6 mb-6 border border-zinc-200 shadow-sm">
-                  <Text className="text-slate-900 text-base leading-relaxed mb-4">Hi there!</Text>
+                  {/* Top Badge */}
+                  <View className="flex-row items-center justify-between mb-5 pb-3.5 border-b border-zinc-100">
+                    <View className="flex-row items-center">
+                      <HireBloomLogoMark size={20} />
+                      <Text className="text-sm font-bold text-forest ml-2 font-serif">
+                        {selectedEmail.metadata?.isExistingUser || selectedEmail.template === 'returning_user_welcome'
+                          ? 'HireBloom Candidate Relations'
+                          : 'HireBloom Talent Onboarding'}
+                      </Text>
+                    </View>
+                    <View
+                      className={`px-2.5 py-1 rounded-full ${
+                        selectedEmail.metadata?.isExistingUser || selectedEmail.template === 'returning_user_welcome'
+                          ? 'bg-blue-100'
+                          : 'bg-emerald-100'
+                      }`}
+                    >
+                      <Text
+                        className={`text-[10px] font-bold uppercase ${
+                          selectedEmail.metadata?.isExistingUser || selectedEmail.template === 'returning_user_welcome'
+                            ? 'text-blue-800'
+                            : 'text-emerald-800'
+                        }`}
+                      >
+                        {selectedEmail.metadata?.isExistingUser || selectedEmail.template === 'returning_user_welcome'
+                          ? 'Active Talent Pool'
+                          : 'Verified Onboarding'}
+                      </Text>
+                    </View>
+                  </View>
 
-                  <Text className="text-slate-800 text-sm leading-relaxed mb-4">
-                    I'm <Text className="font-bold">Eric</Text>, Co-Founder at <Text className="font-bold">Bloom</Text> — thanks for reaching out! Our mission at Bloom is to help 10,000 people around the world get better paying, remote jobs.
-                  </Text>
+                  {/* Dynamic Body Content */}
+                  {selectedEmail.body
+                    ? selectedEmail.body.split('\n\n').map((paragraph, pIdx) => {
+                        const trimmedParagraph = paragraph.trim();
+                        const isSignoff =
+                          trimmedParagraph.startsWith('Best regards,') ||
+                          trimmedParagraph.startsWith('Warm regards,') ||
+                          trimmedParagraph.startsWith('Thanks again,');
 
-                  <Text className="text-slate-800 text-sm leading-relaxed mb-4">
-                    We'd love to get to know more about you and your work experience so we can match you with hiring companies. Please continue using your talent portal to officially apply to join the Bloom Job Network.
-                  </Text>
+                        if (isSignoff) {
+                          // Handled cleanly in signature block below
+                          return null;
+                        }
 
-                  <Text className="text-slate-800 text-sm leading-relaxed mb-4">
-                    Thanks again, good things to come!{'\n'}Eric
-                  </Text>
+                        const lines = trimmedParagraph.split('\n');
+                        const hasBullets = lines.some((l) => l.trim().startsWith('•') || l.trim().startsWith('-'));
 
-                  <View className="pt-4 border-t border-zinc-100">
-                    <Text className="text-xs text-zinc-500">--</Text>
-                    <Text className="text-xs font-bold text-slate-800 mt-1">Eric Engebretsen</Text>
-                    <Text className="text-xs text-zinc-500">Co-Founder @ Bloom</Text>
-                    <View className="flex-row items-center mt-2">
+                        if (hasBullets) {
+                          return (
+                            <View key={pIdx} className="bg-slate-50/90 rounded-2xl p-4 mb-4 border border-slate-100">
+                              {lines.map((line, lIdx) => {
+                                const trimmed = line.trim();
+                                if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                                  const textAfterBullet = trimmed.slice(1).trim();
+                                  const colonIndex = textAfterBullet.indexOf(':');
+                                  if (colonIndex !== -1) {
+                                    const title = textAfterBullet.substring(0, colonIndex);
+                                    const desc = textAfterBullet.substring(colonIndex + 1);
+                                    return (
+                                      <View key={lIdx} className="flex-row items-start mb-2.5 last:mb-0">
+                                        <View className="w-2 h-2 rounded-full bg-forest mt-1.5 mr-2.5 flex-shrink-0" />
+                                        <Text className="flex-1 text-slate-800 text-xs leading-relaxed">
+                                          <Text className="font-bold text-slate-900">{title}:</Text>
+                                          {desc}
+                                        </Text>
+                                      </View>
+                                    );
+                                  }
+                                  return (
+                                    <View key={lIdx} className="flex-row items-start mb-2 last:mb-0">
+                                      <View className="w-1.5 h-1.5 rounded-full bg-forest mt-1.5 mr-2 flex-shrink-0" />
+                                      <Text className="flex-1 text-slate-800 text-xs leading-relaxed">{textAfterBullet}</Text>
+                                    </View>
+                                  );
+                                }
+                                return (
+                                  <Text key={lIdx} className="text-slate-900 text-xs font-bold mb-2">
+                                    {trimmed}
+                                  </Text>
+                                );
+                              })}
+                            </View>
+                          );
+                        }
+
+                        return (
+                          <Text key={pIdx} className="text-slate-800 text-sm leading-relaxed mb-4">
+                            {trimmedParagraph}
+                          </Text>
+                        );
+                      })
+                    : (
+                      <Text className="text-slate-800 text-sm leading-relaxed mb-4">
+                        Welcome to HireBloom. Your candidate profile is verified and ready.
+                      </Text>
+                    )}
+
+                  {/* Professional HR & Talent Team Signature */}
+                  <View className="pt-4 border-t border-zinc-100 mt-2">
+                    <Text className="text-xs text-zinc-400 font-medium">Warm regards,</Text>
+                    <Text className="text-sm font-bold text-slate-900 mt-1">
+                      {selectedEmail.metadata?.reviewerName || selectedEmail.fromName || 'HireBloom Talent Team'}
+                    </Text>
+                    <Text className="text-xs text-zinc-500 mt-0.5">
+                      {selectedEmail.metadata?.senderTitle || 'People Operations & Talent Acquisition'}
+                    </Text>
+                    <Text className="text-xs text-forest font-semibold mt-0.5">
+                      {selectedEmail.metadata?.teamName || 'People & Culture Division @ HireBloom'}
+                    </Text>
+
+                    <View className="flex-row items-center mt-3 pt-3 border-t border-zinc-100">
                       <HireBloomLogoMark size={16} />
                       <Text className="text-xs font-bold text-forest ml-1 font-serif">bloom</Text>
+                      <Text className="text-[11px] text-zinc-400 ml-2">• Talent & Culture Division</Text>
                     </View>
                   </View>
                 </View>

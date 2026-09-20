@@ -9,6 +9,8 @@ export type EmailTemplateType =
   | 'interview_invite'
   | 'offer_letter'
   | 'founder_welcome'
+  | 'talent_welcome'
+  | 'returning_user_welcome'
   | 'not_selected';
 
 export interface EmailMessage {
@@ -30,6 +32,9 @@ export interface EmailMessage {
     stage?: string;
     feedback?: string;
     reviewerName?: string;
+    senderTitle?: string;
+    teamName?: string;
+    isExistingUser?: boolean;
     interviewDate?: string;
     interviewTime?: string;
     meetUrl?: string;
@@ -40,16 +45,16 @@ export interface EmailMessage {
 
 const EMAILS_STORAGE_KEY = '@hirebloom_emails_cache';
 
-// Seed initial realistic emails matching Screenshot 1 and Screenshot 2
+// Seed initial realistic emails with professional Talent & HR team sign-offs
 const INITIAL_SEED_EMAILS: EmailMessage[] = [
   {
     id: 'email-1',
     toEmail: 'victor@hirebloom.com',
     toName: 'Victor',
-    fromName: 'Bloom',
+    fromName: 'HireBloom Talent Operations',
     fromEmail: 'review@hirebloom.com',
-    subject: 'Application Submitted',
-    preview: 'Hi Victor, Thanks for applying! Your application is in our review queue, and we are carefully reviewing your experience.',
+    subject: 'Application Submitted — Senior Customer Support Lead',
+    preview: 'Hi Victor, thanks for applying! Your application is currently in our review queue, and our talent team is evaluating your experience.',
     template: 'application_submitted',
     date: '17 Jan',
     timestamp: Date.now() - 1000 * 60 * 60 * 24 * 3, // 3 days ago
@@ -58,44 +63,196 @@ const INITIAL_SEED_EMAILS: EmailMessage[] = [
       jobTitle: 'Senior Customer Support Lead',
       company: 'InnovateX',
       stage: 'Review Queue',
+      reviewerName: 'HireBloom Vetting Team',
+      senderTitle: 'Talent Acquisition & Assessment',
+      teamName: 'HireBloom Global Operations',
     },
     body: `Hi Victor,
 
-Thanks for applying! Your application is in our review queue, and we're carefully reviewing your experience.
+Thanks for applying! Your application is in our review queue, and our talent team is carefully reviewing your background and experience.
 
-You'll hear from us within 1–2 weeks. No action needed on your end — just keep an eye on your inbox (and spam folder, just in case).`,
+You'll hear from our vetting specialists within 1–2 weeks. No further action is needed on your end right now — just keep an eye on your inbox for direct status updates.`,
   },
   {
     id: 'email-2',
     toEmail: 'victor@hirebloom.com',
     toName: 'Victor',
-    fromName: 'Bloom',
-    fromEmail: 'eric@hirebloom.com',
-    subject: 'Thanks for contacting Bloom — now apply to our job network here 🙌',
-    preview: "Hi there! I'm Eric, Co-Founder at Bloom — thanks for reaching out! Our mission at Bloom is to help 10,000 people...",
-    template: 'founder_welcome',
+    fromName: 'HireBloom Talent Team',
+    fromEmail: 'talent@hirebloom.com',
+    subject: 'Welcome back to HireBloom — Pipeline Updates & Active Openings',
+    preview: 'Welcome back! Your candidate profile is active in our talent pool. Explore fresh openings and track your application milestones.',
+    template: 'returning_user_welcome',
     date: '08 Jan',
     timestamp: Date.now() - 1000 * 60 * 60 * 24 * 10, // 10 days ago
     read: true,
     metadata: {
-      reviewerName: 'Eric Engebretsen',
+      reviewerName: 'HireBloom Candidate Relations Team',
+      senderTitle: 'Talent Success & Retention',
+      teamName: 'Candidate Operations @ HireBloom',
+      isExistingUser: true,
     },
-    body: `Hi there!
+    body: `Hi Victor,
 
-I'm Eric, Co-Founder at Bloom — thanks for reaching out! Our mission at Bloom is to help 10,000 people around the world get better paying, remote jobs.
+Welcome back to HireBloom!
 
-We'd love to get to know more about you and your work experience so we can match you with hiring companies. Please fill out this form to officially apply to join the Bloom Job Network.
+Your candidate profile remains active in our verified talent network. Client partners and hiring teams are actively reviewing profiles for newly added remote positions this week.
 
-Thanks again, good things to come!
-Eric
+Here are quick updates for your account:
+• Application Status: You can review live stage updates, reviewer notes, and scheduled interviews directly in your Applications tab.
+• New Opportunities: Fresh remote roles in Tech, Operations, and Customer Success have been posted to the job board.
+• Profile & Loom: Make sure your latest resume and Loom intro are up to date to stay at the top of recruiter shortlists.
 
---
-Eric Engebretsen
-Co-Founder @ Bloom`,
+If you have any questions about your active applications, our candidate operations team is here to support you every step of the way.
+
+Warm regards,
+HireBloom Candidate Relations Team
+Global Hiring Operations & Talent Success`,
   },
 ];
 
 export const EmailService = {
+  /**
+   * Helper to determine if an email belongs to an existing user
+   */
+  async checkIsExistingUser(email: string): Promise<{ isExisting: boolean; name?: string }> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail) return { isExisting: false };
+
+    // 1. Check local registered user cache
+    try {
+      const stored = await AsyncStorage.getItem('@hirebloom_registered_users');
+      if (stored) {
+        const users = JSON.parse(stored);
+        if (Array.isArray(users)) {
+          const found = users.find((u: any) => u.email?.toLowerCase() === cleanEmail);
+          if (found) {
+            return { isExisting: true, name: found.name };
+          }
+        }
+      }
+    } catch {}
+
+    // 2. Check candidate applications cache
+    try {
+      const storedApps = await AsyncStorage.getItem('@hirebloom_candidate_applications_cache');
+      if (storedApps) {
+        const apps = JSON.parse(storedApps);
+        if (Array.isArray(apps)) {
+          const foundApp = apps.find(
+            (a: any) =>
+              (a.candidateEmail && a.candidateEmail.toLowerCase() === cleanEmail) ||
+              (a.candidateId && a.candidateId.toLowerCase().includes(cleanEmail.split('@')[0]))
+          );
+          if (foundApp) {
+            return { isExisting: true, name: foundApp.candidateName };
+          }
+        }
+      }
+    } catch {}
+
+    // 3. Known existing seed/leadership emails
+    if (
+      cleanEmail === 'victor@hirebloom.com' ||
+      cleanEmail === 'getinbig6@gmail.com' ||
+      cleanEmail === 'ceo@hirebloom.com' ||
+      cleanEmail === 'alex.morgan.talent@gmail.com' ||
+      cleanEmail === 'sarah.jenkins@hirebloom.com'
+    ) {
+      return { isExisting: true };
+    }
+
+    return { isExisting: false };
+  },
+
+  /**
+   * Factory for creating a professional New User Welcome Email (Talent & HR Team)
+   */
+  createNewUserWelcomeEmail(cleanEmail: string, candidateName?: string): EmailMessage {
+    const userFirstName = candidateName || cleanEmail.split('@')[0];
+    const formattedName = userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1);
+
+    return {
+      id: `welcome-${cleanEmail}`,
+      toEmail: cleanEmail,
+      toName: formattedName,
+      fromName: 'HireBloom Onboarding Team',
+      fromEmail: 'welcome@hirebloom.com',
+      subject: 'Welcome to HireBloom — Your Remote Career Journey Begins 🚀',
+      preview: `Hi ${formattedName}! Welcome to HireBloom. Browse verified remote opportunities, apply in one click, and track your interviews right here.`,
+      template: 'talent_welcome',
+      date: 'Today',
+      timestamp: Date.now(),
+      read: false,
+      metadata: {
+        reviewerName: 'HireBloom Talent Acquisition Team',
+        senderTitle: 'Candidate Onboarding & Placement',
+        teamName: 'People & Culture Division @ HireBloom',
+        isExistingUser: false,
+      },
+      body: `Hi ${formattedName},
+
+Welcome to HireBloom! We are thrilled to welcome you to our curated talent community.
+
+Our mission is to connect ambitious professionals with vetted international companies offering high-paying, remote-first positions.
+
+Here is how to get started on your portal:
+• Complete Your Profile: Add your latest resume and an optional 60-second video introduction to stand out to hiring managers.
+• Explore Verified Roles: Browse active positions across Tech, Operations, and Client Success in your Jobs tab.
+• 1-Click Application: Submit your candidacy instantly. Our recruitment desk will carefully review your qualifications.
+• Direct Updates: You'll receive real-time notifications for reviewer feedback, interview invitations, and formal offer letters directly in this inbox.
+
+We are excited to support your career journey. Good luck with your applications!
+
+Best regards,
+HireBloom Talent Acquisition Team
+Candidate Onboarding & Talent Operations`,
+    };
+  },
+
+  /**
+   * Factory for creating a professional Returning User Welcome Email (Candidate Relations & HR Team)
+   */
+  createReturningUserWelcomeEmail(cleanEmail: string, candidateName?: string): EmailMessage {
+    const userFirstName = candidateName || cleanEmail.split('@')[0];
+    const formattedName = userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1);
+
+    return {
+      id: `welcome-back-${cleanEmail}`,
+      toEmail: cleanEmail,
+      toName: formattedName,
+      fromName: 'HireBloom Talent Team',
+      fromEmail: 'talent@hirebloom.com',
+      subject: 'Welcome back to HireBloom — Pipeline Updates & Active Openings',
+      preview: `Welcome back ${formattedName}! Your candidate profile is active in our talent pool. Explore fresh openings and track your application milestones.`,
+      template: 'returning_user_welcome',
+      date: 'Today',
+      timestamp: Date.now(),
+      read: false,
+      metadata: {
+        reviewerName: 'HireBloom Candidate Relations Team',
+        senderTitle: 'Talent Success & Retention Team',
+        teamName: 'Global Hiring Operations @ HireBloom',
+        isExistingUser: true,
+      },
+      body: `Hi ${formattedName},
+
+Welcome back to HireBloom!
+
+Your talent profile remains active in our verified candidate network. Client hiring teams and partner companies are currently reviewing profiles for newly added remote positions this week.
+
+Here are your account updates:
+• Application Tracking: Monitor live stages, interviewer feedback, and decision milestones directly in your Applications tab.
+• New Opportunities: Check out recently posted remote roles tailored to your background and compensation preferences.
+• Keep Profiles Fresh: Updating your latest resume or availability ensures you remain top-of-mind for executive recruiters.
+
+Our candidate relations team is always here if you have any questions or need guidance on upcoming interviews.
+
+Warm regards,
+HireBloom Candidate Relations Team
+Global Hiring Operations & Talent Success`,
+    };
+  },
+
   /**
    * Get all emails for a specific recipient (or all emails if none specified)
    */
@@ -137,70 +294,67 @@ export const EmailService = {
         }
       }
 
+      // 3. Automatically upgrade any legacy emails (e.g. older seeds that had Eric or hardcoded CEO)
+      let listModified = false;
+      const userStatus = cleanEmail ? await this.checkIsExistingUser(cleanEmail) : { isExisting: false };
+
+      list = list.map((msg) => {
+        const isLegacy =
+          msg.template === 'founder_welcome' ||
+          msg.fromEmail === 'eric@hirebloom.com' ||
+          (msg.body && (msg.body.includes('Eric Engebretsen') || msg.body.includes("I'm Eric")));
+
+        if (isLegacy) {
+          listModified = true;
+          if (userStatus.isExisting) {
+            const upgraded = this.createReturningUserWelcomeEmail(msg.toEmail || cleanEmail, msg.toName);
+            return { ...upgraded, id: msg.id, read: msg.read, timestamp: msg.timestamp };
+          } else {
+            const upgraded = this.createNewUserWelcomeEmail(msg.toEmail || cleanEmail, msg.toName);
+            return { ...upgraded, id: msg.id, read: msg.read, timestamp: msg.timestamp };
+          }
+        }
+        return msg;
+      });
+
+      if (listModified) {
+        await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
+      }
+
       // Sort by newest first
       list.sort((a, b) => b.timestamp - a.timestamp);
 
       // Filter by recipient email if provided
       if (cleanEmail) {
-        let matches = list.filter(
-          (e) => e.toEmail.toLowerCase() === cleanEmail
-        );
+        let matches = list.filter((e) => e.toEmail.toLowerCase() === cleanEmail);
 
         if (matches.length === 0) {
-          // For a new user with no emails yet, provide ONLY an official Welcome email.
-          // Real application submissions, interview invites, and offer letters will be sent
-          // ONLY when the candidate actually applies and is reviewed by the hiring team.
-          const userFirstName = cleanEmail.split('@')[0];
-          const formattedName = userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1);
-          
-          const welcomeEmail: EmailMessage = {
-            id: `welcome-${cleanEmail}`,
-            toEmail: cleanEmail,
-            toName: formattedName,
-            fromName: 'Bloom',
-            fromEmail: 'welcome@hirebloom.com',
-            subject: 'Welcome to HireBloom — your remote career journey begins 🙌',
-            preview: `Hi ${formattedName}! Welcome to HireBloom. Browse verified remote opportunities, apply in one click, and track your interviews and offers right here.`,
-            template: 'founder_welcome',
-            date: 'Today',
-            timestamp: Date.now(),
-            read: false,
-            metadata: {
-              reviewerName: 'Eric Engebretsen',
-            },
-            body: `Hi ${formattedName},
-
-Welcome to HireBloom! Our mission is to help 10,000 professionals get matched with top remote companies for high-paying roles.
-
-Here is how the process works:
-1. Browse open positions in the Find Jobs tab.
-2. Submit your application along with your resume or Loom video.
-3. Our vetting desk and client partners will review your qualifications.
-4. Official status updates, interview invitations, and formal offer letters will be delivered straight to this inbox once decisions are made.
-
-We are thrilled to support your career journey. Good luck with your applications!
-
-Best regards,
-Eric Engebretsen
-Co-Founder @ Bloom`,
-          };
+          // No emails yet for this user: Generate personalized welcome based on user status
+          const welcomeEmail = userStatus.isExisting
+            ? this.createReturningUserWelcomeEmail(cleanEmail, userStatus.name)
+            : this.createNewUserWelcomeEmail(cleanEmail, userStatus.name);
 
           list.unshift(welcomeEmail);
           await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
           return [welcomeEmail];
         }
 
-        // Always ensure the Founder Welcome email is in their inbox
-        const hasWelcome = matches.some((e) => e.template === 'founder_welcome');
+        // Ensure at least one official onboarding or returning welcome email exists
+        const hasWelcome = matches.some(
+          (e) =>
+            e.template === 'talent_welcome' ||
+            e.template === 'returning_user_welcome' ||
+            e.template === 'founder_welcome'
+        );
+
         if (!hasWelcome) {
-          const userFirstName = cleanEmail.split('@')[0];
-          const founderEmail: EmailMessage = {
-            ...INITIAL_SEED_EMAILS[1],
-            id: `founder-${cleanEmail}`,
-            toEmail: cleanEmail,
-            toName: userFirstName.charAt(0).toUpperCase() + userFirstName.slice(1),
-          };
-          matches.push(founderEmail);
+          const welcomeEmail = userStatus.isExisting
+            ? this.createReturningUserWelcomeEmail(cleanEmail, userStatus.name)
+            : this.createNewUserWelcomeEmail(cleanEmail, userStatus.name);
+
+          matches.push(welcomeEmail);
+          list.unshift(welcomeEmail);
+          await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
         }
 
         matches.sort((a, b) => b.timestamp - a.timestamp);
@@ -416,7 +570,7 @@ The Bloom Talent Team`,
       id: `email-${Date.now()}`,
       toEmail: candidate.email.toLowerCase().trim(),
       toName: firstName,
-      fromName: 'Bloom Placements',
+      fromName: 'HireBloom Placement Operations',
       fromEmail: 'offers@hirebloom.com',
       subject: `Formal Offer Extended: ${job.title} at ${job.company}! 🎉`,
       preview: `Congratulations ${firstName}! You have received an employment offer for ${job.title} at ${offer.salary}.`,
@@ -430,6 +584,9 @@ The Bloom Talent Team`,
         stage: 'Offer Received',
         salary: offer.salary,
         startDate: offer.startDate || 'Within 2 weeks',
+        reviewerName: 'HireBloom People Operations Team',
+        senderTitle: 'Global Placements & Talent Success',
+        teamName: 'People & Culture Division @ HireBloom',
       },
       body: `Hi ${firstName},
 
@@ -443,7 +600,10 @@ Offer Details:
 Please visit your Hire Bloom Talent Portal to review the full contract terms and accept your offer to begin onboarding.
 
 Congratulations on this remarkable achievement!
-Eric Engebretsen & The Bloom Team`,
+
+Warm regards,
+HireBloom People Operations & Hiring Leadership Team
+Global Placements Division`,
     };
 
     await this.dispatchEmail(email);
