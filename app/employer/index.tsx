@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, Users, TrendingUp, ChevronRight, Sparkles, ShieldCheck, DollarSign, Calendar, Crown, CheckCircle2, Award, Zap } from 'lucide-react-native';
+import { Briefcase, Users, TrendingUp, ChevronRight, Sparkles, ShieldCheck, DollarSign, Calendar, CheckCircle2, Award, Zap } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';
 import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
@@ -101,7 +101,7 @@ export default function EmployerDashboard() {
         setSignedOfferId(app.id);
         await loadDashboardData();
         Alert.alert(
-          "👑 Offer Approved & Extended!",
+          "Offer Approved & Extended!",
           `Executive offer signed off for ${app.candidateName} as ${app.jobTitle}.\n\nAn official offer notification & contract notice has been dispatched to the candidate's mobile portal and email inbox!`
         );
       }
@@ -121,7 +121,7 @@ export default function EmployerDashboard() {
       {/* Unified Professional Header */}
       <HireBloomHeader 
         portalTitle="hirebloom" 
-        portalBadge={viewMode === 'ceo' ? "👑 CEO Executive" : "Employer Portal"} 
+        portalBadge={viewMode === 'ceo' ? "CEO Executive Suite" : "Employer Portal"} 
         userInitials={viewMode === 'ceo' ? "CEO" : "TN"} 
       />
 
@@ -152,9 +152,9 @@ export default function EmployerDashboard() {
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Crown size={15} color={viewMode === 'ceo' ? '#8ECFA9' : '#64748B'} style={{ marginRight: 6 }} />
+            <Award size={15} color={viewMode === 'ceo' ? '#A5B4FC' : '#64748B'} style={{ marginRight: 6 }} />
             <Text style={viewMode === 'ceo' ? styles.tabTextCeoActive : styles.tabTextInactive}>
-              👑 CEO Executive Suite
+              CEO Executive Suite
             </Text>
           </Pressable>
         </View>
@@ -172,21 +172,21 @@ export default function EmployerDashboard() {
         {/* ======================= VIEW A: CEO EXECUTIVE SUITE ======================= */}
         {viewMode === 'ceo' && (
           <View>
-            {/* CEO Executive Identity Card */}
-            <View className="flex-row justify-between items-center mb-5 bg-[#0d281e] p-5 rounded-3xl border border-mint/30 shadow-md">
+            {/* CEO Executive Identity Card in Royal Slate & Indigo */}
+            <View className="flex-row justify-between items-center mb-5 bg-slate-900 p-5 rounded-3xl border border-indigo-500/40 shadow-md">
               <View className="flex-1 pr-3">
                 <View className="flex-row items-center mb-1">
-                  <Crown size={15} color="#8ecfa9" style={{ marginRight: 6 }} />
-                  <Text className="text-mint font-extrabold text-[10px] uppercase tracking-widest">
+                  <Award size={15} color="#818cf8" style={{ marginRight: 6 }} />
+                  <Text className="text-indigo-300 font-extrabold text-[10px] uppercase tracking-widest">
                     Chief Executive Console
                   </Text>
                 </View>
                 <Text className="text-2xl font-extrabold text-white font-serif">Victor Taiwo</Text>
-                <Text className="text-zinc-300 text-xs mt-0.5">App Owner & Founder • Full Authority</Text>
+                <Text className="text-indigo-200 text-xs mt-0.5">App Owner & Founder • Full Authority</Text>
               </View>
-              <View className="bg-mint/20 border border-mint/40 px-3 py-1.5 rounded-2xl items-center">
-                <Text className="text-mint font-extrabold text-xs">👑 All Access</Text>
-                <Text className="text-zinc-300 text-[9px]">Platform Admin</Text>
+              <View className="bg-indigo-950/80 border border-indigo-500/50 px-3 py-1.5 rounded-2xl items-center">
+                <Text className="text-indigo-200 font-extrabold text-xs">Executive Access</Text>
+                <Text className="text-indigo-400 text-[9px]">Platform Admin</Text>
               </View>
             </View>
 
@@ -196,10 +196,10 @@ export default function EmployerDashboard() {
                 onPress={() => navigateTo('/employer/jobs')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.7}
-                className="flex-1 bg-forest py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm"
+                className="flex-1 bg-indigo-950 border border-indigo-800/80 py-3.5 rounded-2xl flex-row items-center justify-center shadow-sm"
               >
-                <Briefcase color="#8ecfa9" size={16} style={{ marginRight: 6 }} />
-                <Text className="text-white font-bold text-xs">👑 Post CEO Requisition</Text>
+                <Briefcase color="#a5b4fc" size={16} style={{ marginRight: 6 }} />
+                <Text className="text-indigo-100 font-bold text-xs">Post Executive Requisition</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 onPress={() => navigateTo('/employer/candidates')}
@@ -304,11 +304,11 @@ export default function EmployerDashboard() {
                       : 'bg-forest'
                   }`}
                 >
-                  <Crown size={16} color="#8ecfa9" style={{ marginRight: 6 }} />
+                  <Award size={16} color="#c7d2fe" style={{ marginRight: 6 }} />
                   <Text className="text-white font-extrabold text-xs tracking-wider">
                     {signedOfferId === topMatchCandidate.id || topMatchCandidate.status === 'Offer Received'
                       ? '✓ Executive Offer Extended ($15/hr flat rate)'
-                      : '👑 Executive Sign-Off: Extend Employment Offer'}
+                      : 'Executive Sign-Off: Extend Employment Offer'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -596,10 +596,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   tabBtnCeoActive: {
-    backgroundColor: '#113C2C',
-    shadowColor: '#000',
+    backgroundColor: '#1E1B4B',
+    borderColor: '#4338CA',
+    borderWidth: 1,
+    shadowColor: '#1E1B4B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -612,7 +614,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   tabTextCeoActive: {
-    color: '#8ECFA9',
+    color: '#C7D2FE',
     fontWeight: '800',
     fontSize: 12,
   },

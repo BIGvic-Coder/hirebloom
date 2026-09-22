@@ -11,7 +11,7 @@ import {
   Keyboard,
   StyleSheet,
 } from 'react-native';
-import { Crown, Lock, X, Delete, Sparkles, KeyRound } from 'lucide-react-native';
+import { ShieldCheck, Lock, X, Delete, Sparkles, KeyRound } from 'lucide-react-native';
 import { ApplicationsService } from '@/services/applicationsService';
 
 interface ExecutivePasscodeModalProps {
@@ -131,7 +131,7 @@ export default function ExecutivePasscodeModal({
           {/* Top Bar with Close */}
           <View style={styles.topBar}>
             <View style={styles.badge}>
-              <Crown size={12} color="#8ecfa9" style={{ marginRight: 5 }} />
+              <ShieldCheck size={12} color="#8ecfa9" style={{ marginRight: 5 }} />
               <Text style={styles.badgeText}>Restricted Owner Area</Text>
             </View>
             <TouchableOpacity

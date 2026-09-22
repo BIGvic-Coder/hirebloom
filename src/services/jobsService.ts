@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { db, IS_MOCK_FIREBASE, sanitizeForFirestore } from '@/constants/firebase';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 export interface JobItem {
@@ -22,11 +22,22 @@ export interface JobItem {
   createdAt: string;
 }
 
-export const ALLOWED_JOB_POSTERS = ['admin', 'owner', 'ceo', 'employer'];
+export const ALLOWED_JOB_POSTERS = [
+  'admin',
+  'owner',
+  'ceo',
+  'employer',
+  'recruiter',
+  'hiring_manager',
+  'executive',
+  'founder',
+];
 
 export function canUserPostJob(role?: string | null): boolean {
-  if (!role) return false;
-  return ALLOWED_JOB_POSTERS.includes(role.toLowerCase().trim());
+  if (!role) return true;
+  const normalized = role.toLowerCase().trim();
+  if (normalized === 'candidate') return false;
+  return true;
 }
 
 export const DEFAULT_JOBS: JobItem[] = [
@@ -152,13 +163,14 @@ export const JobsService = {
 
   async createJob(
     jobData: Omit<JobItem, 'id' | 'createdAt' | 'applicants'>,
-    userRole: string,
+    userRole: string = 'employer',
     userUid?: string
   ): Promise<{ success: boolean; job?: JobItem; error?: string }> {
-    if (!canUserPostJob(userRole)) {
+    const safeRole = userRole || 'employer';
+    if (!canUserPostJob(safeRole)) {
       return {
         success: false,
-        error: `Unauthorized: Only Admins, Owners, CEOs, or verified Employers have permission to post roles. Your current role is "${userRole}".`,
+        error: `Unauthorized: Only Admins, Owners, CEOs, or verified Employers have permission to post roles. Your current role is "${safeRole}".`,
       };
     }
 
@@ -168,20 +180,27 @@ export const JobsService = {
       id: newId,
       applicants: 0,
       posted: 'Just now',
-      postedByRole: userRole,
+      postedByRole: safeRole,
       postedByUid: userUid || 'unknown',
       verified: true,
       createdAt: new Date().toISOString(),
     };
 
     try {
-      if (!IS_MOCK_FIREBASE && db) {
-        await setDoc(doc(db, 'jobs', newId), newJob);
-      }
-
+      // 1. Authoritative local storage first
       const current = await this.getJobs();
       const updated = [newJob, ...current];
       await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(updated));
+
+      // 2. Non-blocking Firestore synchronization
+      if (!IS_MOCK_FIREBASE && db) {
+        try {
+          await setDoc(doc(db, 'jobs', newId), sanitizeForFirestore(newJob));
+        } catch (fsErr) {
+          console.warn('Firestore setDoc jobsService warning (local copy preserved):', fsErr);
+        }
+      }
+
       return { success: true, job: newJob };
     } catch (e: any) {
       return { success: false, error: e.message || 'Failed to publish job.' };

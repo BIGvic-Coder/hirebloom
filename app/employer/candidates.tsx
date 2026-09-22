@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Crown, Lock, Send, UserCheck, ShieldCheck, CheckCircle2, ExternalLink, Briefcase, GraduationCap, Award, Check, Phone, MessageSquare, MapPin } from 'lucide-react-native';
+import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Lock, Send, UserCheck, ShieldCheck, CheckCircle2, ExternalLink, Briefcase, GraduationCap, Award, Check, Phone, MessageSquare, MapPin } from 'lucide-react-native';
 import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
 import { EmailService } from '@/services/emailService';
 import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
@@ -858,18 +858,22 @@ export default function EmployerCandidates() {
               </ScrollView>
 
               {/* Pipeline Decision Panel */}
-              <View className="bg-slate-900/90 p-4 rounded-2xl border border-mint/30 mt-2">
+              <View className={`p-4 rounded-2xl border mt-2 ${
+                currentRole === 'ceo' 
+                  ? 'bg-slate-950 border-indigo-500/40' 
+                  : 'bg-slate-900/90 border-mint/30'
+              }`}>
                 {currentRole === 'ceo' ? (
                   <>
                     <View className="flex-row items-center justify-between mb-2.5">
                       <View className="flex-row items-center">
-                        <Crown size={14} color="#8ecfa9" style={{ marginRight: 6 }} />
-                        <Text className="text-mint font-extrabold text-[11px] uppercase tracking-wider">
-                          👑 CEO Executive Offer Authority
+                        <Award size={14} color="#818cf8" style={{ marginRight: 6 }} />
+                        <Text className="text-indigo-200 font-extrabold text-[11px] uppercase tracking-wider">
+                          CEO Executive Offer Authority
                         </Text>
                       </View>
-                      <View className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/40">
-                        <Text className="text-emerald-400 text-[9px] font-black uppercase">Authorized</Text>
+                      <View className="bg-indigo-900/40 px-2 py-0.5 rounded-full border border-indigo-500/40">
+                        <Text className="text-indigo-300 text-[9px] font-black uppercase">Authorized</Text>
                       </View>
                     </View>
 
@@ -881,9 +885,9 @@ export default function EmployerCandidates() {
                           'Pending Final Review', 
                           'Congratulations! You have advanced through the preliminary screening. Your application is now in Pending Final Review with the hiring team.'
                         )}
-                        className="flex-1 bg-slate-800 border border-mint/40 py-2.5 rounded-xl items-center active:opacity-90"
+                        className="flex-1 bg-slate-800 border border-indigo-400/40 py-2.5 rounded-xl items-center active:opacity-90"
                       >
-                        <Text className="text-mint font-bold text-xs">Advance to Final Review</Text>
+                        <Text className="text-indigo-200 font-bold text-xs">Advance to Final Review</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity 
@@ -892,7 +896,7 @@ export default function EmployerCandidates() {
                           'Interview Scheduled', 
                           'Selected for live panel interview on Google Meet. Interview invitation sent.'
                         )}
-                        className="flex-1 bg-purple-700 py-2.5 rounded-xl items-center active:opacity-90"
+                        className="flex-1 bg-indigo-700 py-2.5 rounded-xl items-center active:opacity-90"
                       >
                         <Text className="text-white font-bold text-xs">Schedule Interview</Text>
                       </TouchableOpacity>
@@ -908,7 +912,7 @@ export default function EmployerCandidates() {
                         )}
                         className="flex-1 bg-emerald-600 py-2.5 rounded-xl items-center active:opacity-90 flex-row justify-center"
                       >
-                        <Crown size={14} color="white" style={{ marginRight: 6 }} />
+                        <ShieldCheck size={14} color="white" style={{ marginRight: 6 }} />
                         <Text className="text-white font-bold text-xs">Issue Official Offer</Text>
                       </TouchableOpacity>
 

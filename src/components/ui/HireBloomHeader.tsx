@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
-import { Bell, HelpCircle, Mail, Crown, Briefcase, Building2, LogOut, ChevronRight, X } from 'lucide-react-native';
+import { Bell, HelpCircle, Mail, Award, ShieldCheck, Briefcase, Building2, LogOut, ChevronRight, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { NotificationsService } from '@/services/notificationsService';
@@ -114,12 +114,18 @@ export default function HireBloomHeader({
               <TouchableOpacity 
                 onPress={() => setIsRoleModalVisible(true)}
                 activeOpacity={0.7}
-                className="ml-2 bg-mintLight/50 border border-mint/40 px-2 py-0.5 rounded-full flex-row items-center"
+                className={`ml-2 px-2.5 py-0.5 rounded-full flex-row items-center border ${
+                  portalBadge.includes('CEO')
+                    ? 'bg-indigo-950 border-indigo-500/60'
+                    : 'bg-mintLight/50 border-mint/40'
+                }`}
               >
                 {portalBadge.includes('CEO') ? (
-                  <Crown size={10} color="#113c2c" style={{ marginRight: 3 }} />
+                  <Award size={10} color="#818cf8" style={{ marginRight: 3 }} />
                 ) : null}
-                <Text className="text-[10px] font-bold text-forest uppercase tracking-wider">
+                <Text className={`text-[10px] font-bold uppercase tracking-wider ${
+                  portalBadge.includes('CEO') ? 'text-indigo-200' : 'text-forest'
+                }`}>
                   {portalBadge}
                 </Text>
               </TouchableOpacity>
@@ -217,18 +223,18 @@ export default function HireBloomHeader({
                 {/* Option 1: CEO Suite */}
                 <TouchableOpacity
                   onPress={() => handleSwitchPerspective('ceo')}
-                  className="bg-forest p-3.5 rounded-2xl flex-row items-center justify-between shadow-sm active:opacity-90 mb-2"
+                  className="bg-slate-900 border border-indigo-500/50 p-3.5 rounded-2xl flex-row items-center justify-between shadow-sm active:opacity-90 mb-2"
                 >
                   <View className="flex-row items-center flex-1 pr-2">
-                    <View className="w-8 h-8 bg-mint/20 rounded-xl items-center justify-center mr-3">
-                      <Crown size={16} color="#8ecfa9" />
+                    <View className="w-8 h-8 bg-indigo-950 border border-indigo-700/60 rounded-xl items-center justify-center mr-3">
+                      <Award size={16} color="#818cf8" />
                     </View>
                     <View>
-                      <Text className="text-white font-bold text-xs">👑 CEO Executive Suite</Text>
-                      <Text className="text-mint text-[10px]">Strategic metrics, post CEO jobs, 1-tap offer sign-off</Text>
+                      <Text className="text-white font-bold text-xs">CEO Executive Suite</Text>
+                      <Text className="text-indigo-200 text-[10px]">Strategic metrics, post executive roles, 1-tap offer sign-off</Text>
                     </View>
                   </View>
-                  <ChevronRight size={16} color="#8ecfa9" />
+                  <ChevronRight size={16} color="#818cf8" />
                 </TouchableOpacity>
 
                 {/* Option 2: Employer */}

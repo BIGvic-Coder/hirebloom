@@ -22,7 +22,6 @@ import {
   EyeOff,
   ChevronLeft,
   ShieldCheck,
-  Crown,
   Globe,
   ChevronDown,
   Search,

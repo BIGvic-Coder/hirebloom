@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StatusBar, Alert, ScrollView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StatusBar, Alert, ScrollView, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock, ArrowRight, Check, KeyRound, RefreshCw, ShieldCheck, ChevronLeft } from 'lucide-react-native';
+import { Mail, Lock, ArrowRight, Check, KeyRound, RefreshCw, ShieldCheck, ChevronLeft, X, Sparkles } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';
-import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ApplicationsService } from '@/services/applicationsService';
 import { GoogleSignin, statusCodes, isGoogleSigninAvailable } from '@/services/googleAuth';
@@ -46,6 +46,11 @@ export default function Login() {
   const [generatedCodeHint, setGeneratedCodeHint] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Forgot Password & Recovery State
+  const [isForgotPasswordVisible, setIsForgotPasswordVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Sync params if passed
   useEffect(() => {
@@ -286,6 +291,46 @@ export default function Login() {
       Alert.alert("Sign-In Failed", error?.message || error.toString());
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  // 4. Send Official Firebase Password Reset Email
+  const handleForgotPassword = async () => {
+    const cleanEmail = ApplicationsService.normalizeEmail(resetEmail || email);
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      Alert.alert("Invalid Email", "Please enter your account email address to send the password reset link.");
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      if (!IS_MOCK_FIREBASE && auth) {
+        await sendPasswordResetEmail(auth, cleanEmail);
+        setIsForgotPasswordVisible(false);
+        Alert.alert(
+          "Password Reset Email Sent",
+          `An official password reset email has been sent to:\n${cleanEmail}\n\nPlease check your inbox (and spam folder) for the link to create your new password.`
+        );
+      } else {
+        setIsForgotPasswordVisible(false);
+        Alert.alert(
+          "Password Reset Sent",
+          `Password reset instructions dispatched for ${cleanEmail}.\n\nTip: You can also use the 6-digit Email Code (OTP) to log in instantly without a password!`
+        );
+      }
+    } catch (e: any) {
+      console.warn('sendPasswordResetEmail error:', e);
+      const code = e?.code;
+      if (code === 'auth/user-not-found') {
+        Alert.alert("Account Not Found", `No account found for "${cleanEmail}". Would you like to sign up?`);
+      } else {
+        Alert.alert(
+          "Password Reset Notice",
+          `${e.message || "Could not send reset email."}\n\nTip: You can use "Email Code (OTP)" on the login screen to enter your account instantly without needing your password!`
+        );
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -630,6 +675,33 @@ export default function Login() {
                 </View>
               </View>
 
+              {/* Remember Me and Forgot Password Action Row */}
+              <View className="flex-row items-center justify-between mb-5 px-1">
+                <TouchableOpacity
+                  onPress={() => setRememberMe(!rememberMe)}
+                  className="flex-row items-center"
+                  activeOpacity={0.7}
+                >
+                  <View className={`w-4 h-4 rounded-md border mr-2 items-center justify-center ${
+                    rememberMe ? 'bg-forest border-forest' : 'border-zinc-300 bg-white'
+                  }`}>
+                    {rememberMe && <Check size={11} color="white" />}
+                  </View>
+                  <Text className="text-zinc-500 font-medium text-xs">Remember me</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setResetEmail(email);
+                    setIsForgotPasswordVisible(true);
+                  }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-forest font-bold text-xs">Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity 
                 className="w-full bg-forest py-4 rounded-full flex-row items-center justify-center shadow-md active:opacity-90 mb-5"
                 onPress={handleEmailSignIn}
@@ -694,6 +766,100 @@ export default function Login() {
           subtitle="Enter Master Key (2026) to enter Owner Mode"
           targetRole="ceo"
         />
+      )}
+
+      {/* Forgot Password Modal with Instant 1-Tap OTP Alternative */}
+      {isForgotPasswordVisible && (
+        <Modal
+          visible={isForgotPasswordVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsForgotPasswordVisible(false)}
+        >
+          <View className="flex-1 bg-black/70 justify-center items-center px-5">
+            <View className="bg-white rounded-3xl p-6 w-full max-w-sm border border-zinc-200 shadow-xl">
+              
+              <View className="flex-row justify-between items-center mb-4">
+                <View className="flex-row items-center">
+                  <View className="w-9 h-9 rounded-xl bg-mint/20 items-center justify-center mr-2.5">
+                    <KeyRound size={18} color="#113c2c" />
+                  </View>
+                  <Text className="text-lg font-extrabold text-slate-900">Account Recovery</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsForgotPasswordVisible(false)}
+                  className="w-8 h-8 rounded-full bg-zinc-100 items-center justify-center"
+                >
+                  <X size={16} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <Text className="text-zinc-500 text-xs leading-relaxed mb-4">
+                Forgot your password? Choose how you would like to access your HireBloom account:
+              </Text>
+
+              {/* Option 1: Fast 1-Tap OTP (Fastest & Passwordless) */}
+              <TouchableOpacity
+                onPress={() => {
+                  setIsForgotPasswordVisible(false);
+                  setLoginMethod('emailCode');
+                  setOtpStep('enterEmail');
+                  if (resetEmail) setEmail(resetEmail);
+                }}
+                className="bg-mint/15 border border-mint/40 rounded-2xl p-3.5 mb-4 active:opacity-85"
+              >
+                <View className="flex-row items-center justify-between mb-1">
+                  <View className="flex-row items-center">
+                    <Sparkles size={14} color="#059669" style={{ marginRight: 6 }} />
+                    <Text className="text-forest font-extrabold text-xs">Instant 1-Tap Login (OTP)</Text>
+                  </View>
+                  <View className="bg-emerald-600 px-2 py-0.5 rounded-full">
+                    <Text className="text-white text-[9px] font-bold">Fastest</Text>
+                  </View>
+                </View>
+                <Text className="text-zinc-600 text-[11px] leading-snug">
+                  No password needed! Receive an instant 6-digit code to your email and log in immediately.
+                </Text>
+              </TouchableOpacity>
+
+              {/* Option 2: Send Official Firebase Password Reset Email */}
+              <View className="mb-4">
+                <Text className="text-slate-800 font-bold text-xs uppercase tracking-wide mb-1.5">
+                  Send Reset Link to Email
+                </Text>
+                <View className="bg-zinc-50 border border-zinc-200 rounded-2xl px-3.5 py-3 flex-row items-center mb-3">
+                  <Mail color="#113c2c" size={16} style={{ marginRight: 8 }} />
+                  <TextInput
+                    placeholder="Enter your email"
+                    placeholderTextColor="#94a3b8"
+                    value={resetEmail}
+                    onChangeText={setResetEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    className="flex-1 text-slate-900 text-xs font-medium"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleForgotPassword}
+                  disabled={resetLoading}
+                  className="w-full bg-forest py-3.5 rounded-2xl items-center justify-center active:opacity-90 shadow-sm"
+                >
+                  <Text className="text-white font-bold text-xs">
+                    {resetLoading ? 'Sending Reset Link...' : 'Send Password Reset Email'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setIsForgotPasswordVisible(false)}
+                className="py-1.5 items-center"
+              >
+                <Text className="text-zinc-400 font-medium text-xs">Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
     </SafeAreaView>
   );

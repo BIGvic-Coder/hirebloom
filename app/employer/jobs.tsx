@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, MapPin, Clock, Users, ChevronRight, MoreVertical, X, Briefcase, DollarSign, CheckCircle, ShieldAlert, ShieldCheck, Crown } from 'lucide-react-native';
+import { Plus, MapPin, Clock, Users, ChevronRight, MoreVertical, X, Briefcase, DollarSign, CheckCircle, ShieldAlert, ShieldCheck, Award, Sparkles, Building2 } from 'lucide-react-native';
 import { ApplicationsService, JobItem, canUserPostJob } from '@/services/applicationsService';
 import { auth, db, IS_MOCK_FIREBASE } from '@/constants/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -17,6 +17,7 @@ export default function EmployerJobs() {
 
   // New Job Form State
   const [newTitle, setNewTitle] = useState('');
+  const [newCompany, setNewCompany] = useState('TechNova Inc.');
   const [newLocation, setNewLocation] = useState('Remote (US Hours)');
   const [newType, setNewType] = useState('Full-time');
   const [newRate, setNewRate] = useState('$13 - $15 / hr');
@@ -87,13 +88,13 @@ export default function EmployerJobs() {
 
     setIsPublishing(true);
     let tagsArray = newTags.split(',').map(t => t.trim()).filter(Boolean);
-    if (isCeoPriority && !tagsArray.includes('👑 CEO Opening')) {
-      tagsArray = ['👑 CEO Opening', ...tagsArray];
+    if (isCeoPriority && !tagsArray.includes('Executive Priority')) {
+      tagsArray = ['Executive Priority', ...tagsArray];
     }
 
     const result = await ApplicationsService.createJob({
       title: newTitle.trim(),
-      company: 'TechNova Inc.',
+      company: newCompany.trim() || 'TechNova Inc.',
       location: newLocation.trim() || 'Remote (US Hours)',
       salary: newRate.trim() || '$13 - $15 / hr',
       type: newType,
@@ -127,39 +128,70 @@ export default function EmployerJobs() {
           </View>
           <TouchableOpacity 
             onPress={handleOpenPostJob}
-            className="w-11 h-11 bg-forest rounded-2xl items-center justify-center shadow-lg shadow-forest/20 active:opacity-90"
+            className={`w-11 h-11 rounded-2xl items-center justify-center shadow-lg active:opacity-90 ${
+              currentRole === 'ceo' 
+                ? 'bg-indigo-950 shadow-indigo-950/20' 
+                : 'bg-forest shadow-forest/20'
+            }`}
           >
-            <Plus color="#8ecfa9" size={24} />
+            <Plus color={currentRole === 'ceo' ? '#a5b4fc' : '#8ecfa9'} size={24} />
           </TouchableOpacity>
         </View>
 
-        {/* Role Permission Bar */}
-        <View className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm mb-5 flex-row items-center justify-between">
+        {/* Role Permission Bar with Visual Distinction: CEO (Royal Indigo) vs Employer (Emerald Forest) */}
+        <View className={`p-3 rounded-2xl border shadow-sm mb-5 flex-row items-center justify-between ${
+          currentRole === 'ceo'
+            ? 'bg-slate-900 border-indigo-500/50'
+            : 'bg-white border-slate-200'
+        }`}>
           <View className="flex-row items-center flex-1 pr-2">
-            <View className="w-7 h-7 rounded-lg bg-mint/20 items-center justify-center mr-2.5">
-              <Crown size={14} color="#113c2c" />
+            <View className={`w-8 h-8 rounded-xl items-center justify-center mr-2.5 ${
+              currentRole === 'ceo' ? 'bg-indigo-950 border border-indigo-700/60' : 'bg-mint/20'
+            }`}>
+              {currentRole === 'ceo' ? (
+                <Award size={15} color="#818cf8" />
+              ) : (
+                <Briefcase size={15} color="#113c2c" />
+              )}
             </View>
             <View>
-              <Text className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">Poster Authority</Text>
-              <Text className="text-forest font-extrabold text-xs capitalize">{currentRole} • Authorized</Text>
+              <Text className={`text-[9px] uppercase font-bold tracking-wider ${
+                currentRole === 'ceo' ? 'text-indigo-300' : 'text-slate-400'
+              }`}>
+                {currentRole === 'ceo' ? 'Executive Authority' : 'Employer Authority'}
+              </Text>
+              <Text className={`font-extrabold text-xs capitalize ${
+                currentRole === 'ceo' ? 'text-white' : 'text-forest'
+              }`}>
+                {currentRole === 'ceo' ? 'CEO Executive Suite • Authorized' : `${currentRole} Workspace • Authorized`}
+              </Text>
             </View>
           </View>
 
           {/* Quick Role Tester switcher */}
           <View className="flex-row gap-1">
-            {['ceo', 'employer', 'candidate'].map((r) => (
-              <TouchableOpacity
-                key={r}
-                onPress={() => setCurrentRole(r)}
-                className={`px-2 py-1 rounded-md border ${
-                  currentRole === r ? 'bg-forest border-forest' : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <Text className={`text-[9px] font-bold uppercase ${currentRole === r ? 'text-white' : 'text-slate-500'}`}>
-                  {r}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {['ceo', 'employer', 'candidate'].map((r) => {
+              const isActive = currentRole === r;
+              let activeClass = 'bg-forest border-forest';
+              if (isActive && r === 'ceo') {
+                activeClass = 'bg-indigo-600 border-indigo-500';
+              }
+              return (
+                <TouchableOpacity
+                  key={r}
+                  onPress={() => setCurrentRole(r)}
+                  className={`px-2 py-1 rounded-md border ${
+                    isActive ? activeClass : currentRole === 'ceo' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <Text className={`text-[9px] font-bold uppercase ${
+                    isActive ? 'text-white' : currentRole === 'ceo' ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    {r}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -256,17 +288,23 @@ export default function EmployerJobs() {
             {/* Modal Header */}
             <View className="flex-row justify-between items-center mb-5">
               <View className="flex-row items-center">
-                <View className="w-10 h-10 bg-mint/20 rounded-xl items-center justify-center mr-3 border border-mint/40">
-                  <Briefcase color="#113c2c" size={20} />
+                <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 border ${
+                  currentRole === 'ceo' ? 'bg-indigo-950 border-indigo-700/60' : 'bg-mint/20 border-mint/40'
+                }`}>
+                  {currentRole === 'ceo' ? (
+                    <Award color="#818cf8" size={20} />
+                  ) : (
+                    <Briefcase color="#113c2c" size={20} />
+                  )}
                 </View>
                 <View>
                   <Text className="text-xl font-bold text-slate-900">
-                    {currentRole === 'ceo' ? 'Publish Priority Job' : 'Talent Requisition Form'}
+                    {currentRole === 'ceo' ? 'Executive Requisition' : 'Create Job Requisition'}
                   </Text>
                   <Text className="text-slate-400 text-xs">
                     {currentRole === 'ceo' 
                       ? 'Publishing with CEO Executive Authority' 
-                      : 'Requesting role: Routes to HireBloom CEO desk'}
+                      : 'Live requisition published directly to candidate portal'}
                   </Text>
                 </View>
               </View>
@@ -292,6 +330,17 @@ export default function EmployerJobs() {
               </View>
 
               <View>
+                <Text className="text-slate-700 font-bold text-xs mb-1.5 uppercase tracking-wide">Company Name</Text>
+                <TextInput
+                  value={newCompany}
+                  onChangeText={setNewCompany}
+                  placeholder="e.g. TechNova Inc."
+                  placeholderTextColor="#94a3b8"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-medium mb-3"
+                />
+              </View>
+
+              <View>
                 <Text className="text-slate-700 font-bold text-xs mb-1.5 uppercase tracking-wide">Location / Hours</Text>
                 <TextInput
                   value={newLocation}
@@ -311,7 +360,7 @@ export default function EmployerJobs() {
                         key={t}
                         onPress={() => setNewType(t)}
                         className={`flex-1 py-2.5 rounded-xl items-center border ${
-                          newType === t ? 'bg-forest border-forest' : 'bg-slate-50 border-slate-200'
+                          newType === t ? (currentRole === 'ceo' ? 'bg-indigo-900 border-indigo-700' : 'bg-forest border-forest') : 'bg-slate-50 border-slate-200'
                         }`}
                       >
                         <Text className={`font-bold text-xs ${newType === t ? 'text-white' : 'text-slate-600'}`}>
@@ -334,25 +383,29 @@ export default function EmployerJobs() {
                 />
               </View>
 
-              {/* CEO Priority Toggle */}
+              {/* Priority Toggle */}
               <TouchableOpacity
                 onPress={() => setIsCeoPriority(!isCeoPriority)}
                 className={`p-3.5 rounded-2xl border flex-row items-center justify-between ${
-                  isCeoPriority ? 'bg-mint/15 border-mint' : 'bg-slate-50 border-slate-200'
+                  isCeoPriority 
+                    ? currentRole === 'ceo' ? 'bg-indigo-950/20 border-indigo-500' : 'bg-mint/15 border-mint' 
+                    : 'bg-slate-50 border-slate-200'
                 }`}
               >
                 <View className="flex-row items-center flex-1 pr-2">
-                  <Crown size={16} color={isCeoPriority ? '#113c2c' : '#64748b'} style={{ marginRight: 8 }} />
+                  <Award size={16} color={isCeoPriority ? (currentRole === 'ceo' ? '#6366f1' : '#113c2c') : '#64748b'} style={{ marginRight: 8 }} />
                   <View className="flex-1">
                     <Text className="font-bold text-xs text-slate-900">
-                      {currentRole === 'ceo' ? 'CEO Priority Opening' : 'Mark as Urgent Requisition'}
+                      {currentRole === 'ceo' ? 'Executive Priority Requisition' : 'Mark as Urgent Requisition'}
                     </Text>
                     <Text className="text-slate-500 text-[10px]">
-                      {currentRole === 'ceo' ? 'Pins to top of talent portal with verified employer badge' : 'Fast-tracks candidate matching with CEO Victor'}
+                      {currentRole === 'ceo' ? 'Highlights with Executive badge and prioritizes candidate matching' : 'Fast-tracks applicant review with the recruitment team'}
                     </Text>
                   </View>
                 </View>
-                <View className={`w-6 h-6 rounded-full items-center justify-center ${isCeoPriority ? 'bg-forest' : 'bg-slate-200'}`}>
+                <View className={`w-6 h-6 rounded-full items-center justify-center ${
+                  isCeoPriority ? (currentRole === 'ceo' ? 'bg-indigo-600' : 'bg-forest') : 'bg-slate-200'
+                }`}>
                   <CheckCircle size={14} color="white" />
                 </View>
               </TouchableOpacity>
@@ -362,7 +415,7 @@ export default function EmployerJobs() {
             <View className="bg-mint/10 border border-mint/25 rounded-2xl p-3 mb-5 flex-row items-center">
               <CheckCircle size={16} color="#113c2c" style={{ marginRight: 8 }} />
               <Text className="text-forest text-[11px] font-medium leading-snug flex-1">
-                Embedded teams standard flat rate: <Text className="font-bold">$13.00/hour</Text>. {currentRole === 'ceo' ? 'Published live to talent portal.' : 'HireBloom team vets candidates and presents best matches.'}
+                Embedded teams standard flat rate: <Text className="font-bold">$13.00/hour</Text>. Published live to talent portal with full candidate tracking.
               </Text>
             </View>
 
@@ -370,14 +423,16 @@ export default function EmployerJobs() {
             <TouchableOpacity
               onPress={handleCreateJob}
               disabled={isPublishing}
-              className="w-full bg-forest py-4 rounded-2xl items-center justify-center active:opacity-90 shadow-md shadow-forest/20"
+              className={`w-full py-4 rounded-2xl items-center justify-center active:opacity-90 shadow-md ${
+                currentRole === 'ceo' ? 'bg-indigo-950 shadow-indigo-950/20' : 'bg-forest shadow-forest/20'
+              }`}
             >
               <Text className="text-white font-bold text-sm">
                 {isPublishing 
                   ? 'Submitting Requisition...' 
                   : currentRole === 'ceo' 
-                  ? '👑 Publish Opening to Candidates' 
-                  : 'Submit Hire Request to CEO'}
+                  ? 'Publish Executive Opening' 
+                  : 'Publish Job Requisition'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -395,8 +450,8 @@ export default function EmployerJobs() {
         >
         <View className="flex-1 bg-black/75 justify-center items-center px-6">
           <View className="bg-white rounded-3xl p-6 w-full max-w-sm border border-slate-200 items-center">
-            <View className="w-14 h-14 rounded-full bg-amber-100 items-center justify-center mb-4">
-              <Crown color="#b45309" size={28} />
+            <View className="w-14 h-14 rounded-full bg-indigo-100 items-center justify-center mb-4">
+              <ShieldCheck color="#4338ca" size={28} />
             </View>
 
             <Text className="text-xl font-bold text-slate-900 text-center mb-2">
@@ -409,16 +464,16 @@ export default function EmployerJobs() {
 
             <TouchableOpacity
               onPress={() => handleElevateAndPost('ceo')}
-              className="w-full bg-forest py-3.5 rounded-xl items-center justify-center active:opacity-90 mb-2.5 shadow-sm shadow-forest/20"
+              className="w-full bg-indigo-950 py-3.5 rounded-xl items-center justify-center active:opacity-90 mb-2.5 shadow-sm"
             >
-              <Text className="text-white font-bold text-xs">👑 Activate CEO / Owner Authority</Text>
+              <Text className="text-white font-bold text-xs">Activate CEO / Owner Authority</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => handleElevateAndPost('employer')}
-              className="w-full bg-mint/30 border border-mint/60 py-3 rounded-xl items-center justify-center active:opacity-90 mb-2"
+              className="w-full bg-forest py-3 rounded-xl items-center justify-center active:opacity-90 mb-2 shadow-sm"
             >
-              <Text className="text-forest font-bold text-xs">🏢 Activate Employer Authority</Text>
+              <Text className="text-white font-bold text-xs">Activate Employer Authority</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
