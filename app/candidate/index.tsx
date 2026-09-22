@@ -239,6 +239,9 @@ export default function CandidateJobs() {
       id: candidateId,
       name: candidateName,
       email: candidateEmail,
+      country: currentUser?.country,
+      phone: currentUser?.phone,
+      whatsapp: currentUser?.whatsapp,
       note: applicationNote.trim() || 'Excited to bring my communication and technical background to this position.',
       resume: attachedResume,
       loomUrl: finalLoom

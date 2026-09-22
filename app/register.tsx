@@ -27,7 +27,9 @@ import {
   ChevronDown,
   Search,
   Check,
-  X
+  X,
+  Phone,
+  MessageSquare
 } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -46,26 +48,28 @@ export interface CountryItem {
   code: string;
   name: string;
   flag: string;
+  dialCode: string;
   region: string;
+  placeholder: string;
 }
 
 export const HIRING_COUNTRIES: CountryItem[] = [
-  { code: 'US', name: 'United States', flag: '🇺🇸', region: 'Americas' },
-  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', region: 'Europe' },
-  { code: 'CA', name: 'Canada', flag: '🇨🇦', region: 'Americas' },
-  { code: 'NG', name: 'Nigeria', flag: '🇳🇬', region: 'Africa' },
-  { code: 'PH', name: 'Philippines', flag: '🇵🇭', region: 'Asia-Pacific' },
-  { code: 'GH', name: 'Ghana', flag: '🇬🇭', region: 'Africa' },
-  { code: 'KE', name: 'Kenya', flag: '🇰🇪', region: 'Africa' },
-  { code: 'ZA', name: 'South Africa', flag: '🇿🇦', region: 'Africa' },
-  { code: 'IN', name: 'India', flag: '🇮🇳', region: 'Asia-Pacific' },
-  { code: 'DE', name: 'Germany', flag: '🇩🇪', region: 'Europe' },
-  { code: 'BR', name: 'Brazil', flag: '🇧🇷', region: 'Latin America' },
-  { code: 'AU', name: 'Australia', flag: '🇦🇺', region: 'Asia-Pacific' },
-  { code: 'EG', name: 'Egypt', flag: '🇪🇬', region: 'Middle East' },
-  { code: 'PK', name: 'Pakistan', flag: '🇵🇰', region: 'Asia-Pacific' },
-  { code: 'MX', name: 'Mexico', flag: '🇲🇽', region: 'Latin America' },
-  { code: 'GLOBAL', name: 'Other / Worldwide Remote', flag: '🌍', region: 'Global' },
+  { code: 'NG', name: 'Nigeria', flag: '🇳🇬', dialCode: '+234', region: 'Africa', placeholder: '801 234 5678' },
+  { code: 'US', name: 'United States', flag: '🇺🇸', dialCode: '+1', region: 'Americas', placeholder: '(555) 123-4567' },
+  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', dialCode: '+44', region: 'Europe', placeholder: '7911 123456' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦', dialCode: '+1', region: 'Americas', placeholder: '(555) 123-4567' },
+  { code: 'PH', name: 'Philippines', flag: '🇵🇭', dialCode: '+63', region: 'Asia-Pacific', placeholder: '917 123 4567' },
+  { code: 'GH', name: 'Ghana', flag: '🇬🇭', dialCode: '+233', region: 'Africa', placeholder: '24 123 4567' },
+  { code: 'KE', name: 'Kenya', flag: '🇰🇪', dialCode: '+254', region: 'Africa', placeholder: '712 345678' },
+  { code: 'ZA', name: 'South Africa', flag: '🇿🇦', dialCode: '+27', region: 'Africa', placeholder: '82 123 4567' },
+  { code: 'IN', name: 'India', flag: '🇮🇳', dialCode: '+91', region: 'Asia-Pacific', placeholder: '98765 43210' },
+  { code: 'DE', name: 'Germany', flag: '🇩🇪', dialCode: '+49', region: 'Europe', placeholder: '151 12345678' },
+  { code: 'BR', name: 'Brazil', flag: '🇧🇷', dialCode: '+55', region: 'Latin America', placeholder: '11 91234-5678' },
+  { code: 'AU', name: 'Australia', flag: '🇦🇺', dialCode: '+61', region: 'Asia-Pacific', placeholder: '412 345 678' },
+  { code: 'EG', name: 'Egypt', flag: '🇪🇬', dialCode: '+20', region: 'Middle East', placeholder: '10 1234 5678' },
+  { code: 'PK', name: 'Pakistan', flag: '🇵🇰', dialCode: '+92', region: 'Asia-Pacific', placeholder: '300 1234567' },
+  { code: 'MX', name: 'Mexico', flag: '🇲🇽', dialCode: '+52', region: 'Latin America', placeholder: '55 1234 5678' },
+  { code: 'GLOBAL', name: 'Other / Worldwide Remote', flag: '🌍', dialCode: '+1', region: 'Global', placeholder: 'Phone number' },
 ];
 
 // Official Google Multi-Colored Vector Logo
@@ -104,7 +108,10 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState<CountryItem>(HIRING_COUNTRIES[3]); // Default Nigeria
+  const [selectedCountry, setSelectedCountry] = useState<CountryItem>(HIRING_COUNTRIES[0]); // Default Nigeria
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [whatsAppNumber, setWhatsAppNumber] = useState('');
+  const [sameAsPhone, setSameAsPhone] = useState(true);
   const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
 
@@ -145,6 +152,12 @@ export default function Register() {
   // Helper to persist user profile & session
   const saveUserProfileAndRoute = async (user: any, nameToUse: string, userRole: 'candidate' | 'employer' | 'ceo') => {
     const cleanEmail = (user.email || email).trim().toLowerCase();
+    const fullPhone = phoneNumber.trim() ? `${selectedCountry.dialCode} ${phoneNumber.trim()}` : undefined;
+    const fullWhatsApp = sameAsPhone
+      ? fullPhone
+      : whatsAppNumber.trim()
+      ? `${selectedCountry.dialCode} ${whatsAppNumber.trim()}`
+      : fullPhone;
 
     // 1. Clear any prior cached session first so there is zero bleed-over
     try {
@@ -160,6 +173,8 @@ export default function Register() {
         role: userRole,
         initials: ApplicationsService.getInitials(nameToUse, cleanEmail),
         country: selectedCountry.name,
+        phone: fullPhone,
+        whatsapp: fullWhatsApp,
       });
 
       // 3. Register into persistent user database
@@ -171,6 +186,8 @@ export default function Register() {
         company: userRole === 'employer' ? companyName.trim() : userRole === 'ceo' ? (companyName.trim() || 'HireBloom HQ') : undefined,
         password: password.trim(),
         country: selectedCountry.name,
+        phone: fullPhone,
+        whatsapp: fullWhatsApp,
       });
     } catch (e) {
       console.warn('Local session/registration storage error:', e);
@@ -188,6 +205,8 @@ export default function Register() {
             role: userRole,
             company: userRole === 'employer' ? companyName.trim() : userRole === 'ceo' ? (companyName.trim() || 'HireBloom HQ') : null,
             country: selectedCountry.name,
+            phone: fullPhone || null,
+            whatsapp: fullWhatsApp || null,
             createdAt: new Date().toISOString(),
           },
           { merge: true }
@@ -579,6 +598,71 @@ export default function Register() {
               <ChevronDown size={16} color="#64748b" />
             </TouchableOpacity>
 
+            {/* Phone Number with Country Code */}
+            <View className="w-full mb-2">
+              <View className="flex-row items-center gap-2">
+                {/* Dial Code Button (Tapping opens Country Picker) */}
+                <TouchableOpacity
+                  onPress={() => setIsCountryModalVisible(true)}
+                  className="bg-zinc-50 border border-zinc-200/80 rounded-2xl px-3.5 py-3 flex-row items-center active:opacity-75"
+                >
+                  <Text className="text-base mr-1.5">{selectedCountry.flag}</Text>
+                  <Text className="text-slate-900 font-extrabold text-xs">{selectedCountry.dialCode}</Text>
+                  <ChevronDown size={12} color="#64748b" style={{ marginLeft: 3 }} />
+                </TouchableOpacity>
+
+                {/* Phone Input */}
+                <View className="flex-1 bg-zinc-50 border border-zinc-200/80 rounded-2xl px-3.5 py-3 flex-row items-center">
+                  <Phone color="#113c2c" size={16} style={{ marginRight: 8 }} />
+                  <TextInput
+                    placeholder={selectedCountry.placeholder || "Phone number"}
+                    className="flex-1 text-slate-900 font-medium text-xs"
+                    placeholderTextColor="#94a3b8"
+                    value={phoneNumber}
+                    onChangeText={setPhoneNumber}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* WhatsApp Same As Phone Toggle */}
+            <TouchableOpacity
+              onPress={() => setSameAsPhone(!sameAsPhone)}
+              className="flex-row items-center mb-2 px-1 active:opacity-75"
+            >
+              <View className={`w-4 h-4 rounded border mr-2 items-center justify-center ${sameAsPhone ? 'bg-emerald-600 border-emerald-600' : 'border-zinc-300 bg-white'}`}>
+                {sameAsPhone && <Check size={11} color="white" strokeWidth={3} />}
+              </View>
+              <MessageSquare size={13} color="#059669" style={{ marginRight: 5 }} />
+              <Text className="text-zinc-600 font-medium text-[11px]">
+                WhatsApp number is same as phone
+              </Text>
+            </TouchableOpacity>
+
+            {/* Separate WhatsApp Input (if not same) */}
+            {!sameAsPhone && (
+              <View className="w-full mb-2.5">
+                <View className="flex-row items-center gap-2">
+                  <View className="bg-emerald-50 border border-emerald-200 rounded-2xl px-3.5 py-3 flex-row items-center">
+                    <Text className="text-base mr-1.5">{selectedCountry.flag}</Text>
+                    <Text className="text-emerald-900 font-extrabold text-xs">{selectedCountry.dialCode}</Text>
+                  </View>
+                  <View className="flex-1 bg-emerald-50/40 border border-emerald-200 rounded-2xl px-3.5 py-3 flex-row items-center">
+                    <MessageSquare color="#059669" size={16} style={{ marginRight: 8 }} />
+                    <TextInput
+                      placeholder="WhatsApp number"
+                      className="flex-1 text-slate-900 font-medium text-xs"
+                      placeholderTextColor="#94a3b8"
+                      value={whatsAppNumber}
+                      onChangeText={setWhatsAppNumber}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+
             {/* Email Address */}
             <View className="w-full bg-zinc-50 border border-zinc-200/80 rounded-2xl px-4 py-3 flex-row items-center mb-2.5">
               <Mail color="#113c2c" size={18} style={{ marginRight: 10 }} />
@@ -715,11 +799,16 @@ export default function Register() {
                   >
                     <View className="flex-row items-center flex-1">
                       <Text className="text-2xl mr-3">{country.flag}</Text>
-                      <View>
-                        <Text className={`font-bold text-xs ${isSelected ? 'text-forest' : 'text-slate-800'}`}>
-                          {country.name}
-                        </Text>
-                        <Text className="text-zinc-400 text-[10px]">{country.region}</Text>
+                      <View className="flex-1">
+                        <View className="flex-row items-center">
+                          <Text className={`font-bold text-xs mr-2 ${isSelected ? 'text-forest' : 'text-slate-800'}`}>
+                            {country.name}
+                          </Text>
+                          <View className="bg-zinc-200/70 px-1.5 py-0.5 rounded">
+                            <Text className="text-zinc-600 font-black text-[9px]">{country.dialCode}</Text>
+                          </View>
+                        </View>
+                        <Text className="text-zinc-400 text-[10px] mt-0.5">{country.region}</Text>
                       </View>
                     </View>
                     {isSelected && (

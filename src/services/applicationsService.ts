@@ -48,6 +48,8 @@ export interface JobApplication {
   candidateEmail: string;
   candidateInitials?: string;
   candidateCountry?: string;
+  candidatePhone?: string;
+  candidateWhatsapp?: string;
   status: ApplicationStatus;
   statusColor: string;
   statusBg: string;
@@ -83,6 +85,8 @@ export interface UserSession {
   role: 'candidate' | 'employer' | 'recruiter' | 'admin' | 'ceo';
   initials: string;
   country?: string;
+  phone?: string;
+  whatsapp?: string;
 }
 
 // Roles permitted to post jobs
@@ -391,6 +395,9 @@ export const ApplicationsService = {
       id: string; 
       name: string; 
       email: string; 
+      country?: string;
+      phone?: string;
+      whatsapp?: string;
       note?: string; 
       resume?: { name: string; size: string; url?: string };
       loomUrl?: string;
@@ -438,6 +445,9 @@ export const ApplicationsService = {
         candidateName: candidate.name,
         candidateEmail: candidate.email,
         candidateInitials: initials,
+        candidateCountry: candidate.country,
+        candidatePhone: candidate.phone,
+        candidateWhatsapp: candidate.whatsapp,
         status: status,
         statusColor: style.color,
         statusBg: style.bg,
@@ -923,6 +933,8 @@ export const ApplicationsService = {
     company?: string;
     password?: string;
     country?: string;
+    phone?: string;
+    whatsapp?: string;
   }): Promise<void> {
     const cleanEmail = profile.email.trim().toLowerCase();
     const existing = await this.getRegisteredUsers();
@@ -944,6 +956,8 @@ export const ApplicationsService = {
             role: profile.role,
             company: profile.company || null,
             country: profile.country || null,
+            phone: profile.phone || null,
+            whatsapp: profile.whatsapp || null,
             createdAt: new Date().toISOString(),
           }),
           { merge: true }
@@ -973,6 +987,8 @@ export const ApplicationsService = {
       role: 'candidate' | 'employer' | 'recruiter' | 'ceo';
       company?: string;
       country?: string;
+      phone?: string;
+      whatsapp?: string;
     };
   }> {
     const cleanEmail = this.normalizeEmail(email);
