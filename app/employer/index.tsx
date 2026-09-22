@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, Users, TrendingUp, ChevronRight, Sparkles, ShieldCheck, DollarSign, Calendar, CheckCircle2, Award, Zap } from 'lucide-react-native';
+import { Briefcase, Users, TrendingUp, ChevronRight, Sparkles, ShieldCheck, DollarSign, Calendar, CheckCircle2, Award, Zap, Lock, Trash2 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';
 import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
@@ -69,7 +69,6 @@ export default function EmployerDashboard() {
   };
 
   const handleSwitchMode = async (mode: 'employer' | 'ceo') => {
-    // 1. Immediately toggle the active tab synchronously for zero UI latency
     setViewMode(mode);
     try {
       if (mode === 'ceo') {
@@ -79,6 +78,31 @@ export default function EmployerDashboard() {
     } catch (e) {
       console.warn('Error elevating perspective role:', e);
     }
+  };
+
+  const handleSwitchToCeo = async () => {
+    if (viewMode === 'ceo') return;
+    // Always require CEO Executive PIN (Master Key 2026) to enter CEO mode
+    setIsPasscodeModalVisible(true);
+  };
+
+  const handleDismissApplication = (app: JobApplication) => {
+    Alert.alert(
+      "Clear Attended Application?",
+      `Are you sure you want to remove ${app.candidateName}'s application from the active review desk?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear Application",
+          style: "destructive",
+          onPress: async () => {
+            await ApplicationsService.deleteApplication(app.id);
+            await loadDashboardData();
+            Alert.alert("Cleared", `${app.candidateName}'s application has been cleared from active review.`);
+          },
+        },
+      ]
+    );
   };
 
   const navigateTo = (path: string) => {
@@ -125,34 +149,44 @@ export default function EmployerDashboard() {
         userInitials={viewMode === 'ceo' ? "CEO" : "TN"} 
       />
 
-      {/* Pinned Perspective Mode Switcher: Native Pressable with pure StyleSheet for 100% reliable Android touch dispatch */}
+      {/* Pinned Perspective Mode Switcher with clear separation and distinct colors */}
       <View style={styles.switcherContainer}>
         <View style={styles.switcherTrack}>
+          {/* Option 1: Employer Workspace (Forest Green Theme) */}
           <Pressable
             onPress={() => handleSwitchMode('employer')}
-            hitSlop={10}
             style={({ pressed }) => [
               styles.tabBtn,
+              styles.tabBtnEmployerBase,
               viewMode === 'employer' ? styles.tabBtnEmployerActive : styles.tabBtnInactive,
-              pressed && { opacity: 0.7 },
+              pressed && { opacity: 0.8 },
             ]}
           >
-            <Briefcase size={15} color={viewMode === 'employer' ? '#113C2C' : '#64748B'} style={{ marginRight: 6 }} />
-            <Text style={viewMode === 'employer' ? styles.tabTextActive : styles.tabTextInactive}>
+            <View style={[styles.iconBadge, viewMode === 'employer' ? styles.iconBadgeEmployerActive : styles.iconBadgeInactive]}>
+              <Briefcase size={13} color={viewMode === 'employer' ? '#FFFFFF' : '#113C2C'} />
+            </View>
+            <Text style={viewMode === 'employer' ? styles.tabTextActiveEmployer : styles.tabTextInactive}>
               Employer Workspace
             </Text>
           </Pressable>
 
+          {/* Option 2: CEO Executive Suite (PIN Protected, Royal Indigo Theme) */}
           <Pressable
-            onPress={() => handleSwitchMode('ceo')}
-            hitSlop={10}
+            onPress={handleSwitchToCeo}
             style={({ pressed }) => [
               styles.tabBtn,
+              styles.tabBtnCeoBase,
               viewMode === 'ceo' ? styles.tabBtnCeoActive : styles.tabBtnInactive,
-              pressed && { opacity: 0.7 },
+              pressed && { opacity: 0.8 },
             ]}
           >
-            <Award size={15} color={viewMode === 'ceo' ? '#A5B4FC' : '#64748B'} style={{ marginRight: 6 }} />
+            <View style={[styles.iconBadge, viewMode === 'ceo' ? styles.iconBadgeCeoActive : styles.iconBadgeInactive]}>
+              {viewMode === 'ceo' ? (
+                <Award size={13} color="#FFFFFF" />
+              ) : (
+                <Lock size={12} color="#64748B" />
+              )}
+            </View>
             <Text style={viewMode === 'ceo' ? styles.tabTextCeoActive : styles.tabTextInactive}>
               CEO Executive Suite
             </Text>
@@ -254,8 +288,18 @@ export default function EmployerDashboard() {
                       CEO Final Offer Sign-Off Desk
                     </Text>
                   </View>
-                  <View className="bg-mint/30 px-2.5 py-0.5 rounded-full border border-mint/50">
-                    <Text className="text-forest font-bold text-[10px]">Top Matched Candidate</Text>
+                  <View className="flex-row items-center">
+                    <View className="bg-mint/30 px-2 py-0.5 rounded-full border border-mint/50">
+                      <Text className="text-forest font-bold text-[10px]">Top Candidate</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleDismissApplication(topMatchCandidate)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      className="ml-2 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full flex-row items-center active:opacity-70"
+                    >
+                      <Trash2 size={10} color="#dc2626" style={{ marginRight: 3 }} />
+                      <Text className="text-red-600 font-bold text-[10px]">Clear</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -562,65 +606,90 @@ export default function EmployerDashboard() {
 
 const styles = StyleSheet.create({
   switcherContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 10,
     paddingBottom: 8,
     backgroundColor: '#FAF9F6',
     zIndex: 10,
   },
   switcherTrack: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    padding: 5,
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  tabBtnEmployerBase: {
+    marginRight: 6,
+  },
+  tabBtnCeoBase: {
+    marginLeft: 6,
   },
   tabBtnEmployerActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
+    backgroundColor: '#113C2C', // Deep HireBloom Forest Green
+    borderColor: '#059669',
+    shadowColor: '#113C2C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
     elevation: 3,
   },
   tabBtnCeoActive: {
-    backgroundColor: '#1E1B4B',
-    borderColor: '#4338CA',
-    borderWidth: 1,
+    backgroundColor: '#1E1B4B', // Royal Midnight Indigo
+    borderColor: '#6366F1',
     shadowColor: '#1E1B4B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 4,
     elevation: 3,
   },
   tabBtnInactive: {
-    backgroundColor: 'transparent',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
-  tabTextActive: {
-    color: '#113C2C',
+  iconBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  iconBadgeEmployerActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  iconBadgeCeoActive: {
+    backgroundColor: '#4338CA',
+  },
+  iconBadgeInactive: {
+    backgroundColor: '#F1F5F9',
+  },
+  tabTextActiveEmployer: {
+    color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 11,
   },
   tabTextCeoActive: {
-    color: '#C7D2FE',
+    color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 11,
   },
   tabTextInactive: {
-    color: '#64748B',
+    color: '#475569',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 11,
   },
 });

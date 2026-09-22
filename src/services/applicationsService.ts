@@ -779,6 +779,28 @@ export const ApplicationsService = {
     }
   },
 
+  // Delete / Clear an attended or dismissed application
+  async deleteApplication(appId: string): Promise<boolean> {
+    try {
+      const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
+      const allApps: JobApplication[] = local ? JSON.parse(local) : DEFAULT_APPLICATIONS;
+      const updated = allApps.filter((a) => a.id !== appId);
+      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updated));
+
+      if (!IS_MOCK_FIREBASE && db) {
+        try {
+          const { deleteDoc, doc: fsDoc } = await import('firebase/firestore');
+          await deleteDoc(fsDoc(db, 'applications', appId));
+        } catch (fsErr) {
+          console.warn('Firestore deleteDoc application notice (local copy cleared):', fsErr);
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   // Decision shortcuts for employers/recruiters:
   async advanceToFinalReview(appId: string, notes?: string, reviewerName?: string): Promise<boolean> {
     return this.updateApplicationStatus(appId, 'Pending Final Review', {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Lock, Send, UserCheck, ShieldCheck, CheckCircle2, ExternalLink, Briefcase, GraduationCap, Award, Check, Phone, MessageSquare, MapPin } from 'lucide-react-native';
+import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Lock, Send, UserCheck, ShieldCheck, CheckCircle2, ExternalLink, Briefcase, GraduationCap, Award, Check, Phone, MessageSquare, MapPin, Trash2 } from 'lucide-react-native';
 import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
 import { EmailService } from '@/services/emailService';
 import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
@@ -997,6 +997,36 @@ export default function EmployerCandidates() {
                     </View>
                   </>
                 )}
+
+                {/* Clear / Remove Attended Application */}
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      "Clear Application?",
+                      `Permanently remove ${selectedCandidate.name}'s application from your active pipeline?`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Clear Application",
+                          style: "destructive",
+                          onPress: async () => {
+                            const targetId = String(selectedCandidate.appId || selectedCandidate.id);
+                            await ApplicationsService.deleteApplication(targetId);
+                            setCandidateList((prev: CandidateItem[]) => prev.filter((c: CandidateItem) => c.id !== selectedCandidate.id));
+                            setModalVisible(false);
+                            setSelectedCandidate(null);
+                            await syncLiveApplications();
+                            Alert.alert("Cleared", `${selectedCandidate.name}'s record has been removed.`);
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  className="mt-2.5 pt-2.5 border-t border-slate-800 flex-row items-center justify-center active:opacity-75"
+                >
+                  <Trash2 size={12} color="#f87171" style={{ marginRight: 5 }} />
+                  <Text className="text-red-400 font-bold text-[11px]">Clear Application from Pipeline</Text>
+                </TouchableOpacity>
               </View>
 
               <TouchableOpacity 
