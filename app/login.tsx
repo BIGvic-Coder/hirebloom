@@ -153,7 +153,10 @@ export default function Login() {
 
   // 1. Send Email Verification Code (OTP) Flow (Old vs New User Detection)
   const handleSendEmailOtp = async () => {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanEmail = ApplicationsService.normalizeEmail(email);
+    if (cleanEmail !== email) {
+      setEmail(cleanEmail);
+    }
     if (!cleanEmail || !cleanEmail.includes('@')) {
       Alert.alert("Invalid Email", "Please enter a valid email address to continue.");
       return;
@@ -207,7 +210,7 @@ export default function Login() {
 
   // 2. Verify OTP Code and Enter Portal
   const handleVerifyOtp = async () => {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanEmail = ApplicationsService.normalizeEmail(email);
     const cleanCode = (otpCode || '').trim();
 
     if (!cleanCode || cleanCode.length < 4) {
@@ -233,7 +236,10 @@ export default function Login() {
 
   // 3. Password Sign In
   const handleEmailSignIn = async () => {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanEmail = ApplicationsService.normalizeEmail(email);
+    if (cleanEmail !== email) {
+      setEmail(cleanEmail);
+    }
     const cleanPassword = (password || '').trim();
 
     if (!cleanEmail || !cleanPassword) {

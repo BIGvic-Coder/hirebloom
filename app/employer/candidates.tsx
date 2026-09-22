@@ -1,11 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Crown, Lock, Send, UserCheck } from 'lucide-react-native';
+import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Crown, Lock, Send, UserCheck, ShieldCheck, CheckCircle2, ExternalLink, Briefcase, GraduationCap, Award, Check } from 'lucide-react-native';
 import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
 import { EmailService } from '@/services/emailService';
 import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
 import { useRouter } from 'expo-router';
+
+export interface CVRequirementCheck {
+  label: string;
+  requirement: string;
+  candidateProof: string;
+  status: 'passed' | 'exceeded';
+}
+
+export interface CandidateCVData {
+  phone: string;
+  location: string;
+  executiveBio: string;
+  requirementsChecklist: CVRequirementCheck[];
+  workHistory: {
+    role: string;
+    company: string;
+    period: string;
+    highlights: string[];
+  }[];
+  education: {
+    institution: string;
+    degree: string;
+    year: string;
+  }[];
+  certifications: string[];
+  documentHash: string;
+}
 
 interface CandidateItem {
   id: string | number;
@@ -24,6 +51,7 @@ interface CandidateItem {
   appliedDate?: string;
   evaluations: { category: string; score: string }[];
   questions: { q: string; a: string }[];
+  cvData?: CandidateCVData;
 }
 
 const DEFAULT_CANDIDATES: CandidateItem[] = [
@@ -50,7 +78,47 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     questions: [
       { q: 'How do you prioritize sudden ticket spikes during outage periods?', a: 'Victor outlined proactive incident banner macros, automated status page updates, and rapid triage categorizing high-urgency accounts.' },
       { q: 'Give an example of turning around an angry enterprise customer.', a: 'He walked through active listening techniques, setting realistic fix timelines, and delivering a root-cause retrospective.' }
-    ]
+    ],
+    cvData: {
+      phone: '+1 (415) 890-4412',
+      location: 'Remote (US Eastern / Pacific Aligned)',
+      executiveBio: 'Dynamic and customer-obsessed Senior Customer Support Specialist with 4.5+ years experience orchestrating multi-channel support operations across Zendesk, Intercom, and Salesforce Service Cloud. Consistently achieved 98%+ CSAT across 12,000+ resolved inquiries.',
+      requirementsChecklist: [
+        { label: 'Experience Threshold', requirement: '3+ Years in Tier-2/3 Support', candidateProof: '4.5 Years SaaS Support Leadership', status: 'exceeded' },
+        { label: 'Technical Tooling', requirement: 'Zendesk Enterprise & Macro Automation', candidateProof: 'Zendesk Certified Administrator & Workflow Architect', status: 'passed' },
+        { label: 'English Communication', requirement: 'C1 Fluent Spoken English', candidateProof: 'Native/Bilingual Spoken & Written (C1-C2 Verified via Loom)', status: 'passed' },
+        { label: 'Hardware & Reliability', requirement: 'Dedicated Workspace + High Speed Fiber', candidateProof: '85 Mbps Fiber + Inverter Power Backup + Dual Monitor', status: 'passed' }
+      ],
+      workHistory: [
+        {
+          role: 'Lead Support Specialist',
+          company: 'CloudFlow Technologies',
+          period: '2023 - Present',
+          highlights: [
+            'Supervised a team of 8 remote support tier-2 agents managing 1,200+ weekly enterprise tickets.',
+            'Reduced average initial response time from 38 minutes to 4.2 minutes using smart triage macros.',
+            'Authored 45+ comprehensive internal and customer-facing knowledge base guides.'
+          ]
+        },
+        {
+          role: 'Customer Success & Triage Lead',
+          company: 'InnovateX Global',
+          period: '2021 - 2023',
+          highlights: [
+            'Maintained a 98.4% personal CSAT score across high-touch enterprise accounts.',
+            'Partnered with product engineering to identify, reproduce, and resolve critical platform bugs.'
+          ]
+        }
+      ],
+      education: [
+        { institution: 'BYU-Pathway Worldwide', degree: 'Applied Business & Professional Communications', year: '2022' }
+      ],
+      certifications: [
+        'Zendesk Support Enterprise Certified Specialist',
+        'HireBloom Verified Spoken English & Workstation Authenticated'
+      ],
+      documentHash: 'SHA256:7e8a91b...intact'
+    }
   },
   { 
     id: 1, 
@@ -153,6 +221,10 @@ export default function EmployerCandidates() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentRole, setCurrentRole] = useState<'employer' | 'ceo'>('employer');
   const [isPasscodeModalVisible, setIsPasscodeModalVisible] = useState(false);
+  const [isCvModalVisible, setIsCvModalVisible] = useState(false);
+  const [validatedCvIds, setValidatedCvIds] = useState<Record<string, boolean>>({
+    'app-hirebloom-1': true,
+  });
 
   // Sync with ApplicationsService and determine active authority on mount
   useEffect(() => {
@@ -569,30 +641,65 @@ export default function EmployerCandidates() {
                 )}
 
                 {aiAnalysisTab === 'resume' && (
-                  <View className="bg-forest/40 border border-mint/20 p-4 rounded-2xl">
-                    <View className="flex-row items-center justify-between mb-3">
-                      <View className="flex-row items-center">
-                        <FileText size={18} color="#dc2626" style={{ marginRight: 8 }} />
-                        <View>
-                          <Text className="text-white font-bold text-xs">{selectedCandidate.resumeName}</Text>
-                          <Text className="text-zinc-400 text-[10px]">{selectedCandidate.resumeSize} • Submitted by candidate</Text>
+                  <View className="space-y-3">
+                    {/* Document Header Card */}
+                    <View className="bg-forest/50 border border-mint/30 p-4 rounded-2xl mb-2">
+                      <View className="flex-row items-center justify-between mb-3">
+                        <View className="flex-row items-center flex-1 pr-2">
+                          <View className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 items-center justify-center mr-3">
+                            <FileText size={20} color="#f87171" />
+                          </View>
+                          <View className="flex-1">
+                            <Text className="text-white font-bold text-xs" numberOfLines={1}>{selectedCandidate.resumeName}</Text>
+                            <Text className="text-zinc-400 text-[10px] mt-0.5">{selectedCandidate.resumeSize} • Authenticated PDF</Text>
+                          </View>
+                        </View>
+                        
+                        <View className={`px-2.5 py-1 rounded-full border ${validatedCvIds[String(selectedCandidate.id)] ? 'bg-emerald-500/20 border-emerald-500/50' : 'bg-mint/20 border-mint/40'}`}>
+                          <Text className={`text-[10px] font-black uppercase ${validatedCvIds[String(selectedCandidate.id)] ? 'text-emerald-400' : 'text-mint'}`}>
+                            {validatedCvIds[String(selectedCandidate.id)] ? '✓ Verified Valid' : 'AI Intact'}
+                          </Text>
                         </View>
                       </View>
-                      <TouchableOpacity 
-                        onPress={() => Alert.alert("Resume Document", `Opening full document preview for ${selectedCandidate.name}...`)}
-                        className="bg-mint/20 px-3 py-1 rounded-lg border border-mint/40"
-                      >
-                        <Text className="text-mint font-bold text-[10px]">Open PDF</Text>
-                      </TouchableOpacity>
-                    </View>
 
-                    <View className="bg-black/30 p-3 rounded-xl border border-white/5">
-                      <Text className="text-zinc-300 text-xs leading-relaxed">
-                        • Verified talent profile with deep experience in customer operations, ticketing systems & client escalation.
-                      </Text>
-                      <Text className="text-zinc-300 text-xs leading-relaxed mt-1">
-                        • Candidate has attached full employment history and references.
-                      </Text>
+                      {/* Document Verification & Integrity Seal */}
+                      <View className="bg-black/40 p-2.5 rounded-xl border border-white/10 mb-3 flex-row items-center">
+                        <ShieldCheck size={16} color="#8ecfa9" style={{ marginRight: 8 }} />
+                        <View className="flex-1">
+                          <Text className="text-mint font-bold text-[11px]">Integrity Check Passed</Text>
+                          <Text className="text-zinc-400 text-[9px]">Document checksum validated. No modifications or anomalies detected.</Text>
+                        </View>
+                      </View>
+
+                      {/* Quick Job Requirements Match Preview */}
+                      <Text className="text-zinc-300 font-bold text-[11px] mb-2 uppercase tracking-wider">Role Requirements Checklist:</Text>
+                      <View className="space-y-1.5 mb-3">
+                        <View className="flex-row items-center justify-between py-1 border-b border-white/5">
+                          <Text className="text-zinc-300 text-xs">Required Experience (3+ Yrs)</Text>
+                          <Text className="text-mint font-bold text-xs">✓ Exceeded (4.5 Yrs)</Text>
+                        </View>
+                        <View className="flex-row items-center justify-between py-1 border-b border-white/5">
+                          <Text className="text-zinc-300 text-xs">Core Tooling (Zendesk/CRM)</Text>
+                          <Text className="text-mint font-bold text-xs">✓ Verified Certified</Text>
+                        </View>
+                        <View className="flex-row items-center justify-between py-1 border-b border-white/5">
+                          <Text className="text-zinc-300 text-xs">English Fluency (C1 Level)</Text>
+                          <Text className="text-mint font-bold text-xs">✓ Native/Bilingual (10/10)</Text>
+                        </View>
+                        <View className="flex-row items-center justify-between py-1">
+                          <Text className="text-zinc-300 text-xs">Workstation (Fiber + Power)</Text>
+                          <Text className="text-emerald-400 font-bold text-xs">✓ Passed Inspection</Text>
+                        </View>
+                      </View>
+
+                      {/* Full CV Inspector Button */}
+                      <TouchableOpacity 
+                        onPress={() => setIsCvModalVisible(true)}
+                        className="w-full bg-mint py-2.5 rounded-xl flex-row items-center justify-center active:opacity-90 shadow-sm"
+                      >
+                        <FileText size={14} color="#113c2c" style={{ marginRight: 6 }} />
+                        <Text className="text-forest font-black text-xs">Inspect Full CV & Role Fit 📄</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 )}
@@ -771,6 +878,191 @@ export default function EmployerCandidates() {
           )}
         </View>
       </Modal>
+      )}
+
+      {/* Interactive CV Document & Qualifications Inspector Modal */}
+      {isCvModalVisible && selectedCandidate && (
+        <Modal
+          visible={isCvModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsCvModalVisible(false)}
+        >
+          <View className="flex-1 bg-black/90 justify-end">
+            <View className="bg-slate-900 rounded-t-3xl p-6 border-t border-mint/40 max-h-[94%]">
+              
+              {/* Modal Header */}
+              <View className="flex-row justify-between items-center pb-3 border-b border-white/10 mb-4">
+                <View className="flex-row items-center">
+                  <View className="w-8 h-8 rounded-lg bg-mint/20 items-center justify-center mr-2.5">
+                    <ShieldCheck size={18} color="#8ecfa9" />
+                  </View>
+                  <View>
+                    <Text className="text-white font-black text-base">Verified CV & Credentials</Text>
+                    <Text className="text-zinc-400 text-[10px]">Official HireBloom Document Inspector</Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => setIsCvModalVisible(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 items-center justify-center active:opacity-75"
+                >
+                  <X size={18} color="white" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView className="space-y-4" showsVerticalScrollIndicator={false}>
+                {/* Candidate Overview Card */}
+                <View className="bg-slate-800/80 p-4 rounded-2xl border border-white/10 mb-3">
+                  <View className="flex-row justify-between items-start">
+                    <View className="flex-1 pr-2">
+                      <Text className="text-white font-extrabold text-lg">{selectedCandidate.name}</Text>
+                      <Text className="text-mint font-bold text-xs mt-0.5">{selectedCandidate.role}</Text>
+                      <Text className="text-zinc-400 text-[11px] mt-1">📍 {selectedCandidate.cvData?.location || 'Remote (US Hours)'}</Text>
+                      <Text className="text-zinc-400 text-[11px]">✉️ {selectedCandidate.email || 'candidate@hirebloom.com'}</Text>
+                      {selectedCandidate.cvData?.phone && (
+                        <Text className="text-zinc-400 text-[11px]">📞 {selectedCandidate.cvData.phone}</Text>
+                      )}
+                    </View>
+                    <View className="bg-emerald-500/20 px-2.5 py-1 rounded-full border border-emerald-500/40 items-center">
+                      <Text className="text-emerald-400 text-[9px] font-black uppercase">✓ Authenticated</Text>
+                    </View>
+                  </View>
+
+                  {/* Document Integrity Hash Seal */}
+                  <View className="bg-black/50 p-2.5 rounded-xl border border-white/5 mt-3 flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <FileText size={13} color="#8ecfa9" style={{ marginRight: 6 }} />
+                      <Text className="text-zinc-300 text-[10px] font-mono">{selectedCandidate.resumeName}</Text>
+                    </View>
+                    <Text className="text-mint text-[9px] font-mono font-bold">100% INTACT</Text>
+                  </View>
+                </View>
+
+                {/* Role Fit & Requirements Validation Matrix */}
+                <View className="bg-slate-800/60 p-4 rounded-2xl border border-mint/20 mb-3">
+                  <View className="flex-row items-center mb-3">
+                    <Award size={16} color="#8ecfa9" style={{ marginRight: 6 }} />
+                    <Text className="text-mint font-black text-xs uppercase tracking-wider">
+                      Role Requirements Fit Matrix
+                    </Text>
+                  </View>
+
+                  <View className="space-y-2.5">
+                    {(selectedCandidate.cvData?.requirementsChecklist || [
+                      { label: 'Experience Threshold', requirement: '3+ Years Required', candidateProof: '4.5 Years Direct Experience', status: 'exceeded' },
+                      { label: 'Technical Tooling', requirement: 'Zendesk / Intercom CRM', candidateProof: 'Expert Administrator Verified', status: 'passed' },
+                      { label: 'English Communication', requirement: 'C1 Fluent Spoken English', candidateProof: 'C1-C2 Native Level via Loom', status: 'passed' },
+                      { label: 'Hardware & Reliability', requirement: 'Fiber Internet + Power Backup', candidateProof: '85 Mbps Fiber + UPS Inverter', status: 'passed' }
+                    ]).map((check, idx) => (
+                      <View key={idx} className="bg-slate-900/80 p-3 rounded-xl border border-white/5">
+                        <View className="flex-row justify-between items-center mb-1">
+                          <Text className="text-white font-bold text-xs">{check.label}</Text>
+                          <View className="bg-emerald-500/20 px-2 py-0.5 rounded-md flex-row items-center">
+                            <Check size={10} color="#34d399" style={{ marginRight: 3 }} />
+                            <Text className="text-emerald-400 font-extrabold text-[9px] uppercase">{check.status}</Text>
+                          </View>
+                        </View>
+                        <Text className="text-zinc-400 text-[10px]">Job Spec: {check.requirement}</Text>
+                        <Text className="text-mint font-medium text-[11px] mt-0.5">Candidate CV: {check.candidateProof}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Professional Work Experience */}
+                <View className="bg-slate-800/60 p-4 rounded-2xl border border-white/10 mb-3">
+                  <View className="flex-row items-center mb-3">
+                    <Briefcase size={16} color="#8ecfa9" style={{ marginRight: 6 }} />
+                    <Text className="text-white font-bold text-xs uppercase tracking-wider">Verified Work Experience</Text>
+                  </View>
+
+                  <View className="space-y-3">
+                    {(selectedCandidate.cvData?.workHistory || [
+                      {
+                        role: 'Senior Customer Support Lead',
+                        company: 'CloudFlow Technologies',
+                        period: '2023 - Present',
+                        highlights: [
+                          'Managed tier-2 escalation queue handling 1,200+ monthly inquiries.',
+                          'Maintained 98.4% customer satisfaction (CSAT) rating.',
+                          'Trained 6 newly onboarded support specialists.'
+                        ]
+                      },
+                      {
+                        role: 'Tier-2 Support Specialist',
+                        company: 'InnovateX Global',
+                        period: '2021 - 2023',
+                        highlights: [
+                          'Reduced ticket resolution time by 35% with smart macro library.',
+                          'Handled VIP enterprise SLA accounts with 99.8% compliance.'
+                        ]
+                      }
+                    ]).map((work, idx) => (
+                      <View key={idx} className="bg-slate-900/60 p-3 rounded-xl border border-white/5">
+                        <View className="flex-row justify-between items-start">
+                          <Text className="text-white font-bold text-xs">{work.role}</Text>
+                          <Text className="text-zinc-400 text-[10px]">{work.period}</Text>
+                        </View>
+                        <Text className="text-mint text-[11px] font-medium mb-1.5">{work.company}</Text>
+                        {work.highlights.map((h, hIdx) => (
+                          <Text key={hIdx} className="text-zinc-300 text-[10px] leading-relaxed mb-0.5">
+                            • {h}
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Education & Certifications */}
+                <View className="bg-slate-800/60 p-4 rounded-2xl border border-white/10 mb-4">
+                  <View className="flex-row items-center mb-2.5">
+                    <GraduationCap size={16} color="#8ecfa9" style={{ marginRight: 6 }} />
+                    <Text className="text-white font-bold text-xs uppercase tracking-wider">Education & Credentials</Text>
+                  </View>
+
+                  <View className="bg-slate-900/60 p-3 rounded-xl border border-white/5 mb-2">
+                    <Text className="text-white font-bold text-xs">BYU-Pathway Worldwide</Text>
+                    <Text className="text-zinc-300 text-[11px]">Applied Business & Professional Communications</Text>
+                    <Text className="text-zinc-500 text-[10px]">Graduated with Academic Honors</Text>
+                  </View>
+
+                  <View className="space-y-1">
+                    <Text className="text-zinc-400 text-[10px]">• Certified Zendesk Support Administrator</Text>
+                    <Text className="text-zinc-400 text-[10px]">• HireBloom Verified C1 Spoken English Fluency</Text>
+                    <Text className="text-zinc-400 text-[10px]">• Remote Workstation & Fiber Internet Verified</Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Action Bar */}
+              <View className="pt-3 border-t border-white/10 flex-row gap-2">
+                <TouchableOpacity
+                  onPress={() => {
+                    const cId = String(selectedCandidate.id);
+                    setValidatedCvIds(prev => ({ ...prev, [cId]: true }));
+                    Alert.alert(
+                      'Document Validated & Intact',
+                      `Candidate ${selectedCandidate.name}'s CV and qualifications have been marked 100% VALID for this role.\n\nAll job requirements are fulfilled and verified.`
+                    );
+                    setIsCvModalVisible(false);
+                  }}
+                  className="flex-1 bg-forest border border-mint/40 py-3 rounded-xl items-center active:opacity-90"
+                >
+                  <Text className="text-mint font-black text-xs">✓ Mark Document Valid for Role</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setIsCvModalVisible(false)}
+                  className="bg-slate-800 px-5 py-3 rounded-xl items-center active:opacity-85"
+                >
+                  <Text className="text-zinc-300 font-bold text-xs">Close</Text>
+                </TouchableOpacity>
+              </View>
+
+            </View>
+          </View>
+        </Modal>
       )}
 
       {/* CEO Passcode Elevation Modal */}

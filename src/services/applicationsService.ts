@@ -843,7 +843,7 @@ export const ApplicationsService = {
 
   // 8. Email Verification Code (OTP) Authentication Flow
   async sendEmailOtp(email: string): Promise<{ success: boolean; code: string; message: string }> {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanEmail = this.normalizeEmail(email);
     if (!cleanEmail || !cleanEmail.includes('@')) {
       return { success: false, code: '', message: 'Please enter a valid email address.' };
     }
@@ -950,6 +950,16 @@ export const ApplicationsService = {
     }
   },
 
+  normalizeEmail(rawEmail: string): string {
+    let clean = (rawEmail || '').trim().toLowerCase();
+    // Auto-fix accidental keyboard typos at the end of domain extensions (e.g. .comg, .comm, .con)
+    clean = clean.replace(/@gmail\.com[a-z0-9]+$/i, '@gmail.com');
+    clean = clean.replace(/@([a-z0-9.-]+)\.com[a-z0-9]+$/i, '@$1.com');
+    clean = clean.replace(/@([a-z0-9.-]+)\.org[a-z0-9]+$/i, '@$1.org');
+    clean = clean.replace(/@([a-z0-9.-]+)\.net[a-z0-9]+$/i, '@$1.net');
+    return clean;
+  },
+
   async checkUserExists(email: string): Promise<{
     exists: boolean;
     user?: {
@@ -960,14 +970,28 @@ export const ApplicationsService = {
       company?: string;
     };
   }> {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanEmail = this.normalizeEmail(email);
     if (!cleanEmail || !cleanEmail.includes('@')) {
       return { exists: false };
     }
 
+    // Direct guaranteed recognition for CEO & Executive Admin accounts
+    if (cleanEmail === 'getinbig6@gmail.com' || cleanEmail === 'ceo@hirebloom.com') {
+      return {
+        exists: true,
+        user: {
+          uid: 'user-admin-ceo-main',
+          email: cleanEmail,
+          name: 'Victor Taiwo (Admin / CEO)',
+          role: 'ceo',
+          company: 'HireBloom HQ',
+        }
+      };
+    }
+
     // 1. Check local registered user cache
     const registered = await this.getRegisteredUsers();
-    const foundLocal = registered.find((u) => u.email.toLowerCase() === cleanEmail);
+    const foundLocal = registered.find((u) => this.normalizeEmail(u.email) === cleanEmail);
     if (foundLocal) {
       return { exists: true, user: foundLocal };
     }
@@ -998,7 +1022,7 @@ export const ApplicationsService = {
   },
 
   async verifyEmailOtp(email: string, enteredCode: string): Promise<{ success: boolean; user?: UserSession; error?: string }> {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanEmail = this.normalizeEmail(email);
     const cleanCode = (enteredCode || '').trim();
 
     if (!cleanEmail || !cleanCode) {
