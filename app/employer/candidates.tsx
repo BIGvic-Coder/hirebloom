@@ -81,7 +81,7 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     ],
     cvData: {
       phone: '+1 (415) 890-4412',
-      location: 'Remote (US Eastern / Pacific Aligned)',
+      location: 'Nigeria 🇳🇬 (Remote - US Hours)',
       executiveBio: 'Dynamic and customer-obsessed Senior Customer Support Specialist with 4.5+ years experience orchestrating multi-channel support operations across Zendesk, Intercom, and Salesforce Service Cloud. Consistently achieved 98%+ CSAT across 12,000+ resolved inquiries.',
       requirementsChecklist: [
         { label: 'Experience Threshold', requirement: '3+ Years in Tier-2/3 Support', candidateProof: '4.5 Years SaaS Support Leadership', status: 'exceeded' },

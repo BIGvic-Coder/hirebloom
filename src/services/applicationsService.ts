@@ -47,6 +47,7 @@ export interface JobApplication {
   candidateName: string;
   candidateEmail: string;
   candidateInitials?: string;
+  candidateCountry?: string;
   status: ApplicationStatus;
   statusColor: string;
   statusBg: string;
@@ -81,6 +82,7 @@ export interface UserSession {
   name: string;
   role: 'candidate' | 'employer' | 'recruiter' | 'admin' | 'ceo';
   initials: string;
+  country?: string;
 }
 
 // Roles permitted to post jobs
@@ -920,6 +922,7 @@ export const ApplicationsService = {
     role: 'candidate' | 'employer' | 'recruiter' | 'ceo';
     company?: string;
     password?: string;
+    country?: string;
   }): Promise<void> {
     const cleanEmail = profile.email.trim().toLowerCase();
     const existing = await this.getRegisteredUsers();
@@ -940,6 +943,7 @@ export const ApplicationsService = {
             email: cleanEmail,
             role: profile.role,
             company: profile.company || null,
+            country: profile.country || null,
             createdAt: new Date().toISOString(),
           }),
           { merge: true }
@@ -968,6 +972,7 @@ export const ApplicationsService = {
       name: string;
       role: 'candidate' | 'employer' | 'recruiter' | 'ceo';
       company?: string;
+      country?: string;
     };
   }> {
     const cleanEmail = this.normalizeEmail(email);

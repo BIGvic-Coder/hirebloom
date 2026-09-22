@@ -51,13 +51,23 @@ export default function CandidateProfile() {
                   'application/pdf',
                   'application/msword',
                   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                  'text/plain',
                 ],
                 copyToCacheDirectory: true,
               });
 
               if (!result.canceled && result.assets && result.assets.length > 0) {
                 const file = result.assets[0];
+                const lowerName = (file.name || '').toLowerCase();
+                const isValid = lowerName.endsWith('.pdf') || lowerName.endsWith('.doc') || lowerName.endsWith('.docx');
+
+                if (!isValid) {
+                  Alert.alert(
+                    "Invalid Document Format",
+                    "Only PDF (.pdf) and Microsoft Word (.doc, .docx) files are acceptable for job applications."
+                  );
+                  return;
+                }
+
                 let sizeStr = '1.2 MB';
                 if (file.size) {
                   const sizeInKb = Math.round(file.size / 1024);
@@ -74,7 +84,7 @@ export default function CandidateProfile() {
                 };
                 await ApplicationsService.saveCandidateResume(updated);
                 setResume(updated);
-                Alert.alert("Resume Updated", `Successfully attached "${file.name}" (${sizeStr})`);
+                Alert.alert("Resume Updated", `Successfully attached "${file.name}" (${sizeStr}). Verified as a valid document.`);
               }
             } catch (err: any) {
               Alert.alert("File Picker Error", err.message || "Could not open document picker.");

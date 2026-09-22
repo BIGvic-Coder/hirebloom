@@ -7,7 +7,8 @@ import {
   StatusBar,
   Alert,
   ScrollView,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -21,7 +22,12 @@ import {
   EyeOff,
   ChevronLeft,
   ShieldCheck,
-  Crown
+  Crown,
+  Globe,
+  ChevronDown,
+  Search,
+  Check,
+  X
 } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -35,6 +41,32 @@ import {
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { ApplicationsService } from '@/services/applicationsService';
 import { GoogleSignin, statusCodes, isGoogleSigninAvailable } from '@/services/googleAuth';
+
+export interface CountryItem {
+  code: string;
+  name: string;
+  flag: string;
+  region: string;
+}
+
+export const HIRING_COUNTRIES: CountryItem[] = [
+  { code: 'US', name: 'United States', flag: '🇺🇸', region: 'Americas' },
+  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', region: 'Europe' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦', region: 'Americas' },
+  { code: 'NG', name: 'Nigeria', flag: '🇳🇬', region: 'Africa' },
+  { code: 'PH', name: 'Philippines', flag: '🇵🇭', region: 'Asia-Pacific' },
+  { code: 'GH', name: 'Ghana', flag: '🇬🇭', region: 'Africa' },
+  { code: 'KE', name: 'Kenya', flag: '🇰🇪', region: 'Africa' },
+  { code: 'ZA', name: 'South Africa', flag: '🇿🇦', region: 'Africa' },
+  { code: 'IN', name: 'India', flag: '🇮🇳', region: 'Asia-Pacific' },
+  { code: 'DE', name: 'Germany', flag: '🇩🇪', region: 'Europe' },
+  { code: 'BR', name: 'Brazil', flag: '🇧🇷', region: 'Latin America' },
+  { code: 'AU', name: 'Australia', flag: '🇦🇺', region: 'Asia-Pacific' },
+  { code: 'EG', name: 'Egypt', flag: '🇪🇬', region: 'Middle East' },
+  { code: 'PK', name: 'Pakistan', flag: '🇵🇰', region: 'Asia-Pacific' },
+  { code: 'MX', name: 'Mexico', flag: '🇲🇽', region: 'Latin America' },
+  { code: 'GLOBAL', name: 'Other / Worldwide Remote', flag: '🌍', region: 'Global' },
+];
 
 // Official Google Multi-Colored Vector Logo
 const GoogleLogo = () => (
@@ -72,6 +104,9 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<CountryItem>(HIRING_COUNTRIES[3]); // Default Nigeria
+  const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
 
   // Sync email param if passed from Login redirect
   useEffect(() => {
@@ -124,6 +159,7 @@ export default function Register() {
         email: cleanEmail,
         role: userRole,
         initials: ApplicationsService.getInitials(nameToUse, cleanEmail),
+        country: selectedCountry.name,
       });
 
       // 3. Register into persistent user database
@@ -134,6 +170,7 @@ export default function Register() {
         role: userRole,
         company: userRole === 'employer' ? companyName.trim() : userRole === 'ceo' ? (companyName.trim() || 'HireBloom HQ') : undefined,
         password: password.trim(),
+        country: selectedCountry.name,
       });
     } catch (e) {
       console.warn('Local session/registration storage error:', e);
@@ -150,6 +187,7 @@ export default function Register() {
             email: cleanEmail,
             role: userRole,
             company: userRole === 'employer' ? companyName.trim() : userRole === 'ceo' ? (companyName.trim() || 'HireBloom HQ') : null,
+            country: selectedCountry.name,
             createdAt: new Date().toISOString(),
           },
           { merge: true }
@@ -522,6 +560,25 @@ export default function Register() {
               </View>
             )}
 
+            {/* Country / Hiring Region Selector */}
+            <TouchableOpacity
+              onPress={() => setIsCountryModalVisible(true)}
+              className="w-full bg-zinc-50 border border-zinc-200/80 rounded-2xl px-4 py-3 flex-row items-center justify-between mb-2.5 active:opacity-85"
+            >
+              <View className="flex-row items-center flex-1 pr-2">
+                <Globe color="#113c2c" size={18} style={{ marginRight: 10 }} />
+                <View className="flex-1">
+                  <Text className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                    Country / Hiring Region
+                  </Text>
+                  <Text className="text-slate-900 font-bold text-xs mt-0.5" numberOfLines={1}>
+                    {selectedCountry.flag}  {selectedCountry.name} ({selectedCountry.region})
+                  </Text>
+                </View>
+              </View>
+              <ChevronDown size={16} color="#64748b" />
+            </TouchableOpacity>
+
             {/* Email Address */}
             <View className="w-full bg-zinc-50 border border-zinc-200/80 rounded-2xl px-4 py-3 flex-row items-center mb-2.5">
               <Mail color="#113c2c" size={18} style={{ marginRight: 10 }} />
@@ -590,6 +647,93 @@ export default function Register() {
           </View>
         </View>
       </ScrollView>
+      {/* Country Selection Modal */}
+      <Modal
+        visible={isCountryModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsCountryModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/75 justify-end">
+          <View className="bg-white rounded-t-3xl p-6 max-h-[82%] border-t border-zinc-200">
+            {/* Header */}
+            <View className="flex-row justify-between items-center pb-3 border-b border-zinc-100 mb-4">
+              <View className="flex-row items-center">
+                <Globe size={18} color="#113c2c" style={{ marginRight: 8 }} />
+                <View>
+                  <Text className="text-slate-900 font-extrabold text-base">Select Your Country</Text>
+                  <Text className="text-zinc-400 text-[10px]">Required for employer regional matching</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsCountryModalVisible(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 items-center justify-center active:opacity-75"
+              >
+                <X size={16} color="#475569" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Input */}
+            <View className="bg-zinc-50 border border-zinc-200 rounded-2xl px-3.5 py-2.5 flex-row items-center mb-4">
+              <Search size={16} color="#94a3b8" style={{ marginRight: 8 }} />
+              <TextInput
+                placeholder="Search country or region (e.g. Nigeria, US, UK)..."
+                placeholderTextColor="#94a3b8"
+                className="flex-1 text-slate-900 text-xs font-medium"
+                value={countrySearch}
+                onChangeText={setCountrySearch}
+                autoCorrect={false}
+              />
+              {countrySearch.length > 0 && (
+                <TouchableOpacity onPress={() => setCountrySearch('')}>
+                  <X size={14} color="#94a3b8" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Country List */}
+            <ScrollView showsVerticalScrollIndicator={false} className="max-h-96">
+              {HIRING_COUNTRIES.filter(
+                (c) =>
+                  c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+                  c.region.toLowerCase().includes(countrySearch.toLowerCase())
+              ).map((country) => {
+                const isSelected = selectedCountry.code === country.code;
+                return (
+                  <TouchableOpacity
+                    key={country.code}
+                    onPress={() => {
+                      setSelectedCountry(country);
+                      setIsCountryModalVisible(false);
+                      setCountrySearch('');
+                    }}
+                    className={`flex-row items-center justify-between p-3.5 rounded-2xl mb-2 border ${
+                      isSelected
+                        ? 'bg-mint/15 border-forest shadow-sm'
+                        : 'bg-zinc-50/70 border-zinc-200/60 active:bg-zinc-100'
+                    }`}
+                  >
+                    <View className="flex-row items-center flex-1">
+                      <Text className="text-2xl mr-3">{country.flag}</Text>
+                      <View>
+                        <Text className={`font-bold text-xs ${isSelected ? 'text-forest' : 'text-slate-800'}`}>
+                          {country.name}
+                        </Text>
+                        <Text className="text-zinc-400 text-[10px]">{country.region}</Text>
+                      </View>
+                    </View>
+                    {isSelected && (
+                      <View className="w-6 h-6 rounded-full bg-forest items-center justify-center">
+                        <Check size={14} color="white" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

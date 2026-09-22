@@ -158,13 +158,23 @@ export default function CandidateJobs() {
                   'application/pdf',
                   'application/msword',
                   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                  'text/plain',
                 ],
                 copyToCacheDirectory: true,
               });
 
               if (!result.canceled && result.assets && result.assets.length > 0) {
                 const file = result.assets[0];
+                const lowerFileName = (file.name || '').toLowerCase();
+                const isValidDoc = lowerFileName.endsWith('.pdf') || lowerFileName.endsWith('.doc') || lowerFileName.endsWith('.docx');
+
+                if (!isValidDoc) {
+                  Alert.alert(
+                    "Invalid Document Format",
+                    "Only PDF (.pdf) and Microsoft Word (.doc, .docx) files are acceptable for job applications."
+                  );
+                  return;
+                }
+
                 let sizeStr = '1.2 MB';
                 if (file.size) {
                   const sizeInKb = Math.round(file.size / 1024);
@@ -181,7 +191,7 @@ export default function CandidateJobs() {
                 };
                 setAttachedResume(updated);
                 await ApplicationsService.saveCandidateResume(updated);
-                Alert.alert("Resume Attached", `Attached "${file.name}" (${sizeStr})`);
+                Alert.alert("Resume Attached", `Successfully attached "${file.name}" (${sizeStr}). Verified as a valid document.`);
               }
             } catch (err: any) {
               Alert.alert("File Picker Error", err.message || "Could not open document picker.");
@@ -518,24 +528,21 @@ export default function CandidateJobs() {
 
               {/* Attached Resume Section */}
               <View className="bg-white border border-slate-200 rounded-2xl p-4 mb-4 shadow-sm">
-                <View className="flex-row justify-between items-center mb-2.5">
+                <View className="flex-row justify-between items-center mb-1">
                   <View className="flex-row items-center">
                     <FileText size={15} color="#113c2c" style={{ marginRight: 6 }} />
                     <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                       Attached Resume / CV
                     </Text>
                   </View>
-                  <TouchableOpacity 
-                    onPress={handlePickResume}
-                    disabled={isUploadingResume}
-                    className="flex-row items-center"
-                  >
-                    <UploadCloud size={14} color="#059669" style={{ marginRight: 4 }} />
-                    <Text className="text-emerald-700 font-bold text-xs">
-                      {isUploadingResume ? 'Uploading...' : 'Change File'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View className="bg-mint/20 px-2 py-0.5 rounded-md border border-mint/40">
+                    <Text className="text-forest font-bold text-[9px] uppercase tracking-wider">PDF & DOC ONLY</Text>
+                  </View>
                 </View>
+
+                <Text className="text-zinc-400 text-[10px] mb-2.5">
+                  Only PDF (.pdf) and Word documents (.doc, .docx) are acceptable. Max 5MB.
+                </Text>
 
                 <View className="bg-zinc-50 border border-zinc-200 p-3 rounded-xl flex-row items-center justify-between">
                   <View className="flex-row items-center flex-1 pr-2">
@@ -547,15 +554,21 @@ export default function CandidateJobs() {
                         {attachedResume.name}
                       </Text>
                       <Text className="text-zinc-500 text-[10px]">
-                        {attachedResume.size} • Ready for hiring team
+                        {attachedResume.size} • Verified Valid Document
                       </Text>
                     </View>
                   </View>
 
-                  <View className="bg-emerald-100 px-2 py-0.5 rounded-md flex-row items-center">
-                    <Check size={11} color="#059669" strokeWidth={3} style={{ marginRight: 3 }} />
-                    <Text className="text-[10px] font-bold text-emerald-800">Attached</Text>
-                  </View>
+                  <TouchableOpacity 
+                    onPress={handlePickResume}
+                    disabled={isUploadingResume}
+                    className="bg-forest/10 border border-forest/20 px-2.5 py-1.5 rounded-lg flex-row items-center"
+                  >
+                    <UploadCloud size={12} color="#113c2c" style={{ marginRight: 4 }} />
+                    <Text className="text-forest font-bold text-[10px]">
+                      {isUploadingResume ? 'Uploading...' : 'Change File'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
