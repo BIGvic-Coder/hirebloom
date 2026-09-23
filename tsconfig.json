@@ -45,5 +45,5 @@
     "src/components/hint-row.tsx",
     "src/components/animated-icon.web.tsx"
   ],
-  "extends": "expo/tsconfig.base"
+  "extends": "./tsconfig.base.json"
 }
