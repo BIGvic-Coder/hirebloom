@@ -304,7 +304,7 @@ export default function HowItWorks() {
               <View key={idx} className="flex-row items-center bg-white border border-zinc-200 px-3 py-1.5 rounded-full mr-1">
                 <View className="w-5 h-5 rounded-full bg-forest items-center justify-center mr-1.5 overflow-hidden">
                   {ONBOARD_AVATARS[name] ? (
-                    <Image source={ONBOARD_AVATARS[name]} className="w-full h-full" resizeMode="cover" />
+                    <Image source={ONBOARD_AVATARS[name]} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                   ) : (
                     <Text className="text-white text-[9px] font-bold">{name.charAt(0)}</Text>
                   )}
