@@ -495,10 +495,22 @@ export const ApplicationsService = {
         }
       }
 
-      // 1. Immediately send Official "Application Submitted" Email to candidate (matching Screenshot 1)
+      // 1. Immediately send Official Role-Specific "Application Submitted" Email to candidate
       await EmailService.sendApplicationSubmittedEmail(
         { name: candidate.name, email: candidate.email },
-        { title: job.title, company: job.company }
+        { 
+          id: job.id,
+          title: job.title, 
+          company: job.company,
+          location: job.location,
+          salary: job.salary,
+          type: job.type,
+        },
+        {
+          applicationId: appId,
+          resumeName: resumeInfo.name,
+          hasLoom: Boolean(loomPitch),
+        }
       );
 
       // 2. In-app notification for candidate

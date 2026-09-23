@@ -182,35 +182,118 @@ export default function EmailInboxModal({
 
               {/* ===================== RENDER EMAIL BODY TEMPLATES ===================== */}
 
-              {/* Template 1: Application Submitted (Matches Image 1: Dark Card with hirebloom logo) */}
+              {/* Template 1: Application Submitted (Dark Card with hirebloom logo & role-specific details) */}
               {selectedEmail.template === 'application_submitted' && (
-                <View className="bg-[#121815] rounded-3xl p-7 mb-6 shadow-md border border-emerald-950">
-                  {/* Brand Header */}
-                  <View className="flex-row items-center justify-center mb-8">
-                    <HireBloomLogoMark size={24} />
-                    <Text className="text-xl font-bold text-emerald-500 ml-2 font-serif tracking-tight">
-                      hire bloom
-                    </Text>
+                <View className="bg-[#121815] rounded-3xl p-6 mb-6 shadow-md border border-emerald-950">
+                  {/* Brand Header & Review Stage Badge */}
+                  <View className="flex-row items-center justify-between mb-6 pb-4 border-b border-zinc-800">
+                    <View className="flex-row items-center">
+                      <HireBloomLogoMark size={22} />
+                      <Text className="text-lg font-bold text-emerald-500 ml-2 font-serif tracking-tight">
+                        hire bloom
+                      </Text>
+                    </View>
+                    <View className="bg-emerald-950/90 border border-emerald-700/60 px-2.5 py-1 rounded-full">
+                      <Text className="text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
+                        {selectedEmail.metadata?.stage || 'Review Queue'}
+                      </Text>
+                    </View>
                   </View>
 
-                  {/* Body Text matching screenshot */}
-                  <Text className="text-white font-normal text-base leading-relaxed mb-6">
+                  {/* Greeting */}
+                  <Text className="text-white font-bold text-lg mb-2">
                     Hi {selectedEmail.toName},
                   </Text>
 
-                  <Text className="text-zinc-200 font-normal text-base leading-relaxed mb-6">
-                    Thanks for applying! Your application is in our review queue, and we're carefully reviewing your experience.
+                  <Text className="text-zinc-200 text-sm leading-relaxed mb-5">
+                    Thank you for applying for the{' '}
+                    <Text className="font-extrabold text-white">
+                      {selectedEmail.metadata?.jobTitle || 'Role'}
+                    </Text>{' '}
+                    position at{' '}
+                    <Text className="font-extrabold text-emerald-400">
+                      {selectedEmail.metadata?.company || 'TechNova Inc.'}
+                    </Text>{' '}
+                    via HireBloom!
                   </Text>
 
-                  <Text className="text-zinc-200 font-normal text-base leading-relaxed mb-8">
-                    You'll hear from us within 1–2 weeks. No action needed on your end — just keep an eye on your inbox (and spam folder, just in case).
-                  </Text>
+                  {/* Application Spec Breakdown */}
+                  <View className="bg-zinc-900/90 rounded-2xl p-4 mb-5 border border-zinc-800">
+                    <Text className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-2.5">
+                      Application Dossier & Review Spec
+                    </Text>
+                    <View>
+                      <View className="flex-row justify-between py-1.5 border-b border-zinc-800/80">
+                        <Text className="text-xs text-zinc-400">Role Applied</Text>
+                        <Text className="text-xs font-bold text-white">
+                          {selectedEmail.metadata?.jobTitle || 'N/A'}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between py-1.5 border-b border-zinc-800/80">
+                        <Text className="text-xs text-zinc-400">Hiring Company</Text>
+                        <Text className="text-xs font-bold text-emerald-300">
+                          {selectedEmail.metadata?.company || 'TechNova Inc.'}
+                        </Text>
+                      </View>
+                      {selectedEmail.metadata?.applicationId ? (
+                        <View className="flex-row justify-between py-1.5 border-b border-zinc-800/80">
+                          <Text className="text-xs text-zinc-400">Reference ID</Text>
+                          <Text className="text-xs font-mono text-zinc-300">
+                            {selectedEmail.metadata.applicationId}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <View className="flex-row justify-between py-1.5 border-b border-zinc-800/80">
+                        <Text className="text-xs text-zinc-400">Review Window</Text>
+                        <Text className="text-xs font-bold text-white">24–48 Hours</Text>
+                      </View>
+                      <View className="flex-row justify-between py-1.5">
+                        <Text className="text-xs text-zinc-400">Status</Text>
+                        <Text className="text-xs font-bold text-emerald-400">
+                          In Preliminary Review
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Review Steps & What to Expect */}
+                  <View className="bg-emerald-950/40 rounded-2xl p-4 mb-6 border border-emerald-900/60">
+                    <Text className="text-emerald-300 font-bold text-xs uppercase tracking-wider mb-2.5">
+                      What to Expect Next:
+                    </Text>
+                    <View>
+                      <View className="flex-row items-start mb-2">
+                        <View className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 mr-2 flex-shrink-0" />
+                        <Text className="flex-1 text-zinc-300 text-xs leading-relaxed">
+                          Our vetting team is evaluating your qualifications and experience specifically for the{' '}
+                          <Text className="text-white font-bold">{selectedEmail.metadata?.jobTitle || 'selected'}</Text>{' '}
+                          role.
+                        </Text>
+                      </View>
+                      <View className="flex-row items-start mb-2">
+                        <View className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 mr-2 flex-shrink-0" />
+                        <Text className="flex-1 text-zinc-300 text-xs leading-relaxed">
+                          Shortlisted candidates will receive direct video interview invitations with the hiring team.
+                        </Text>
+                      </View>
+                      <View className="flex-row items-start">
+                        <View className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 mr-2 flex-shrink-0" />
+                        <Text className="flex-1 text-zinc-300 text-xs leading-relaxed">
+                          You can track real-time milestone updates under the Applications tab in your dashboard.
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
 
                   {/* Vetted assurance footer */}
-                  <View className="pt-6 border-t border-zinc-800 flex-row items-center justify-between">
-                    <Text className="text-[11px] text-zinc-400">Hire Bloom Talent Operations</Text>
+                  <View className="pt-4 border-t border-zinc-800 flex-row items-center justify-between">
+                    <Text className="text-[11px] text-zinc-400">
+                      {selectedEmail.metadata?.company || 'HireBloom'} Talent Operations
+                    </Text>
                     <View className="bg-emerald-900/60 px-2.5 py-1 rounded-full border border-emerald-700/50">
-                      <Text className="text-emerald-300 text-[10px] font-bold">Top 9% Vetted Pool</Text>
+                      <Text className="text-emerald-300 text-[10px] font-bold">
+                        Top 9% Vetted Pool
+                      </Text>
                     </View>
                   </View>
                 </View>

@@ -40,6 +40,10 @@ export interface EmailMessage {
     meetUrl?: string;
     salary?: string;
     startDate?: string;
+    location?: string;
+    type?: string;
+    applicationId?: string;
+    submittedMaterials?: string;
   };
 }
 
@@ -423,35 +427,76 @@ Global Hiring Operations & Talent Success`,
   },
 
   /**
-   * 1. Send "Application Submitted" Email (matching Screenshot 1)
+   * 1. Send Role-Specific "Application Submitted" Email
    */
   async sendApplicationSubmittedEmail(
     candidate: { name: string; email: string },
-    job: { title: string; company: string }
+    job: { title: string; company: string; location?: string; salary?: string; type?: string; id?: string },
+    details?: { resumeName?: string; hasLoom?: boolean; applicationId?: string }
   ): Promise<EmailMessage> {
     const firstName = candidate.name.split(' ')[0] || 'Victor';
+    const roleTitle = job.title || 'Role';
+    const companyName = job.company || 'TechNova Inc.';
+    const appId = details?.applicationId || job.id || `HB-${Math.floor(1000 + Math.random() * 9000)}`;
+    const assetsList = [
+      details?.resumeName ? `Resume (${details.resumeName})` : 'Verified Resume',
+      details?.hasLoom ? 'Loom Video Pitch' : null,
+    ].filter(Boolean).join(' & ');
+
     const email: EmailMessage = {
       id: `email-${Date.now()}`,
       toEmail: candidate.email.toLowerCase().trim(),
       toName: firstName,
-      fromName: 'Bloom',
-      fromEmail: 'review@hirebloom.com',
-      subject: 'Application Submitted',
-      preview: `Hi ${firstName}, Thanks for applying! Your application is in our review queue, and we're carefully reviewing your experience.`,
+      fromName: `${companyName} Talent Operations`,
+      fromEmail: 'admissions@hirebloom.com',
+      subject: `Application Received: ${roleTitle} at ${companyName}`,
+      preview: `Thank you for applying to ${roleTitle} at ${companyName}! Your application is currently under preliminary review with our hiring team.`,
       template: 'application_submitted',
       date: 'Today',
       timestamp: Date.now(),
       read: false,
       metadata: {
-        jobTitle: job.title,
-        company: job.company,
-        stage: 'Review Queue',
+        jobTitle: roleTitle,
+        company: companyName,
+        stage: 'Preliminary Review Queue',
+        location: job.location || 'Remote',
+        salary: job.salary,
+        type: job.type || 'Full-time',
+        applicationId: appId,
+        submittedMaterials: assetsList,
+        reviewerName: `${companyName} Vetting Desk`,
+        senderTitle: 'Talent Acquisition & Assessment',
+        teamName: 'HireBloom Global Operations',
       },
       body: `Hi ${firstName},
 
-Thanks for applying! Your application is in our review queue, and we're carefully reviewing your experience.
+Thank you for applying for the ${roleTitle} position at ${companyName} via HireBloom!
 
-You'll hear from us within 1–2 weeks. No action needed on your end — just keep an eye on your inbox (and spam folder, just in case).`,
+We have successfully received your candidate application package. Our vetting specialists and hiring managers are actively evaluating your qualifications, background, and experience against the key requirements for ${roleTitle}.
+
+Application Overview:
+• Position: ${roleTitle}
+• Company: ${companyName}
+• Employment Type: ${job.type || 'Full-time / Remote'}
+• Reference ID: ${appId}
+• Submitted Assets: ${assetsList}
+• Current Stage: Preliminary Review Queue
+
+Evaluation Process & Next Steps:
+1. Screening & Skills Alignment (24–48 Hours):
+Our vetting team reviews your technical experience, previous projects, and role alignment specifically for ${roleTitle}.
+
+2. Candidate Shortlisting:
+If your profile meets the benchmark, you will receive an invitation to schedule an executive interview directly with the hiring manager.
+
+3. Real-Time Tracking:
+You can track real-time milestone progress, reviewer feedback, and interview invitations directly in your HireBloom dashboard under the "Applications" tab.
+
+We appreciate your interest in joining ${companyName} and will keep you updated on your application status.
+
+Warm regards,
+HireBloom Talent Operations
+In partnership with ${companyName} Hiring Team`,
     };
 
     await this.dispatchEmail(email);
