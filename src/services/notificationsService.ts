@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, IS_MOCK_FIREBASE } from '@/constants/firebase';
+import { db, IS_MOCK_FIREBASE, ensureFirebaseAuth, sanitizeForFirestore } from '@/constants/firebase';
 import { collection, doc, getDocs, setDoc, updateDoc, query, where } from 'firebase/firestore';
 
 export type NotificationCategory = 'application' | 'interview' | 'offer' | 'onboarding' | 'system';
@@ -54,7 +54,9 @@ export const NotificationsService = {
 
       if (!IS_MOCK_FIREBASE && db && userId) {
         try {
-          const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+          await ensureFirebaseAuth();
+          const cleanUser = userId.trim().toLowerCase();
+          const q = query(collection(db, 'notifications'), where('userId', '==', cleanUser));
           const snap = await getDocs(q);
           if (!snap.empty) {
             const cloudDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as NotificationItem));
@@ -142,7 +144,8 @@ export const NotificationsService = {
     try {
       if (!IS_MOCK_FIREBASE && db) {
         try {
-          await setDoc(doc(db, 'notifications', newNotif.id), newNotif);
+          await ensureFirebaseAuth();
+          await setDoc(doc(db, 'notifications', newNotif.id), sanitizeForFirestore(newNotif));
         } catch {
           // Handled silently
         }

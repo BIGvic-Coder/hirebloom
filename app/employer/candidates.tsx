@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking, RefreshControl } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Lock, Send, UserCheck, ShieldCheck, CheckCircle2, ExternalLink, Briefcase, GraduationCap, Award, Check, Phone, MessageSquare, MapPin, Trash2 } from 'lucide-react-native';
+import { Search, Star, X, Sparkles, CheckCircle, FileText, ArrowUpRight, Lock, Send, UserCheck, ShieldCheck, CheckCircle2, ExternalLink, Briefcase, GraduationCap, Award, Check, Phone, MessageSquare, MapPin, Trash2, Calendar, Clock, Video, Mail } from 'lucide-react-native';
 import { ApplicationsService, ApplicationStatus } from '@/services/applicationsService';
 import { EmailService } from '@/services/emailService';
 import ExecutivePasscodeModal from '@/components/ui/ExecutivePasscodeModal';
@@ -62,6 +63,7 @@ interface CandidateItem {
   aiVettingStatus?: 'Approved' | 'Flagged' | 'Needs Review';
   aiVettingFeedback?: string;
   assignedReviewer?: string;
+  isNew?: boolean;
 }
 
 const DEFAULT_CANDIDATES: CandidateItem[] = [
@@ -69,6 +71,7 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     id: 'app-hirebloom-1',
     appId: 'app-hirebloom-1',
     name: 'Victor Taiwo',
+    email: 'victor@hirebloom.com',
     role: 'Senior Customer Support Lead',
     stage: 'Final Review',
     match: '97%',
@@ -141,6 +144,7 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     id: 1, 
     appId: 'app-1',
     name: 'Sarah Jenkins', 
+    email: 'sarah.jenkins@hirebloom.com',
     role: 'Senior Frontend Engineer', 
     stage: 'Interview', 
     match: '98%', 
@@ -195,6 +199,7 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     id: 2, 
     appId: 'app-2',
     name: 'Michael Chen', 
+    email: 'michael.chen@gmail.com',
     role: 'Senior Frontend Engineer', 
     stage: 'Screening', 
     match: '92%', 
@@ -217,6 +222,7 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     id: 3, 
     appId: 'app-3',
     name: 'Elena Rodriguez', 
+    email: 'elena.rodriguez@design.io',
     role: 'Product Designer', 
     stage: 'Offer Sent', 
     match: '95%', 
@@ -239,6 +245,7 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     id: 4, 
     appId: 'app-4',
     name: 'David Kim', 
+    email: 'david.kim@backend.dev',
     role: 'Backend Developer', 
     stage: 'Screening', 
     match: '88%', 
@@ -274,6 +281,16 @@ export default function EmployerCandidates() {
     'app-hirebloom-1': true,
   });
 
+  // Dedicated Schedule Interview Modal state
+  const [isScheduleModalVisible, setIsScheduleModalVisible] = useState(false);
+  const [scheduleCandidateEmail, setScheduleCandidateEmail] = useState('');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [scheduleMeetUrl, setScheduleMeetUrl] = useState('https://meet.google.com/hbm-intr-vct');
+  const [scheduleType, setScheduleType] = useState('Live Client Panel Interview');
+  const [scheduleNotes, setScheduleNotes] = useState('Camera & high-speed fiber internet required.');
+  const [isScheduling, setIsScheduling] = useState(false);
+
   // Sync with ApplicationsService and determine active authority on mount
   useEffect(() => {
     syncLiveApplications();
@@ -298,7 +315,7 @@ export default function EmployerCandidates() {
     try {
       const allApps = await ApplicationsService.getAllApplications();
       if (allApps.length > 0) {
-        // Merge applications into candidate list
+        // Merge applications into candidate list with new applicant detection
         const mapped: CandidateItem[] = allApps.map((app) => {
           let stageLabel = 'Screening';
           if (app.status === 'Pending Final Review') stageLabel = 'Final Review';
@@ -310,6 +327,7 @@ export default function EmployerCandidates() {
           const candPhone = app.candidatePhone || existingMatch?.phone || '+234 801 234 5678';
           const candWhatsapp = app.candidateWhatsapp || app.candidatePhone || existingMatch?.whatsapp || candPhone;
           const candLocation = app.candidateCountry ? `${app.candidateCountry} (Remote)` : (existingMatch?.cvData?.location || 'Nigeria 🇳🇬 (Remote)');
+          const isNewlyApplied = app.isNew === true || app.status === 'Pending Review' || Boolean(app.timestamp && (Date.now() - app.timestamp < 1000 * 60 * 60 * 24 * 7));
 
           return {
             id: app.id,
@@ -318,6 +336,7 @@ export default function EmployerCandidates() {
             email: app.candidateEmail,
             role: app.jobTitle || 'Role',
             stage: stageLabel,
+            isNew: isNewlyApplied,
             match: app.aiMatchScore || existingMatch?.match || '95%',
             image: app.candidateInitials || ApplicationsService.getInitials(app.candidateName, app.candidateEmail),
             videoUrl: existingMatch?.videoUrl || 'https://youtu.be/HO4sLYt4xE4',
@@ -377,7 +396,7 @@ export default function EmployerCandidates() {
           };
         });
 
-        // Ensure unique by name or id
+        // Ensure unique by name or id, sorting newly applied candidates first
         const merged = [...mapped];
         DEFAULT_CANDIDATES.forEach(def => {
           if (!merged.some(m => m.name === def.name)) {
@@ -385,10 +404,133 @@ export default function EmployerCandidates() {
           }
         });
 
+        merged.sort((a, b) => {
+          if (a.isNew && !b.isNew) return -1;
+          if (!a.isNew && b.isNew) return 1;
+          return 0;
+        });
+
         setCandidateList(merged);
       }
     } catch (e) {
       console.warn('Error loading live apps:', e);
+    }
+  };
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await syncLiveApplications();
+    setRefreshing(false);
+  };
+
+  const openScheduleModal = async (candidate: CandidateItem) => {
+    let emailToUse = candidate.email || '';
+    if (!emailToUse || emailToUse === 'talent@hirebloom.com') {
+      try {
+        const storedUsers = await AsyncStorage.getItem('@hirebloom_registered_users');
+        if (storedUsers) {
+          const parsed = JSON.parse(storedUsers);
+          if (Array.isArray(parsed)) {
+            const found = parsed.find((u: any) =>
+              u.name?.toLowerCase() === candidate.name.toLowerCase() ||
+              u.name?.toLowerCase().includes(candidate.name.toLowerCase().split(' ')[0])
+            );
+            if (found?.email) {
+              emailToUse = found.email;
+            }
+          }
+        }
+      } catch {}
+      if (!emailToUse) {
+        if (candidate.name.toLowerCase().includes('victor')) {
+          emailToUse = 'victor@hirebloom.com';
+        } else {
+          emailToUse = `${candidate.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@hirebloom.com`;
+        }
+      }
+    }
+
+    setScheduleCandidateEmail(emailToUse);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateFormatted = tomorrow.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    setScheduleDate(dateFormatted);
+    setScheduleTime('3:00 PM - 3:45 PM EST (8:00 PM WAT)');
+    setScheduleMeetUrl('https://meet.google.com/hbm-intr-vct');
+    setScheduleType('Live Client Panel Interview');
+    setScheduleNotes('Camera & high-speed fiber internet connection required.');
+    setIsScheduleModalVisible(true);
+  };
+
+  const handleConfirmScheduleInterview = async (openNativeMail: boolean = false) => {
+    if (!selectedCandidate) return;
+    const cleanEmail = scheduleCandidateEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      Alert.alert('Invalid Email', 'Please enter a valid candidate email address for interview delivery.');
+      return;
+    }
+
+    setIsScheduling(true);
+    const targetAppId = selectedCandidate.appId ? String(selectedCandidate.appId) : `app-${selectedCandidate.id}`;
+
+    const interviewDetails = {
+      date: scheduleDate.trim() || 'Tomorrow',
+      time: scheduleTime.trim() || '3:00 PM EST',
+      meetUrl: scheduleMeetUrl.trim() || 'https://meet.google.com/hbm-intr-vct',
+      type: scheduleType.trim() || 'Live Panel Interview',
+    };
+
+    // 1. Update candidate stage in state
+    setCandidateList((prev) =>
+      prev.map((c) => (c.id === selectedCandidate.id ? { ...c, stage: 'Interview', email: cleanEmail } : c))
+    );
+    setSelectedCandidate((prev) => (prev ? { ...prev, stage: 'Interview', email: cleanEmail } : null));
+
+    // 2. Call ApplicationsService to update status & dispatch in-app email & notifications
+    await ApplicationsService.updateApplicationStatus(targetAppId, 'Interview Scheduled', {
+      step: 'Step 3: Client Panel Interview Scheduled',
+      feedbackReason: `Selected for ${scheduleType} on ${scheduleDate} at ${scheduleTime}. Meeting room: ${scheduleMeetUrl}`,
+      notes: `Interview scheduled with ${selectedCandidate.name}. Official invitation dispatched to ${cleanEmail}.`,
+      interviewDetails,
+      candidateName: selectedCandidate.name,
+      candidateEmail: cleanEmail,
+      jobTitle: selectedCandidate.role,
+      company: 'HireBloom Inc.',
+    });
+
+    // 3. Directly dispatch through EmailService to guarantee delivery to cleanEmail
+    const interviewEmail = await EmailService.sendInterviewInviteEmail(
+      { name: selectedCandidate.name, email: cleanEmail },
+      { title: selectedCandidate.role, company: 'HireBloom Inc.' },
+      interviewDetails
+    );
+
+    setIsScheduling(false);
+    setIsScheduleModalVisible(false);
+
+    // 4. Offer native phone mail client launch
+    if (openNativeMail) {
+      await EmailService.openDeviceMailClient(interviewEmail);
+    } else {
+      Alert.alert(
+        'Interview Scheduled & Email Dispatched',
+        `An official interview invitation has been dispatched to ${selectedCandidate.name}!\n\nRecipient: ${cleanEmail}\nSchedule: ${interviewDetails.date} at ${interviewDetails.time}\n\nDelivered to: Candidate's Mobile Bloom Inbox & Phone Device Mail Queue.`,
+        [
+          {
+            text: 'Send via Phone Mail App',
+            onPress: async () => {
+              await EmailService.openDeviceMailClient(interviewEmail);
+            },
+          },
+          { text: 'Done', style: 'default' },
+        ]
+      );
     }
   };
 
@@ -422,7 +564,11 @@ export default function EmployerCandidates() {
         ? 'Candidate Selection Completed'
         : 'Recruiter Screening Active',
       feedbackReason: feedback,
-      notes: `Decision recorded: Moved to ${newStage}`
+      notes: `Decision recorded: Moved to ${newStage}`,
+      candidateName: selectedCandidate.name,
+      candidateEmail: selectedCandidate.email,
+      jobTitle: selectedCandidate.role,
+      company: 'HireBloom Inc.',
     });
 
     Alert.alert(
@@ -447,8 +593,10 @@ export default function EmployerCandidates() {
   const filteredCandidates = candidateList.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           c.role.toLowerCase().includes(searchQuery.toLowerCase());
-    if (selectedStage === 'All') return matchesSearch;
-    return matchesSearch && c.stage.toLowerCase() === selectedStage.toLowerCase();
+    if (!matchesSearch) return false;
+    if (selectedStage === 'All') return true;
+    if (selectedStage === 'New Applicants') return c.isNew || c.stage === 'Screening';
+    return c.stage.toLowerCase() === selectedStage.toLowerCase();
   });
 
   return (
@@ -506,7 +654,7 @@ export default function EmployerCandidates() {
 
         {/* Stage Filter Pills */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 max-h-11">
-          {['All', 'Final Review', 'Screening', 'Interview', 'Offer Sent', 'Not Selected'].map((stage) => {
+          {['All', 'New Applicants', 'Final Review', 'Screening', 'Interview', 'Offer Sent', 'Not Selected'].map((stage) => {
             const isSelected = selectedStage.toLowerCase() === stage.toLowerCase();
             return (
               <TouchableOpacity
@@ -525,16 +673,22 @@ export default function EmployerCandidates() {
         </ScrollView>
 
         {/* Candidate Feed */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
           {filteredCandidates.map((c) => (
             <TouchableOpacity
               key={c.id}
               onPress={() => handleSelectCandidate(c)}
-              className="bg-white rounded-3xl p-5 mb-4 border border-slate-200 shadow-sm active:opacity-90"
+              className={`bg-white rounded-3xl p-5 mb-4 border ${
+                c.isNew ? 'border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30' : 'border-slate-200 shadow-sm'
+              } active:opacity-90`}
             >
               <View className="flex-row justify-between items-start mb-3">
                 <View className="flex-row items-center flex-1 pr-2">
-                  <View className="w-12 h-12 bg-slate-950 rounded-2xl items-center justify-center mr-3 shadow-sm">
+                  <View className={`w-12 h-12 ${c.isNew ? 'bg-emerald-950' : 'bg-slate-950'} rounded-2xl items-center justify-center mr-3 shadow-sm`}>
                     <Text className="text-white font-extrabold text-base font-serif">{c.image}</Text>
                   </View>
                   <View className="flex-1">
@@ -543,23 +697,31 @@ export default function EmployerCandidates() {
                   </View>
                 </View>
                 
-                {/* Stage Badge */}
-                <View className={`px-2.5 py-1 rounded-full border ${
-                  c.stage === 'Final Review' ? 'bg-slate-900 border-slate-900' :
-                  c.stage === 'Offer Sent' ? 'bg-emerald-100 border-emerald-300' :
-                  c.stage === 'Interview' ? 'bg-purple-100 border-purple-300' :
-                  c.stage === 'Not Selected' ? 'bg-red-100 border-red-300' :
-                  'bg-blue-100 border-blue-300'
-                }`}>
-                  <Text className={`text-[10px] font-extrabold ${
-                    c.stage === 'Final Review' ? 'text-white' :
-                    c.stage === 'Offer Sent' ? 'text-emerald-800' :
-                    c.stage === 'Interview' ? 'text-purple-800' :
-                    c.stage === 'Not Selected' ? 'text-red-800' :
-                    'text-blue-800'
+                {/* Badges */}
+                <View className="flex-row items-center gap-1.5">
+                  {c.isNew && (
+                    <View className="bg-emerald-600 px-2 py-0.5 rounded-full flex-row items-center border border-emerald-500 shadow-sm">
+                      <Sparkles size={9} color="white" style={{ marginRight: 3 }} />
+                      <Text className="text-white font-black text-[9px] uppercase tracking-wider">NEW</Text>
+                    </View>
+                  )}
+                  <View className={`px-2.5 py-1 rounded-full border ${
+                    c.stage === 'Final Review' ? 'bg-slate-900 border-slate-900' :
+                    c.stage === 'Offer Sent' ? 'bg-emerald-100 border-emerald-300' :
+                    c.stage === 'Interview' ? 'bg-purple-100 border-purple-300' :
+                    c.stage === 'Not Selected' ? 'bg-red-100 border-red-300' :
+                    'bg-blue-100 border-blue-300'
                   }`}>
-                    {c.stage}
-                  </Text>
+                    <Text className={`text-[10px] font-extrabold ${
+                      c.stage === 'Final Review' ? 'text-white' :
+                      c.stage === 'Offer Sent' ? 'text-emerald-800' :
+                      c.stage === 'Interview' ? 'text-purple-800' :
+                      c.stage === 'Not Selected' ? 'text-red-800' :
+                      'text-blue-800'
+                    }`}>
+                      {c.stage}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -966,11 +1128,7 @@ export default function EmployerCandidates() {
                       </TouchableOpacity>
 
                       <TouchableOpacity 
-                        onPress={() => handleUpdateStage(
-                          'Interview', 
-                          'Interview Scheduled', 
-                          'Selected for live panel interview on Google Meet. Interview invitation sent.'
-                        )}
+                        onPress={() => openScheduleModal(selectedCandidate)}
                         className="flex-1 bg-indigo-700 py-2.5 rounded-xl items-center active:opacity-90"
                       >
                         <Text className="text-white font-bold text-xs">Schedule Interview</Text>
@@ -1028,11 +1186,7 @@ export default function EmployerCandidates() {
                     {/* Employer Row 1: Schedule Interview + Recommend to CEO */}
                     <View className="flex-row gap-2 mb-2">
                       <TouchableOpacity 
-                        onPress={() => handleUpdateStage(
-                          'Interview', 
-                          'Interview Scheduled', 
-                          'Selected for live client panel interview on Google Meet. Meeting invite dispatched.'
-                        )}
+                        onPress={() => openScheduleModal(selectedCandidate)}
                         className="flex-1 bg-purple-700 py-2.5 rounded-xl items-center active:opacity-90"
                       >
                         <Text className="text-white font-bold text-xs">Schedule Interview</Text>
@@ -1332,6 +1486,181 @@ export default function EmployerCandidates() {
                 >
                   <Text className="text-zinc-300 font-bold text-xs">Close</Text>
                 </TouchableOpacity>
+              </View>
+
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Interactive Schedule Interview & Real-Time Delivery Modal */}
+      {isScheduleModalVisible && selectedCandidate && (
+        <Modal
+          visible={isScheduleModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsScheduleModalVisible(false)}
+        >
+          <View className="flex-1 bg-black/80 justify-end">
+            <View className="bg-slate-900 rounded-t-3xl p-6 border-t border-indigo-500/40 max-h-[92%]">
+              
+              {/* Modal Header */}
+              <View className="flex-row justify-between items-center pb-3 border-b border-white/10 mb-4">
+                <View className="flex-row items-center">
+                  <View className="w-9 h-9 rounded-xl bg-indigo-500/20 items-center justify-center mr-3 border border-indigo-500/30">
+                    <Calendar size={18} color="#818cf8" />
+                  </View>
+                  <View>
+                    <Text className="text-white font-black text-base">Schedule Candidate Interview</Text>
+                    <Text className="text-indigo-200 text-[10px]">Real-Time Phone & Bloom Inbox Dispatch</Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => setIsScheduleModalVisible(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 items-center justify-center active:opacity-75"
+                >
+                  <X size={18} color="white" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} className="space-y-4">
+                {/* Candidate Summary Card */}
+                <View className="bg-slate-800/80 p-3.5 rounded-2xl border border-white/10 flex-row items-center mb-1">
+                  <View className="w-11 h-11 rounded-xl bg-slate-950 items-center justify-center mr-3 border border-white/10">
+                    <Text className="text-white font-extrabold text-sm">{selectedCandidate.image}</Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-white font-bold text-sm">{selectedCandidate.name}</Text>
+                    <Text className="text-zinc-400 text-xs">{selectedCandidate.role} • HireBloom Inc.</Text>
+                  </View>
+                </View>
+
+                {/* Candidate Sign-Up Email Field */}
+                <View className="bg-slate-800/60 p-3.5 rounded-2xl border border-white/10">
+                  <View className="flex-row items-center justify-between mb-1.5">
+                    <View className="flex-row items-center">
+                      <Mail size={13} color="#818cf8" style={{ marginRight: 5 }} />
+                      <Text className="text-indigo-200 font-bold text-xs uppercase tracking-wider">Candidate Sign-Up Email</Text>
+                    </View>
+                    <View className="bg-emerald-500/20 px-2 py-0.5 rounded-md">
+                      <Text className="text-emerald-400 font-extrabold text-[9px]">Verified Recipient</Text>
+                    </View>
+                  </View>
+                  <TextInput
+                    value={scheduleCandidateEmail}
+                    onChangeText={setScheduleCandidateEmail}
+                    placeholder="candidate@example.com"
+                    placeholderTextColor="#64748b"
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-medium text-xs mt-1"
+                  />
+                  <Text className="text-zinc-400 text-[10px] mt-1.5 leading-relaxed">
+                    The formal invitation will be delivered to this email on the candidate's phone and their mobile Bloom Inbox.
+                  </Text>
+                </View>
+
+                {/* Date & Time Row */}
+                <View className="flex-row gap-3">
+                  <View className="flex-1 bg-slate-800/60 p-3.5 rounded-2xl border border-white/10">
+                    <View className="flex-row items-center mb-1.5">
+                      <Calendar size={13} color="#818cf8" style={{ marginRight: 5 }} />
+                      <Text className="text-zinc-300 font-bold text-xs">Interview Date</Text>
+                    </View>
+                    <TextInput
+                      value={scheduleDate}
+                      onChangeText={setScheduleDate}
+                      placeholder="e.g. Tomorrow, Sep 25, 2026"
+                      placeholderTextColor="#64748b"
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium text-xs mt-1"
+                    />
+                  </View>
+
+                  <View className="flex-1 bg-slate-800/60 p-3.5 rounded-2xl border border-white/10">
+                    <View className="flex-row items-center mb-1.5">
+                      <Clock size={13} color="#818cf8" style={{ marginRight: 5 }} />
+                      <Text className="text-zinc-300 font-bold text-xs">Time & Timezone</Text>
+                    </View>
+                    <TextInput
+                      value={scheduleTime}
+                      onChangeText={setScheduleTime}
+                      placeholder="e.g. 3:00 PM EST"
+                      placeholderTextColor="#64748b"
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium text-xs mt-1"
+                    />
+                  </View>
+                </View>
+
+                {/* Video Room URL */}
+                <View className="bg-slate-800/60 p-3.5 rounded-2xl border border-white/10">
+                  <View className="flex-row items-center mb-1.5">
+                    <Video size={13} color="#818cf8" style={{ marginRight: 5 }} />
+                    <Text className="text-zinc-300 font-bold text-xs">Google Meet Video Room</Text>
+                  </View>
+                  <TextInput
+                    value={scheduleMeetUrl}
+                    onChangeText={setScheduleMeetUrl}
+                    placeholder="https://meet.google.com/..."
+                    placeholderTextColor="#64748b"
+                    autoCapitalize="none"
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-medium text-xs mt-1"
+                  />
+                </View>
+
+                {/* Interview Format */}
+                <View className="bg-slate-800/60 p-3.5 rounded-2xl border border-white/10">
+                  <Text className="text-zinc-300 font-bold text-xs mb-1.5">Interview Format</Text>
+                  <TextInput
+                    value={scheduleType}
+                    onChangeText={setScheduleType}
+                    placeholder="e.g. Live Client Panel Interview"
+                    placeholderTextColor="#64748b"
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-medium text-xs"
+                  />
+                </View>
+
+                {/* Preparation Instructions */}
+                <View className="bg-slate-800/60 p-3.5 rounded-2xl border border-white/10 mb-2">
+                  <Text className="text-zinc-300 font-bold text-xs mb-1.5">Candidate Preparation Instructions</Text>
+                  <TextInput
+                    value={scheduleNotes}
+                    onChangeText={setScheduleNotes}
+                    placeholder="Workstation check, headset test, fiber internet..."
+                    placeholderTextColor="#64748b"
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white font-medium text-xs"
+                  />
+                </View>
+              </ScrollView>
+
+              {/* Action Buttons */}
+              <View className="pt-3 border-t border-white/10 space-y-2 mt-2">
+                <TouchableOpacity
+                  disabled={isScheduling}
+                  onPress={() => handleConfirmScheduleInterview(false)}
+                  className="bg-indigo-600 py-3 rounded-xl items-center justify-center active:opacity-90 shadow-md"
+                >
+                  <Text className="text-white font-black text-xs uppercase tracking-wider">
+                    {isScheduling ? 'Dispatching...' : 'Confirm & Dispatch Invitation'}
+                  </Text>
+                </TouchableOpacity>
+
+                <View className="flex-row gap-2 mt-2">
+                  <TouchableOpacity
+                    disabled={isScheduling}
+                    onPress={() => handleConfirmScheduleInterview(true)}
+                    className="flex-1 bg-slate-800 border border-indigo-400/30 py-2.5 rounded-xl flex-row items-center justify-center active:opacity-85"
+                  >
+                    <Mail size={13} color="#818cf8" style={{ marginRight: 5 }} />
+                    <Text className="text-indigo-200 font-bold text-xs">Send via Phone Mail App</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setIsScheduleModalVisible(false)}
+                    className="bg-slate-800 px-4 py-2.5 rounded-xl items-center justify-center active:opacity-85"
+                  >
+                    <Text className="text-zinc-400 font-medium text-xs">Cancel</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
             </View>

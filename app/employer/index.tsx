@@ -134,6 +134,7 @@ export default function EmployerDashboard() {
   const pendingReviewCount = applications.filter((a) => a.status === 'Pending Review' || a.status === 'Pending Final Review').length;
   const scheduledCount = applications.filter((a) => a.status === 'Interview Scheduled').length;
   const offerCount = applications.filter((a) => a.status === 'Offer Received').length;
+  const newApplicantsCount = applications.filter((a) => a.isNew).length;
 
   const topMatchCandidate = applications.find(a => a.status === 'Pending Final Review') || applications[0];
 
@@ -246,6 +247,30 @@ export default function EmployerDashboard() {
               </View>
             </View>
 
+            {/* Real-time New Applicants Alert for CEO */}
+            {newApplicantsCount > 0 && (
+              <TouchableOpacity
+                onPress={() => navigateTo('/employer/candidates')}
+                activeOpacity={0.85}
+                className="bg-emerald-950/80 border border-emerald-500/60 rounded-2xl p-4 mb-5 flex-row items-center justify-between shadow-sm"
+              >
+                <View className="flex-row items-center flex-1 pr-2">
+                  <View className="w-8 h-8 rounded-xl bg-emerald-600 items-center justify-center mr-3">
+                    <Sparkles size={16} color="white" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-emerald-300 font-extrabold text-xs">
+                      {newApplicantsCount} New Candidate Application{newApplicantsCount > 1 ? 's' : ''} Received
+                    </Text>
+                    <Text className="text-emerald-400/80 text-[11px] mt-0.5">
+                      Prioritized at the top of candidate pipeline • Tap to review
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={18} color="#34d399" />
+              </TouchableOpacity>
+            )}
+
             {/* CEO Action Quick Row */}
             <View className="flex-row gap-3 mb-6">
               <TouchableOpacity 
@@ -338,7 +363,7 @@ export default function EmployerDashboard() {
                     activeOpacity={0.7}
                     className="flex-1 bg-indigo-50 border border-indigo-200 py-2.5 rounded-xl flex-row items-center justify-center"
                   >
-                    <Text className="text-indigo-800 font-bold text-xs">📹 Play Loom Pitch</Text>
+                    <Text className="text-indigo-800 font-bold text-xs">Play Loom Pitch</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     onPress={() => navigateTo('/employer/candidates')}
@@ -346,7 +371,7 @@ export default function EmployerDashboard() {
                     activeOpacity={0.7}
                     className="flex-1 bg-slate-100 border border-slate-200 py-2.5 rounded-xl flex-row items-center justify-center"
                   >
-                    <Text className="text-slate-700 font-bold text-xs">📄 Inspect Resume</Text>
+                    <Text className="text-slate-700 font-bold text-xs">Inspect Resume</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleDismissApplication(topMatchCandidate)}
@@ -445,6 +470,30 @@ export default function EmployerDashboard() {
                 <Text className="text-forest font-bold text-xs">Verified Partner</Text>
               </View>
             </View>
+
+            {/* Real-time New Applicants Alert for Employer */}
+            {newApplicantsCount > 0 && (
+              <TouchableOpacity
+                onPress={() => navigateTo('/employer/candidates')}
+                activeOpacity={0.85}
+                className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-4 mb-5 flex-row items-center justify-between shadow-sm"
+              >
+                <View className="flex-row items-center flex-1 pr-2">
+                  <View className="w-8 h-8 rounded-xl bg-forest items-center justify-center mr-3">
+                    <Sparkles size={16} color="white" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-forest font-extrabold text-xs">
+                      {newApplicantsCount} New Candidate Application{newApplicantsCount > 1 ? 's' : ''} Received
+                    </Text>
+                    <Text className="text-emerald-700 text-[11px] mt-0.5">
+                      New submissions awaiting review • Tap to inspect pipeline
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={18} color="#113C2C" />
+              </TouchableOpacity>
+            )}
 
             {/* Action Buttons */}
             <View className="flex-row gap-3 mb-6">
@@ -558,9 +607,16 @@ export default function EmployerDashboard() {
           </View>
         )}
 
-        {/* Recent Candidate Applicants with Loom Pitch indicator */}
+        {/* Recent Candidate Applicants with Real-Time Badging */}
         <View className="flex-row justify-between items-center mb-3">
-          <Text className="text-sm font-bold text-ink">Recent Candidates & Loom Submissions</Text>
+          <View className="flex-row items-center">
+            <Text className="text-sm font-bold text-ink mr-2">Recent Candidate Applications</Text>
+            {applications.some((a) => a.isNew) && (
+              <View className="bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                <Text className="text-emerald-800 text-[9px] font-extrabold tracking-wider">NEW INCOMING</Text>
+              </View>
+            )}
+          </View>
           <TouchableOpacity 
             onPress={() => navigateTo('/employer/candidates')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -571,24 +627,35 @@ export default function EmployerDashboard() {
         </View>
 
         <View className="bg-white rounded-2xl border border-border shadow-sm mb-10 overflow-hidden">
-          {applications.slice(0, 3).map((app, i) => (
+          {applications.slice(0, 5).map((app, i) => (
             <TouchableOpacity 
               key={app.id} 
               onPress={() => navigateTo('/employer/candidates')}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               activeOpacity={0.75}
-              className={`flex-row items-center justify-between p-4 active:opacity-75 ${i !== 2 ? 'border-b border-border' : ''}`}
+              className={`flex-row items-center justify-between p-4 active:opacity-75 ${
+                i !== Math.min(applications.length, 5) - 1 ? 'border-b border-border' : ''
+              } ${app.isNew ? 'bg-emerald-50/50' : ''}`}
             >
               <View className="flex-row items-center flex-1 pr-2">
-                <View className="w-10 h-10 bg-canvas border border-border rounded-full items-center justify-center mr-3">
-                  <Text className="text-forest font-bold text-sm">{app.candidateInitials || 'VT'}</Text>
+                <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 border ${
+                  app.isNew ? 'bg-emerald-700 border-emerald-500' : 'bg-canvas border-border'
+                }`}>
+                  <Text className={`font-bold text-sm ${app.isNew ? 'text-white' : 'text-forest'}`}>
+                    {app.candidateInitials || 'VT'}
+                  </Text>
                 </View>
                 <View className="flex-1">
-                  <View className="flex-row items-center">
-                    <Text className="text-ink font-bold text-xs mb-0.5 mr-2">{app.candidateName}</Text>
+                  <View className="flex-row items-center flex-wrap gap-1.5 mb-0.5">
+                    <Text className="text-ink font-bold text-xs">{app.candidateName}</Text>
+                    {app.isNew && (
+                      <View className="bg-emerald-600 px-1.5 py-0.5 rounded">
+                        <Text className="text-white text-[8px] font-extrabold tracking-wider">NEW</Text>
+                      </View>
+                    )}
                     {app.loomUrl && (
                       <View className="bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded-md">
-                        <Text className="text-indigo-800 text-[8px] font-bold">📹 Loom</Text>
+                        <Text className="text-indigo-800 text-[8px] font-bold">Loom Pitch</Text>
                       </View>
                     )}
                   </View>
@@ -596,8 +663,12 @@ export default function EmployerDashboard() {
                 </View>
               </View>
               <View className="items-end">
-                <View className="bg-canvas border border-border px-2 py-0.5 rounded-full mb-1">
-                  <Text className="text-forest font-bold text-[9px]">{app.status}</Text>
+                <View className={`border px-2 py-0.5 rounded-full mb-1 ${
+                  app.isNew ? 'bg-emerald-100 border-emerald-300' : 'bg-canvas border-border'
+                }`}>
+                  <Text className={`font-bold text-[9px] ${app.isNew ? 'text-emerald-800' : 'text-forest'}`}>
+                    {app.status}
+                  </Text>
                 </View>
                 <Text className="text-inkMuted text-[9px]">{app.appliedDate}</Text>
               </View>

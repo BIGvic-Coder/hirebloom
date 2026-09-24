@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, IS_MOCK_FIREBASE, sanitizeForFirestore } from '@/constants/firebase';
+import { Linking } from 'react-native';
+import { db, IS_MOCK_FIREBASE, sanitizeForFirestore, ensureFirebaseAuth } from '@/constants/firebase';
 import { collection, doc, getDocs, setDoc, updateDoc, query, where } from 'firebase/firestore';
 
 export type EmailTemplateType =
@@ -281,21 +282,30 @@ Global Hiring Operations & Talent Success`,
         await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
       }
 
-      // 2. Safely attempt Firestore sync if available (non-blocking, won't throw on permissions)
+      // 2. Safely attempt Firestore sync if available (authenticated cross-device sync)
       if (!IS_MOCK_FIREBASE && db && cleanEmail) {
         try {
+          await ensureFirebaseAuth();
           const q = query(collection(db, 'emails'), where('toEmail', '==', cleanEmail));
           const snap = await getDocs(q);
           if (!snap.empty) {
+            let hasNewDocs = false;
             const cloudDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EmailMessage));
             for (const item of cloudDocs) {
-              if (!list.find((m) => m.id === item.id)) {
-                list.push(item);
+              const existingIdx = list.findIndex((m) => m.id === item.id);
+              if (existingIdx >= 0) {
+                list[existingIdx] = { ...list[existingIdx], ...item };
+              } else {
+                list.unshift(item);
+                hasNewDocs = true;
               }
             }
+            if (hasNewDocs) {
+              await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
+            }
           }
-        } catch {
-          // Handled silently - local storage is authoritative
+        } catch (fsErr) {
+          console.warn('Notice syncing emails from Firestore:', fsErr);
         }
       }
 
@@ -329,20 +339,17 @@ Global Hiring Operations & Talent Success`,
       // Sort by newest first
       list.sort((a, b) => b.timestamp - a.timestamp);
 
-      // Filter by recipient email if provided
+      // Filter by recipient email if provided while preserving preview & candidate communications
       if (cleanEmail) {
-        let matches = list.filter((e) => e.toEmail.toLowerCase() === cleanEmail);
-
-        if (matches.length === 0) {
-          // No emails yet for this user: Generate personalized welcome based on user status
-          const welcomeEmail = userStatus.isExisting
-            ? this.createReturningUserWelcomeEmail(cleanEmail, userStatus.name)
-            : this.createNewUserWelcomeEmail(cleanEmail, userStatus.name);
-
-          list.unshift(welcomeEmail);
-          await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
-          return [welcomeEmail];
-        }
+        let matches = list.filter((e) => {
+          const to = (e.toEmail || '').trim().toLowerCase();
+          if (to === cleanEmail) return true;
+          // Keep preview emails and general talent notifications visible in the candidate inbox
+          if (to === 'victor@hirebloom.com' || to === 'talent@hirebloom.com' || to === 'candidate@hirebloom.com') {
+            return true;
+          }
+          return false;
+        });
 
         // Ensure at least one official onboarding or returning welcome email exists
         const hasWelcome = matches.some(
@@ -357,7 +364,7 @@ Global Hiring Operations & Talent Success`,
             ? this.createReturningUserWelcomeEmail(cleanEmail, userStatus.name)
             : this.createNewUserWelcomeEmail(cleanEmail, userStatus.name);
 
-          matches.push(welcomeEmail);
+          matches.unshift(welcomeEmail);
           list.unshift(welcomeEmail);
           await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(list));
         }
@@ -403,25 +410,128 @@ Global Hiring Operations & Talent Success`,
   },
 
   /**
-   * Internal dispatcher: save email to storage & cloud
+   * Dispatches an external email notification for phone device delivery
+   */
+  async sendExternalDeviceEmail(email: EmailMessage): Promise<{ success: boolean; method: string }> {
+    try {
+      const cleanEmail = (email.toEmail || '').trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        return { success: false, method: 'invalid_email' };
+      }
+
+      // Non-blocking HTTP email relay attempt
+      try {
+        const payload = {
+          to: cleanEmail,
+          toName: email.toName,
+          fromName: email.fromName,
+          fromEmail: email.fromEmail,
+          subject: email.subject,
+          text: email.body,
+          template: email.template,
+          metadata: email.metadata,
+        };
+        fetch('https://api.hirebloom.com/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }).catch(() => {
+          // Cloud fallback handled via Firestore mail collection
+        });
+      } catch {}
+
+      console.log(`[HireBloom Mail Dispatch] Official email queued for ${cleanEmail}: "${email.subject}"`);
+      return { success: true, method: 'cloud_mail_queue' };
+    } catch {
+      return { success: false, method: 'error' };
+    }
+  },
+
+  /**
+   * Opens the device's native Mail app (Gmail, Apple Mail, Outlook) pre-filled with the candidate's invitation
+   */
+  async openDeviceMailClient(email: EmailMessage): Promise<boolean> {
+    try {
+      const cleanEmail = (email.toEmail || '').trim();
+      const subject = encodeURIComponent(email.subject);
+      const body = encodeURIComponent(email.body);
+      const mailtoUrl = `mailto:${cleanEmail}?subject=${subject}&body=${body}`;
+
+      const canOpen = await Linking.canOpenURL(mailtoUrl);
+      if (canOpen) {
+        await Linking.openURL(mailtoUrl);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn('Error opening device mail client:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Internal dispatcher: save email to storage, cloud Firestore, and real phone mail queues
    */
   async dispatchEmail(newEmail: EmailMessage): Promise<void> {
     try {
+      const cleanEmail = (newEmail.toEmail || '').trim().toLowerCase();
+      const sanitizedEmail: EmailMessage = {
+        ...newEmail,
+        toEmail: cleanEmail,
+      };
+
       // 1. Authoritative local storage first (instant & reliable)
       const stored = await AsyncStorage.getItem(EMAILS_STORAGE_KEY);
       const list: EmailMessage[] = stored ? JSON.parse(stored) : INITIAL_SEED_EMAILS;
-      const deduplicated = list.filter((e) => e.id !== newEmail.id);
-      const updated = [newEmail, ...deduplicated];
+      const deduplicated = list.filter((e) => e.id !== sanitizedEmail.id);
+      const updated = [sanitizedEmail, ...deduplicated];
       await AsyncStorage.setItem(EMAILS_STORAGE_KEY, JSON.stringify(updated));
 
-      // 2. Safely sync to Firestore in background
+      // 2. Authenticated Cloud Sync across iOS & Android devices
       if (!IS_MOCK_FIREBASE && db) {
         try {
-          await setDoc(doc(db, 'emails', newEmail.id), sanitizeForFirestore(newEmail));
-        } catch {
-          // Handled silently
+          await ensureFirebaseAuth();
+          // Store in primary emails collection
+          await setDoc(doc(db, 'emails', sanitizedEmail.id), sanitizeForFirestore(sanitizedEmail));
+
+          // Also write to standard Firebase "mail" collection for automated email delivery
+          await setDoc(doc(db, 'mail', `mail-${sanitizedEmail.id}`), {
+            to: [cleanEmail],
+            message: {
+              subject: sanitizedEmail.subject,
+              text: sanitizedEmail.body,
+              html: `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
+                  <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: #064e3b; margin: 0; font-size: 22px;">HireBloom</h2>
+                    <span style="margin-left: 10px; font-size: 11px; background: #ecfdf5; color: #047857; padding: 3px 8px; border-radius: 9999px; font-weight: bold; border: 1px solid #a7f3d0;">Official Invitation</span>
+                  </div>
+                  <h3 style="color: #0f172a; font-size: 18px; margin-top: 0; margin-bottom: 16px;">${sanitizedEmail.subject}</h3>
+                  <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-line; margin-bottom: 24px;">
+                    ${sanitizedEmail.body.replace(/\n/g, '<br/>')}
+                  </div>
+                  ${sanitizedEmail.metadata?.meetUrl ? `
+                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #7c3aed; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                      <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; text-transform: uppercase; color: #6b21a8; letter-spacing: 0.5px;">Live Video Room Link</p>
+                      <a href="${sanitizedEmail.metadata.meetUrl}" style="color: #2563eb; font-size: 14px; word-break: break-all; font-weight: 600; text-decoration: none;">${sanitizedEmail.metadata.meetUrl}</a>
+                    </div>
+                  ` : ''}
+                  <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between;">
+                    <span>HireBloom Inc. — Curated Remote Talent Operations</span>
+                    <span>Direct Device Notification</span>
+                  </div>
+                </div>
+              `,
+            },
+            createdAt: new Date().toISOString(),
+          });
+        } catch (fsErr) {
+          console.warn('Notice writing to cloud Firestore in dispatchEmail:', fsErr);
         }
       }
+
+      // 3. Trigger External Device Delivery
+      await this.sendExternalDeviceEmail(sanitizedEmail);
     } catch (e) {
       console.warn('Error dispatching email:', e);
     }
@@ -582,21 +692,29 @@ Hire Bloom Vetting Desk`,
         interviewDate: details.date,
         interviewTime: details.time,
         meetUrl: details.meetUrl || 'https://meet.google.com/hbm-intr-vct',
+        type: details.type || 'Live Panel Interview',
       },
       body: `Hi ${firstName},
 
-Congratulations! The hiring team at ${job.company} was very impressed with your profile and would like to invite you to a ${details.type || 'Panel Video Interview'}.
+Congratulations! The hiring team at ${job.company} was impressed with your application and verified qualifications. You have been selected for an official ${details.type || 'Live Panel Interview'}!
 
 Interview Details:
 • Position: ${job.title}
+• Company: ${job.company}
 • Date: ${details.date}
 • Time: ${details.time}
 • Video Room: ${details.meetUrl || 'https://meet.google.com/hbm-intr-vct'}
 
-Please make sure your camera and headset are tested beforehand. You can also join directly from the Interviews tab in your Hire Bloom app.
+Preparation Checklist:
+1. Workstation & Fiber: Please connect from a quiet workspace with stable high-speed internet and tested camera/audio.
+2. Spoken English & Technical Walkthrough: Be prepared to walk through your relevant projects, past experience, and problem-solving methodology.
+3. Access: You can click the Google Meet link above or launch the meeting directly from the Interviews tab in your HireBloom mobile app.
 
-Best of luck!
-The Bloom Talent Team`,
+We wish you the very best of luck!
+
+Warm regards,
+HireBloom Scheduling & Placement Operations
+Global Talent Desk`,
     };
 
     await this.dispatchEmail(email);

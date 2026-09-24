@@ -7,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -25,6 +26,7 @@ import {
   Briefcase,
   X,
   ExternalLink,
+  Video,
 } from 'lucide-react-native';
 import { EmailService, EmailMessage } from '@/services/emailService';
 import { ApplicationsService } from '@/services/applicationsService';
@@ -505,6 +507,31 @@ export default function EmailInboxModal({
                       • <Text className="font-semibold">Meeting URL:</Text> {selectedEmail.metadata?.meetUrl || 'meet.google.com/hbm-intr-vct'}
                     </Text>
                   </View>
+
+                  {/* Candidate Quick Actions: Join Google Meet or Open in Native Phone Email */}
+                  <View className="flex-row gap-2.5">
+                    <TouchableOpacity
+                      onPress={() => {
+                        const raw = selectedEmail.metadata?.meetUrl || 'https://meet.google.com/hbm-intr-vct';
+                        const url = raw.startsWith('http') ? raw : `https://${raw}`;
+                        Linking.openURL(url);
+                      }}
+                      activeOpacity={0.8}
+                      className="flex-1 bg-purple-700 py-3 rounded-xl items-center justify-center flex-row shadow-sm"
+                    >
+                      <Video size={15} color="white" style={{ marginRight: 6 }} />
+                      <Text className="text-white font-bold text-xs">Join Video Call</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => EmailService.openDeviceMailClient(selectedEmail)}
+                      activeOpacity={0.8}
+                      className="bg-white border border-purple-300 px-3.5 py-3 rounded-xl items-center justify-center flex-row shadow-sm"
+                    >
+                      <Mail size={15} color="#6b21a8" style={{ marginRight: 6 }} />
+                      <Text className="text-purple-900 font-bold text-xs">Open in Phone Mail</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
 
@@ -522,7 +549,7 @@ export default function EmailInboxModal({
                   </View>
 
                   <Text className="text-emerald-950 font-bold text-base mb-2">
-                    Congratulations {selectedEmail.toName}! 🎉
+                    Congratulations {selectedEmail.toName}!
                   </Text>
                   <Text className="text-emerald-900 text-sm leading-relaxed mb-4">
                     We are proud to extend a formal contract placement offer for the position of{' '}
@@ -547,7 +574,7 @@ export default function EmailInboxModal({
                   <TouchableOpacity
                     onPress={() => {
                       Alert.alert(
-                        'Offer Accepted! 🎉',
+                        'Offer Accepted!',
                         `Congratulations! You have accepted the placement offer for ${selectedEmail.metadata?.jobTitle || 'this role'} at ${selectedEmail.metadata?.company || 'our client partner'}!\n\nHireBloom Onboarding Desk has received your confirmation. Your onboarding specialist will contact you with hardware setup and client kickoff details.`
                       );
                     }}

@@ -110,6 +110,8 @@ export interface JobApplication {
     startDate?: string;
     role?: string;
   };
+  isNew?: boolean;
+  timestamp?: number;
 }
 
 export function evaluateApplicationStrictAI(
@@ -708,6 +710,8 @@ export const ApplicationsService = {
         resumeUrl: resumeInfo.url || '',
         resumeUploadedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         loomUrl: loomPitch,
+        isNew: true,
+        timestamp: Date.now(),
       };
 
       // 2. Save authoritative local storage first
@@ -800,7 +804,9 @@ export const ApplicationsService = {
       if (!IS_MOCK_FIREBASE && db && targetId) {
         try {
           await ensureFirebaseAuth();
-          const q = query(collection(db, 'applications'), where('candidateId', '==', targetId));
+          const cleanTarget = targetId.trim().toLowerCase();
+          const qField = cleanTarget.includes('@') ? 'candidateEmail' : 'candidateId';
+          const q = query(collection(db, 'applications'), where(qField, '==', cleanTarget));
           const snap = await withTimeout(getDocs(q), 6000);
           if (!snap.empty) {
             const cloudDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
@@ -869,6 +875,14 @@ export const ApplicationsService = {
         }
       }
 
+      apps.sort((a, b) => {
+        if (a.isNew && !b.isNew) return -1;
+        if (!a.isNew && b.isNew) return 1;
+        const timeA = a.timestamp || (a.appliedDate ? new Date(a.appliedDate).getTime() : 0);
+        const timeB = b.timestamp || (b.appliedDate ? new Date(b.appliedDate).getTime() : 0);
+        return timeB - timeA;
+      });
+
       return apps;
     } catch {
       return DEFAULT_APPLICATIONS;
@@ -886,6 +900,10 @@ export const ApplicationsService = {
       reviewerName?: string;
       interviewDetails?: JobApplication['interviewDetails'];
       offerDetails?: JobApplication['offerDetails'];
+      candidateName?: string;
+      candidateEmail?: string;
+      jobTitle?: string;
+      company?: string;
     }
   ): Promise<boolean> {
     try {
@@ -906,6 +924,7 @@ export const ApplicationsService = {
         ...(options?.feedbackReason ? { feedbackReason: options.feedbackReason } : {}),
         ...(options?.interviewDetails ? { interviewDetails: options.interviewDetails } : {}),
         ...(options?.offerDetails ? { offerDetails: options.offerDetails } : {}),
+        ...(options?.candidateEmail ? { candidateEmail: options.candidateEmail } : {}),
       };
 
       if (!IS_MOCK_FIREBASE && db) {
@@ -919,8 +938,47 @@ export const ApplicationsService = {
 
       const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
       const allApps: JobApplication[] = local ? JSON.parse(local) : DEFAULT_APPLICATIONS;
-      const updated = allApps.map((a) => (a.id === appId ? { ...a, ...updates } : a));
-      const targetApp = updated.find((a) => a.id === appId);
+      let updated = allApps.map((a) => (a.id === appId ? { ...a, ...updates } : a));
+      let targetApp = updated.find(
+        (a) => a.id === appId || (options?.candidateEmail && a.candidateEmail?.toLowerCase() === options.candidateEmail.toLowerCase())
+      );
+
+      if (!targetApp) {
+        // Synthesize an official application record so candidate never misses their interview status
+        const fallbackApp: JobApplication = {
+          id: appId,
+          jobId: 'job-1',
+          jobTitle: options?.jobTitle || 'Senior Customer Support Lead',
+          company: options?.company || 'HireBloom Inc.',
+          candidateId: `cand-${Date.now()}`,
+          candidateName: options?.candidateName || 'Victor Taiwo',
+          candidateEmail: options?.candidateEmail || 'victor@hirebloom.com',
+          status: newStatus,
+          statusColor: style.color,
+          statusBg: style.bg,
+          appliedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          step: updates.step || 'Step 3: Client Panel Interview Scheduled',
+          notes: options?.notes,
+          feedbackReason: options?.feedbackReason,
+          interviewDetails: options?.interviewDetails,
+          offerDetails: options?.offerDetails,
+        };
+        updated.unshift(fallbackApp);
+        targetApp = fallbackApp;
+        if (!IS_MOCK_FIREBASE && db) {
+          try {
+            await ensureFirebaseAuth();
+            await setDoc(doc(db, 'applications', appId), sanitizeForFirestore(fallbackApp));
+          } catch {}
+        }
+      } else {
+        if (options?.candidateEmail && targetApp.candidateEmail !== options.candidateEmail) {
+          targetApp.candidateEmail = options.candidateEmail;
+        }
+        if (options?.candidateName && !targetApp.candidateName) {
+          targetApp.candidateName = options.candidateName;
+        }
+      }
       if (targetApp) {
         // Record audit log
         await WorkflowService.recordAuditLog(
