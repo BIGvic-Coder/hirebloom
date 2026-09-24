@@ -56,6 +56,12 @@ interface CandidateItem {
   phone?: string;
   whatsapp?: string;
   country?: string;
+  aboutCandidate?: string;
+  reasonForApplying?: string;
+  coverLetter?: string;
+  aiVettingStatus?: 'Approved' | 'Flagged' | 'Needs Review';
+  aiVettingFeedback?: string;
+  assignedReviewer?: string;
 }
 
 const DEFAULT_CANDIDATES: CandidateItem[] = [
@@ -75,6 +81,9 @@ const DEFAULT_CANDIDATES: CandidateItem[] = [
     phone: '+234 801 234 5678',
     whatsapp: '+234 801 234 5678',
     country: 'Nigeria 🇳🇬',
+    aboutCandidate: 'Experienced Customer Support Specialist with 4.5+ years managing tier-2 escalations across Zendesk and Intercom. Native C1 English fluency with fiber internet and dedicated backup inverter.',
+    reasonForApplying: 'Excited to deliver high CSAT support for high-growth US teams during daytime hours while applying my automation and triage expertise.',
+    coverLetter: 'Dear Hiring Team, I bring deep hands-on proficiency in Zendesk macros, SLA compliance, and cross-functional bug triage. I am prepared to deliver immediate impact.',
     summary: 'Victor has 4+ years of proven high-volume tier-2 support leadership in SaaS environments. Native-level English (C1 verified), flawless workstation hardware, and verified fiber internet speed.',
     evaluations: [
       { category: 'Customer Empathy & CSAT', score: '98/100' },
@@ -309,7 +318,7 @@ export default function EmployerCandidates() {
             email: app.candidateEmail,
             role: app.jobTitle || 'Role',
             stage: stageLabel,
-            match: existingMatch?.match || '95%',
+            match: app.aiMatchScore || existingMatch?.match || '95%',
             image: app.candidateInitials || ApplicationsService.getInitials(app.candidateName, app.candidateEmail),
             videoUrl: existingMatch?.videoUrl || 'https://youtu.be/HO4sLYt4xE4',
             loomUrl: app.loomUrl || existingMatch?.loomUrl || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403',
@@ -319,6 +328,12 @@ export default function EmployerCandidates() {
             phone: candPhone,
             whatsapp: candWhatsapp,
             country: app.candidateCountry || existingMatch?.country || 'Nigeria 🇳🇬',
+            aboutCandidate: app.aboutCandidate || existingMatch?.aboutCandidate,
+            reasonForApplying: app.reasonForApplying || existingMatch?.reasonForApplying,
+            coverLetter: app.coverLetter || existingMatch?.coverLetter,
+            aiVettingStatus: app.aiVettingStatus,
+            aiVettingFeedback: app.aiVettingFeedback,
+            assignedReviewer: app.assignedReviewer || 'Sarah Jenkins (HireBloom Coordinator)',
             summary: app.notes || existingMatch?.summary || 'Candidate application submitted through HireBloom talent portal.',
             evaluations: existingMatch?.evaluations || [
               { category: 'Role Relevance', score: '95/100' },
@@ -689,11 +704,45 @@ export default function EmployerCandidates() {
                 </View>
               </View>
 
+              {/* Strict AI Vetting & Coordinator Evaluation Banner */}
+              <View className={`border rounded-2xl p-3 mb-3.5 shadow-sm ${
+                selectedCandidate.aiVettingStatus === 'Flagged'
+                  ? 'bg-red-950/70 border-red-500/40'
+                  : selectedCandidate.aiVettingStatus === 'Needs Review'
+                  ? 'bg-amber-950/70 border-amber-500/40'
+                  : 'bg-emerald-950/70 border-emerald-500/30'
+              }`}>
+                <View className="flex-row items-center justify-between mb-1.5">
+                  <View className="flex-row items-center">
+                    <Sparkles size={13} color={selectedCandidate.aiVettingStatus === 'Flagged' ? '#f87171' : '#8ecfa9'} style={{ marginRight: 6 }} />
+                    <Text className="text-white font-extrabold text-[11px] uppercase tracking-wider">
+                      {selectedCandidate.aiVettingStatus === 'Flagged' 
+                        ? 'Strict AI Warning: Low Fit' 
+                        : selectedCandidate.aiVettingStatus === 'Needs Review'
+                        ? 'Staff Review Required'
+                        : 'AI Pre-Screen Passed'}
+                    </Text>
+                  </View>
+                  <View className="bg-white/10 px-2 py-0.5 rounded-full">
+                    <Text className="text-white font-bold text-[9px]">Match: {selectedCandidate.match}</Text>
+                  </View>
+                </View>
+                <Text className="text-zinc-200 text-[10px] leading-relaxed mb-1.5">
+                  {selectedCandidate.aiVettingFeedback || 'AI evaluated candidate bio, motivations, and verified skills against role requirements.'}
+                </Text>
+                <View className="flex-row items-center pt-1.5 border-t border-white/10">
+                  <UserCheck size={11} color="#8ecfa9" style={{ marginRight: 5 }} />
+                  <Text className="text-mint text-[9px] font-semibold">
+                    Reviewing Coordinator: {selectedCandidate.assignedReviewer || 'Sarah Jenkins (HireBloom Coordinator)'}
+                  </Text>
+                </View>
+              </View>
+
               {/* Tab Navigation */}
               <View className="flex-row border-b border-zinc-800 mb-4">
                 {(['summary', 'loom', 'resume', 'scores', 'transcript'] as const).map((tab) => {
                   const isActive = aiAnalysisTab === tab;
-                  const label = tab === 'summary' ? 'Summary' : tab === 'loom' ? '📹 Loom' : tab === 'resume' ? 'Resume' : tab === 'scores' ? 'Scores' : 'Q&A';
+                  const label = tab === 'summary' ? 'Summary' : tab === 'loom' ? 'Loom Video' : tab === 'resume' ? 'Resume' : tab === 'scores' ? 'Scores' : 'Q&A';
                   return (
                     <TouchableOpacity 
                       key={tab}
@@ -712,10 +761,36 @@ export default function EmployerCandidates() {
               <ScrollView className="max-h-52 mb-3" showsVerticalScrollIndicator={false}>
                 {aiAnalysisTab === 'summary' && (
                   <View className="space-y-3">
+                    {/* Screening Overview */}
                     <View className="bg-forest/50 p-4 rounded-xl border border-mint/10 mb-2">
                       <Text className="text-mint font-bold text-xs mb-1 uppercase tracking-wider">Screening Summary</Text>
                       <Text className="text-zinc-200 text-xs leading-relaxed">{selectedCandidate.summary}</Text>
                     </View>
+
+                    {/* Why They Applied */}
+                    {Boolean(selectedCandidate.reasonForApplying) && (
+                      <View className="bg-forest/40 p-4 rounded-xl border border-mint/20 mb-2">
+                        <Text className="text-mint font-bold text-xs mb-1 uppercase tracking-wider">Why They Applied</Text>
+                        <Text className="text-zinc-200 text-xs leading-relaxed">{selectedCandidate.reasonForApplying}</Text>
+                      </View>
+                    )}
+
+                    {/* About Candidate */}
+                    {Boolean(selectedCandidate.aboutCandidate) && (
+                      <View className="bg-forest/40 p-4 rounded-xl border border-mint/20 mb-2">
+                        <Text className="text-mint font-bold text-xs mb-1 uppercase tracking-wider">About the Candidate</Text>
+                        <Text className="text-zinc-200 text-xs leading-relaxed">{selectedCandidate.aboutCandidate}</Text>
+                      </View>
+                    )}
+
+                    {/* Cover Letter / Pitch */}
+                    {Boolean(selectedCandidate.coverLetter) && (
+                      <View className="bg-forest/40 p-4 rounded-xl border border-mint/20 mb-2">
+                        <Text className="text-mint font-bold text-xs mb-1 uppercase tracking-wider">Cover Letter / Pitch</Text>
+                        <Text className="text-zinc-200 text-xs leading-relaxed">{selectedCandidate.coverLetter}</Text>
+                      </View>
+                    )}
+
                     <View className="flex-row items-center bg-emerald-950/60 p-3 rounded-lg border border-emerald-900/40">
                       <CheckCircle size={15} color="#10b981" style={{ marginRight: 6 }} />
                       <Text className="text-[11px] text-zinc-300">Identity, C1 English fluency, and workstation verified.</Text>
@@ -828,7 +903,7 @@ export default function EmployerCandidates() {
                         className="w-full bg-mint py-2.5 rounded-xl flex-row items-center justify-center active:opacity-90 shadow-sm"
                       >
                         <FileText size={14} color="#113c2c" style={{ marginRight: 6 }} />
-                        <Text className="text-forest font-black text-xs">Inspect Full CV & Role Fit 📄</Text>
+                        <Text className="text-forest font-black text-xs">Inspect Full CV & Role Fit</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -934,7 +1009,7 @@ export default function EmployerCandidates() {
                       <View className="flex-row items-center">
                         <UserCheck size={14} color="#8ecfa9" style={{ marginRight: 6 }} />
                         <Text className="text-mint font-extrabold text-[11px] uppercase tracking-wider">
-                          🏢 Employer Requisition Desk
+                          Employer Requisition Desk
                         </Text>
                       </View>
                       <TouchableOpacity
@@ -1081,13 +1156,18 @@ export default function EmployerCandidates() {
                     <View className="flex-1 pr-2">
                       <Text className="text-white font-extrabold text-lg">{selectedCandidate.name}</Text>
                       <Text className="text-mint font-bold text-xs mt-0.5">{selectedCandidate.role}</Text>
-                      <Text className="text-zinc-400 text-[11px] mt-1">📍 {selectedCandidate.cvData?.location || 'Remote (US Hours)'}</Text>
-                      <Text className="text-zinc-400 text-[11px]">✉️ {selectedCandidate.email || 'candidate@hirebloom.com'}</Text>
+                      <Text className="text-zinc-400 text-[11px] mt-1">Location: {selectedCandidate.country || selectedCandidate.cvData?.location || 'Remote (US Hours)'}</Text>
+                      <Text className="text-zinc-400 text-[11px]">Email: {selectedCandidate.email || 'candidate@hirebloom.com'}</Text>
                       {selectedCandidate.cvData?.phone && (
-                        <Text className="text-zinc-400 text-[11px]">📞 {selectedCandidate.cvData.phone}</Text>
+                        <Text className="text-zinc-400 text-[11px]">Phone: {selectedCandidate.cvData.phone}</Text>
                       )}
                       {selectedCandidate.cvData?.whatsapp && (
-                        <Text className="text-emerald-400 text-[11px]">💬 WhatsApp: {selectedCandidate.cvData.whatsapp}</Text>
+                        <Text className="text-emerald-400 text-[11px]">WhatsApp: {selectedCandidate.cvData.whatsapp}</Text>
+                      )}
+                      {selectedCandidate.reasonForApplying && (
+                        <Text className="text-mint text-[11px] mt-1" numberOfLines={2}>
+                          Motivation: {selectedCandidate.reasonForApplying}
+                        </Text>
                       )}
                     </View>
                     <View className="bg-emerald-500/20 px-2.5 py-1 rounded-full border border-emerald-500/40 items-center">
@@ -1243,7 +1323,7 @@ export default function EmployerCandidates() {
                   }}
                   className="flex-1 bg-forest border border-mint/40 py-3 rounded-xl items-center active:opacity-90"
                 >
-                  <Text className="text-mint font-black text-xs">✓ Mark Document Valid for Role</Text>
+                  <Text className="text-mint font-black text-xs">Mark Document Valid for Role</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity

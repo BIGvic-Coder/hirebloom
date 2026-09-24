@@ -159,6 +159,7 @@ export const EmailService = {
       cleanEmail === 'victor@hirebloom.com' ||
       cleanEmail === 'getinbig6@gmail.com' ||
       cleanEmail === 'ceo@hirebloom.com' ||
+      cleanEmail === 'everywheregetscope@gmail.com' ||
       cleanEmail === 'alex.morgan.talent@gmail.com' ||
       cleanEmail === 'sarah.jenkins@hirebloom.com'
     ) {

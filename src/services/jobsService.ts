@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, IS_MOCK_FIREBASE, sanitizeForFirestore } from '@/constants/firebase';
+import { db, IS_MOCK_FIREBASE, sanitizeForFirestore, ensureFirebaseAuth } from '@/constants/firebase';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 export interface JobItem {
@@ -137,20 +137,39 @@ const JOBS_STORAGE_KEY = '@hirebloom_jobs_cache';
 export const JobsService = {
   async getJobs(): Promise<JobItem[]> {
     try {
+      let jobs: JobItem[] = [];
+      const local = await AsyncStorage.getItem(JOBS_STORAGE_KEY);
+      if (local) {
+        jobs = JSON.parse(local);
+      }
+
       if (!IS_MOCK_FIREBASE && db) {
-        const snap = await getDocs(collection(db, 'jobs'));
-        if (!snap.empty) {
-          return snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobItem));
+        try {
+          await ensureFirebaseAuth();
+          const snap = await getDocs(collection(db, 'jobs'));
+          if (!snap.empty) {
+            const cloudJobs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobItem));
+            for (const cj of cloudJobs) {
+              const idx = jobs.findIndex((j) => j.id === cj.id);
+              if (idx >= 0) {
+                jobs[idx] = { ...jobs[idx], ...cj };
+              } else {
+                jobs.unshift(cj);
+              }
+            }
+            await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(jobs));
+          }
+        } catch {
+          // Handled silently
         }
       }
 
-      const local = await AsyncStorage.getItem(JOBS_STORAGE_KEY);
-      if (local) {
-        return JSON.parse(local);
+      if (jobs.length === 0) {
+        jobs = DEFAULT_JOBS;
+        await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(jobs));
       }
 
-      await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(DEFAULT_JOBS));
-      return DEFAULT_JOBS;
+      return jobs;
     } catch {
       return DEFAULT_JOBS;
     }

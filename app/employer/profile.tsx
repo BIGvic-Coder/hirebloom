@@ -39,24 +39,24 @@ export default function EmployerProfile() {
         <View className="bg-forest px-6 pt-10 pb-8 border-b border-mint/20">
           <View className="flex-row items-center mb-6">
             <View className="w-16 h-16 bg-mint rounded-2xl items-center justify-center mr-4 border-2 border-white/20 shadow-md">
-              <Text className="text-forest font-extrabold text-2xl font-serif">T</Text>
+              <Text className="text-forest font-extrabold text-2xl font-serif">H</Text>
             </View>
             <View className="flex-1">
               <View className="flex-row items-center">
-                <Text className="text-2xl font-bold text-white mr-2">TechNova Inc.</Text>
+                <Text className="text-2xl font-bold text-white mr-2">HireBloom Inc.</Text>
                 <View className="bg-mint/25 px-2 py-0.5 rounded border border-mint/40">
-                  <Text className="text-mint font-extrabold text-[9px] uppercase">Verified Employer</Text>
+                  <Text className="text-mint font-extrabold text-[9px] uppercase">Talent Cloud HQ</Text>
                 </View>
               </View>
-              <Text className="text-zinc-300 text-xs mt-0.5">SaaS & Customer Operations</Text>
+              <Text className="text-zinc-300 text-xs mt-0.5">Global Talent Cloud & Embedded Staffing</Text>
               <View className="flex-row items-center mt-2 space-x-3">
                 <View className="flex-row items-center">
                   <MapPin size={12} color="#8ecfa9" style={{ marginRight: 4 }} />
-                  <Text className="text-zinc-300 text-[11px]">Austin, TX • Remote</Text>
+                  <Text className="text-zinc-300 text-[11px]">San Francisco, CA • Remote</Text>
                 </View>
                 <View className="flex-row items-center">
                   <Globe size={12} color="#8ecfa9" style={{ marginRight: 4 }} />
-                  <Text className="text-zinc-300 text-[11px]">technova.io</Text>
+                  <Text className="text-zinc-300 text-[11px]">hirebloom.com</Text>
                 </View>
               </View>
             </View>
@@ -174,18 +174,51 @@ export default function EmployerProfile() {
             </View>
 
             <View className="space-y-3">
+              {/* CEO */}
               <View className="flex-row items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
                 <View className="flex-row items-center">
                   <View className="w-9 h-9 rounded-full bg-forest items-center justify-center mr-3">
+                    <Text className="text-white font-bold text-xs">VT</Text>
+                  </View>
+                  <View>
+                    <Text className="text-slate-900 font-bold text-xs">Victor Taiwo</Text>
+                    <Text className="text-slate-400 text-[10px]">Founder & CEO • Master Key Access</Text>
+                  </View>
+                </View>
+                <View className="bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                  <Text className="text-indigo-800 font-extrabold text-[9px] uppercase">CEO</Text>
+                </View>
+              </View>
+
+              {/* Dedicated Coordinator Sarah Jenkins */}
+              <View className="flex-row items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <View className="flex-row items-center">
+                  <View className="w-9 h-9 rounded-full bg-mint items-center justify-center mr-3 border border-forest/20">
+                    <Text className="text-forest font-bold text-xs">SJ</Text>
+                  </View>
+                  <View>
+                    <Text className="text-slate-900 font-bold text-xs">Sarah Jenkins</Text>
+                    <Text className="text-slate-400 text-[10px]">Lead Placement Coordinator • HireBloom</Text>
+                  </View>
+                </View>
+                <View className="bg-mint/20 px-2 py-0.5 rounded border border-mint/30">
+                  <Text className="text-forest font-bold text-[9px]">Coordinator</Text>
+                </View>
+              </View>
+
+              {/* Operations Director */}
+              <View className="flex-row items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <View className="flex-row items-center">
+                  <View className="w-9 h-9 rounded-full bg-slate-800 items-center justify-center mr-3">
                     <Text className="text-white font-bold text-xs">DV</Text>
                   </View>
                   <View>
                     <Text className="text-slate-900 font-bold text-xs">David Vance</Text>
-                    <Text className="text-slate-400 text-[10px]">Director of Ops • Admin</Text>
+                    <Text className="text-slate-400 text-[10px]">Director of Ops • Staff Admin</Text>
                   </View>
                 </View>
-                <View className="bg-mint/20 px-2 py-0.5 rounded border border-mint/30">
-                  <Text className="text-forest font-bold text-[9px]">Primary</Text>
+                <View className="bg-slate-200 px-2 py-0.5 rounded">
+                  <Text className="text-slate-700 font-bold text-[9px]">Ops</Text>
                 </View>
               </View>
             </View>

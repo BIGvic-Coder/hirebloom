@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Linking } from 'react-native';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  TextInput, 
+  Modal, 
+  Alert, 
+  Linking, 
+  RefreshControl, 
+  KeyboardAvoidingView, 
+  Platform 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Search, 
@@ -13,13 +25,23 @@ import {
   Award, 
   FileText, 
   UploadCloud, 
-  Check,
-  Mail
+  Mail,
+  RefreshCw,
+  Globe,
+  ChevronDown,
+  Users,
+  Calendar,
+  AlertCircle,
+  Sparkles,
+  UserCheck,
+  Phone,
+  Check
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { ApplicationsService, JobItem, UserSession } from '@/services/applicationsService';
+import { ApplicationsService, JobItem, UserSession, isJobOpenForApplications } from '@/services/applicationsService';
 import { EmailService } from '@/services/emailService';
 import EmailInboxModal from '@/components/ui/EmailInboxModal';
+import { HIRING_COUNTRIES, CountryItem } from '@/constants/countries';
 import * as DocumentPicker from 'expo-document-picker';
 
 export default function CandidateJobs() {
@@ -30,9 +52,17 @@ export default function CandidateJobs() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [bookmarkedIds, setBookmarkedIds] = useState<Record<string, boolean>>({});
   const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Application Modal state
   const [activeJobForModal, setActiveJobForModal] = useState<JobItem | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<CountryItem>(HIRING_COUNTRIES[0]);
+  const [candidatePhone, setCandidatePhone] = useState('');
+  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [aboutCandidate, setAboutCandidate] = useState('');
+  const [reasonForApplying, setReasonForApplying] = useState('');
+  const [coverLetter, setCoverLetter] = useState('');
   const [applicationNote, setApplicationNote] = useState('');
   const [attachedResume, setAttachedResume] = useState<{ name: string; size: string; url?: string }>({
     name: 'resume_document.pdf',
@@ -67,6 +97,19 @@ export default function CandidateJobs() {
     const user = await ApplicationsService.getCurrentUser();
     setCurrentUser(user);
 
+    if (user?.country) {
+      const matched = HIRING_COUNTRIES.find(
+        c => c.name.toLowerCase() === user.country?.toLowerCase() || c.code.toLowerCase() === user.country?.toLowerCase()
+      );
+      if (matched) {
+        setSelectedCountry(matched);
+      }
+    }
+
+    if (user?.phone) {
+      setCandidatePhone(user.phone);
+    }
+
     const savedResume = await ApplicationsService.getSavedCandidateResume();
     if (savedResume) {
       setAttachedResume(savedResume);
@@ -88,38 +131,36 @@ export default function CandidateJobs() {
     setUnreadEmailCount(emailCount);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const toggleBookmark = (id: string) => {
     setBookmarkedIds(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleResetTestApplications = async () => {
-    Alert.alert(
-      "Reset Applications for Testing",
-      "This will clear all application caches so all positions (including Senior Customer Support Lead) become clean and unapplied. Ready to test fresh?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset Clean",
-          style: "destructive",
-          onPress: async () => {
-            await ApplicationsService.resetTestApplications();
-            setAppliedJobIds([]);
-            await loadData();
-            Alert.alert("Reset Completed", "All job positions are now fresh and ready for new test applications!");
-          }
-        }
-      ]
-    );
-  };
-
   const handleOpenApplyModal = (job: JobItem) => {
+    const openCheck = isJobOpenForApplications(job);
+    if (!openCheck.isOpen) {
+      Alert.alert(
+        "Application Closed",
+        openCheck.reason || "This role is currently not accepting new applications."
+      );
+      return;
+    }
+
     if (appliedJobIds.includes(job.id)) {
       Alert.alert(
         "Application Status",
         `You previously submitted an application for ${job.title}.\n\nWhat would you like to do?`,
         [
           { 
-            text: "View Confirmation Email 📩", 
+            text: "View Confirmation Email", 
             onPress: () => setEmailModalVisible(true) 
           },
           { 
@@ -127,7 +168,7 @@ export default function CandidateJobs() {
             onPress: () => router.push('/candidate/applications') 
           },
           { 
-            text: "Apply Again (Fresh Test)", 
+            text: "Update Application Profile", 
             onPress: () => {
               setActiveJobForModal(job);
               setApplicationNote('');
@@ -138,6 +179,7 @@ export default function CandidateJobs() {
       );
       return;
     }
+
     setActiveJobForModal(job);
     setApplicationNote('');
   };
@@ -149,7 +191,7 @@ export default function CandidateJobs() {
       "Choose an option to attach your resume:",
       [
         {
-          text: "📱 Choose File From Device",
+          text: "Upload Document from Device",
           onPress: async () => {
             try {
               setIsUploadingResume(true);
@@ -201,7 +243,7 @@ export default function CandidateJobs() {
           },
         },
         {
-          text: "📄 Pre-loaded Sample Resume",
+          text: "Attach Standard Portfolio Resume",
           onPress: async () => {
             setIsUploadingResume(true);
             const candidatePrefix = (currentUser?.name || 'candidate').toLowerCase().replace(/\s+/g, '_');
@@ -212,7 +254,7 @@ export default function CandidateJobs() {
             setAttachedResume(updated);
             await ApplicationsService.saveCandidateResume(updated);
             setIsUploadingResume(false);
-            Alert.alert("Resume Attached", "Sample PDF resume attached successfully.");
+            Alert.alert("Resume Attached", "Standard portfolio resume attached successfully.");
           },
         },
         {
@@ -225,6 +267,28 @@ export default function CandidateJobs() {
 
   const handleSubmitApplication = async () => {
     if (!activeJobForModal) return;
+
+    if (!aboutCandidate.trim()) {
+      Alert.alert('Required Field', 'Please share a brief introduction about yourself and your professional experience.');
+      return;
+    }
+
+    if (!reasonForApplying.trim()) {
+      Alert.alert('Required Field', 'Please share why you are applying for this specific position.');
+      return;
+    }
+
+    const cleanPhone = candidatePhone.trim();
+    if (!cleanPhone || cleanPhone.length < 6) {
+      Alert.alert(
+        'Phone Number Required',
+        `Please enter your direct mobile phone number (with WhatsApp) for ${selectedCountry.name}. Clients and employers require direct contact to schedule live technical interviews.`
+      );
+      return;
+    }
+
+    const fullPhoneNumber = cleanPhone.startsWith('+') ? cleanPhone : `${selectedCountry.dialCode} ${cleanPhone}`;
+
     setIsSubmitting(true);
 
     const candidateName = currentUser?.name || 'Talent Applicant';
@@ -232,6 +296,7 @@ export default function CandidateJobs() {
     const candidateId = currentUser?.uid || `candidate-${Date.now()}`;
     const targetJob = activeJobForModal;
     const finalLoom = loomVideoUrl.trim() || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403';
+    const countryString = `${selectedCountry.name} ${selectedCountry.flag}`;
 
     await ApplicationsService.saveCandidateLoomUrl(finalLoom);
 
@@ -239,10 +304,13 @@ export default function CandidateJobs() {
       id: candidateId,
       name: candidateName,
       email: candidateEmail,
-      country: currentUser?.country,
-      phone: currentUser?.phone,
-      whatsapp: currentUser?.whatsapp,
-      note: applicationNote.trim() || 'Excited to bring my communication and technical background to this position.',
+      country: countryString,
+      phone: fullPhoneNumber,
+      whatsapp: fullPhoneNumber,
+      note: applicationNote.trim() || reasonForApplying.trim(),
+      aboutCandidate: aboutCandidate.trim(),
+      reasonForApplying: reasonForApplying.trim(),
+      coverLetter: coverLetter.trim() || undefined,
       resume: attachedResume,
       loomUrl: finalLoom
     });
@@ -254,17 +322,16 @@ export default function CandidateJobs() {
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 6000);
 
-      // Refresh email count
-      const updatedCount = await EmailService.getUnreadCount(candidateEmail);
-      setUnreadEmailCount(updatedCount);
+      // Refresh email count & jobs list to update applicant counters
+      await loadData();
 
       // Show immediate notification alert with direct access to Bloom Email Inbox!
       Alert.alert(
-        "Application Submitted! 📩",
-        `Your application for ${targetJob.title} at ${targetJob.company} has been placed in the Hire Bloom Review Queue.\n\nAn official confirmation email has been dispatched to your Bloom Inbox (${candidateEmail}).`,
+        "Application Submitted",
+        `Your application for ${targetJob.title} at ${targetJob.company} has been placed in the HireBloom Review Queue.\n\nCountry: ${countryString}\n\nAn official confirmation email has been dispatched to your Bloom Inbox (${candidateEmail}).`,
         [
           {
-            text: "Open Bloom Inbox 📬",
+            text: "Open Inbox",
             onPress: () => {
               setEmailModalVisible(true);
             },
@@ -295,6 +362,12 @@ export default function CandidateJobs() {
     return matchesSearch && (job.tags.some(t => t.toLowerCase().includes(selectedCategory.toLowerCase())) || job.title.toLowerCase().includes(selectedCategory.toLowerCase()));
   });
 
+  const filteredCountries = HIRING_COUNTRIES.filter(c => 
+    c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+    c.code.toLowerCase().includes(countrySearch.toLowerCase()) ||
+    c.region.toLowerCase().includes(countrySearch.toLowerCase())
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       <View className="flex-1 px-5 pt-8">
@@ -302,7 +375,7 @@ export default function CandidateJobs() {
         <View className="flex-row justify-between items-start mb-6">
           <View>
             <Text className="text-slate-500 font-medium text-sm mb-0.5">
-              Hello, {currentUser?.name || 'Talent'} 👋
+              Hello, {currentUser?.name || 'Talent'}
             </Text>
             <Text className="text-3xl font-extrabold text-slate-900">Find your next</Text>
             <Text className="text-3xl font-extrabold text-forest">dream job</Text>
@@ -391,35 +464,49 @@ export default function CandidateJobs() {
           })}
         </ScrollView>
 
-        {/* Job Feed Header */}
+        {/* Job Feed Header with Refresh & Portal Link */}
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-base font-extrabold text-slate-900">
             Open Positions ({filteredJobs.length})
           </Text>
-          <View className="flex-row items-center space-x-2">
+          <View className="flex-row items-center">
             <TouchableOpacity
-              onPress={handleResetTestApplications}
-              className="bg-emerald-50 border border-emerald-300 px-2.5 py-1 rounded-lg mr-2 active:opacity-75"
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+              className="bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-xl mr-2 flex-row items-center active:opacity-75"
             >
-              <Text className="text-emerald-900 font-bold text-[11px]">🔄 Reset Test</Text>
+              <RefreshCw size={12} color="#113c2c" style={{ marginRight: 4 }} />
+              <Text className="text-forest font-bold text-[11px]">
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/candidate/applications')}>
-              <Text className="text-forest font-bold text-xs">Talent Portal Status</Text>
+              <Text className="text-forest font-bold text-xs">Talent Portal</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={['#113c2c']} />
+          }
+        >
           {filteredJobs.length === 0 ? (
             <View className="bg-white rounded-3xl p-8 items-center justify-center border border-slate-200 mt-2">
               <Building2 size={32} color="#94a3b8" style={{ marginBottom: 8 }} />
               <Text className="text-slate-800 font-bold text-sm">No positions match your filter</Text>
-              <Text className="text-slate-400 text-xs text-center mt-1">Try refining your search keyword.</Text>
+              <Text className="text-slate-400 text-xs text-center mt-1">Try refining your search keyword or tap Refresh.</Text>
             </View>
           ) : (
             filteredJobs.map((job, idx) => {
               const isApplied = appliedJobIds.includes(job.id);
               const isBookmarked = !!bookmarkedIds[job.id];
+              const openCheck = isJobOpenForApplications(job);
+              const maxCap = job.maxApplicants || 50;
+              const currentApplicants = job.applicants || 0;
+              const isAtCapacity = currentApplicants >= maxCap;
 
               return (
                 <View 
@@ -445,16 +532,31 @@ export default function CandidateJobs() {
                     </TouchableOpacity>
                   </View>
 
-                  <View className="flex-row items-center mb-3">
+                  <View className="flex-row items-center flex-wrap gap-y-1 mb-3">
                     <View className="flex-row items-center mr-4">
                       <MapPin color="#64748b" size={13} className="mr-1" />
                       <Text className="text-slate-500 text-xs">{job.location}</Text>
                     </View>
-                    <View className="flex-row items-center">
+                    <View className="flex-row items-center mr-4">
                       <Clock color="#64748b" size={13} className="mr-1" />
                       <Text className="text-slate-500 text-xs">{job.salary}</Text>
                     </View>
+                    <View className="flex-row items-center">
+                      <Users color="#64748b" size={13} className="mr-1" />
+                      <Text className={`text-xs font-semibold ${isAtCapacity ? 'text-amber-600' : 'text-slate-500'}`}>
+                        {currentApplicants}/{maxCap} Applicants
+                      </Text>
+                    </View>
                   </View>
+
+                  {job.deadline && (
+                    <View className="bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg flex-row items-center mb-3 self-start">
+                      <Calendar size={11} color="#b45309" style={{ marginRight: 4 }} />
+                      <Text className="text-amber-800 text-[10px] font-bold">
+                        Deadline: {job.deadline}
+                      </Text>
+                    </View>
+                  )}
 
                   <View className="flex-row flex-wrap gap-1.5 mb-4">
                     {job.tags.map((tag, i) => (
@@ -467,24 +569,34 @@ export default function CandidateJobs() {
                   {/* Actions */}
                   <View className="border-t border-slate-100 pt-3 flex-row items-center justify-between">
                     <Text className="text-slate-400 text-xs">Posted {job.posted}</Text>
-                    <TouchableOpacity
-                      onPress={() => handleOpenApplyModal(job)}
-                      className={`px-5 py-2.5 rounded-xl flex-row items-center ${
-                        isApplied ? 'bg-mint/30 border border-mint' : 'bg-forest'
-                      }`}
-                    >
-                      {isApplied ? (
-                        <>
-                          <CheckCircle2 color="#113c2c" size={14} style={{ marginRight: 5 }} />
-                          <Text className="text-forest font-bold text-xs">Applied • View Status</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Send color="white" size={14} style={{ marginRight: 5 }} />
-                          <Text className="text-white font-bold text-xs">Apply Now</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+                    
+                    {!openCheck.isOpen ? (
+                      <View className="bg-slate-100 border border-slate-300 px-4 py-2 rounded-xl flex-row items-center">
+                        <AlertCircle color="#64748b" size={13} style={{ marginRight: 5 }} />
+                        <Text className="text-slate-600 font-bold text-xs">
+                          {isAtCapacity ? 'Capacity Reached' : 'Applications Closed'}
+                        </Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => handleOpenApplyModal(job)}
+                        className={`px-5 py-2.5 rounded-xl flex-row items-center ${
+                          isApplied ? 'bg-mint/30 border border-mint' : 'bg-forest'
+                        }`}
+                      >
+                        {isApplied ? (
+                          <>
+                            <CheckCircle2 color="#113c2c" size={14} style={{ marginRight: 5 }} />
+                            <Text className="text-forest font-bold text-xs">Applied • View Status</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Send color="white" size={14} style={{ marginRight: 5 }} />
+                            <Text className="text-white font-bold text-xs">Apply Now</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               );
@@ -493,7 +605,7 @@ export default function CandidateJobs() {
         </ScrollView>
       </View>
 
-      {/* Application Confirmation Modal with Resume Upload */}
+      {/* Comprehensive Application Modal */}
       {Boolean(activeJobForModal) && (
         <Modal
           visible={!!activeJobForModal}
@@ -501,160 +613,342 @@ export default function CandidateJobs() {
           transparent={true}
           onRequestClose={() => setActiveJobForModal(null)}
         >
-        <View className="flex-1 bg-black/70 justify-end">
-          {activeJobForModal && (
-            <View className="bg-white rounded-t-3xl p-6 border-t border-slate-200 max-h-[90%]">
-              <View className="flex-row justify-between items-center mb-4">
-                <View className="flex-row items-center">
-                  <View className="w-10 h-10 bg-mint/20 rounded-xl items-center justify-center mr-3 border border-mint/30">
-                    <Building2 color="#113c2c" size={20} />
-                  </View>
-                  <View>
-                    <Text className="text-lg font-bold text-slate-900">Submit Application</Text>
-                    <Text className="text-slate-400 text-xs">{activeJobForModal.company}</Text>
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  onPress={() => setActiveJobForModal(null)}
-                  className="w-8 h-8 rounded-full bg-slate-100 items-center justify-center"
-                >
-                  <X size={18} color="#64748b" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Job Info Banner */}
-              <View className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4">
-                <Text className="text-xs font-bold text-forest uppercase tracking-wider mb-1">Applying for</Text>
-                <Text className="text-base font-extrabold text-slate-900 mb-1">{activeJobForModal.title}</Text>
-                <Text className="text-slate-500 text-xs">{activeJobForModal.location} • {activeJobForModal.salary}</Text>
-              </View>
-
-              {/* Attached Resume Section */}
-              <View className="bg-white border border-slate-200 rounded-2xl p-4 mb-4 shadow-sm">
-                <View className="flex-row justify-between items-center mb-1">
-                  <View className="flex-row items-center">
-                    <FileText size={15} color="#113c2c" style={{ marginRight: 6 }} />
-                    <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Attached Resume / CV
-                    </Text>
-                  </View>
-                  <View className="bg-mint/20 px-2 py-0.5 rounded-md border border-mint/40">
-                    <Text className="text-forest font-bold text-[9px] uppercase tracking-wider">PDF & DOC ONLY</Text>
-                  </View>
-                </View>
-
-                <Text className="text-zinc-400 text-[10px] mb-2.5">
-                  Only PDF (.pdf) and Word documents (.doc, .docx) are acceptable. Max 5MB.
-                </Text>
-
-                <View className="bg-zinc-50 border border-zinc-200 p-3 rounded-xl flex-row items-center justify-between">
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            className="flex-1 bg-black/70 justify-end"
+          >
+            {activeJobForModal && (
+              <View className="bg-white rounded-t-3xl border-t border-slate-200 max-h-[92%]">
+                {/* Modal Fixed Top Header */}
+                <View className="p-5 border-b border-slate-100 flex-row justify-between items-center">
                   <View className="flex-row items-center flex-1 pr-2">
-                    <View className="w-8 h-8 bg-red-100 rounded-lg items-center justify-center mr-2.5 border border-red-200">
-                      <FileText size={16} color="#dc2626" />
+                    <View className="w-10 h-10 bg-mint/20 rounded-xl items-center justify-center mr-3 border border-mint/30">
+                      <Building2 color="#113c2c" size={20} />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-slate-900 font-bold text-xs" numberOfLines={1}>
-                        {attachedResume.name}
-                      </Text>
-                      <Text className="text-zinc-500 text-[10px]">
-                        {attachedResume.size} • Verified Valid Document
-                      </Text>
+                      <Text className="text-base font-extrabold text-slate-900 leading-tight">Submit Application</Text>
+                      <Text className="text-slate-500 text-xs" numberOfLines={1}>{activeJobForModal.company} • {activeJobForModal.title}</Text>
                     </View>
                   </View>
-
                   <TouchableOpacity 
-                    onPress={handlePickResume}
-                    disabled={isUploadingResume}
-                    className="bg-forest/10 border border-forest/20 px-2.5 py-1.5 rounded-lg flex-row items-center"
+                    onPress={() => setActiveJobForModal(null)}
+                    className="w-8 h-8 rounded-full bg-slate-100 items-center justify-center"
                   >
-                    <UploadCloud size={12} color="#113c2c" style={{ marginRight: 4 }} />
-                    <Text className="text-forest font-bold text-[10px]">
-                      {isUploadingResume ? 'Uploading...' : 'Change File'}
-                    </Text>
+                    <X size={18} color="#64748b" />
                   </TouchableOpacity>
                 </View>
-              </View>
 
-              {/* Loom Video Intro Section */}
-              <View className="bg-white border border-slate-200 rounded-2xl p-4 mb-4 shadow-sm">
-                <View className="flex-row justify-between items-center mb-2">
-                  <View className="flex-row items-center">
-                    <View className="w-5 h-5 rounded-full bg-indigo-600 items-center justify-center mr-2 shadow-sm">
-                      <Text className="text-white text-[10px] font-black">▶</Text>
-                    </View>
-                    <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      2-Min Loom Video Pitch
+                {/* Modal Scrollable Form */}
+                <ScrollView 
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {/* Job Requisition Banner */}
+                  <View className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 mb-4">
+                    <Text className="text-[10px] font-extrabold text-forest uppercase tracking-wider mb-0.5">Role Requisition</Text>
+                    <Text className="text-base font-extrabold text-slate-900">{activeJobForModal.title}</Text>
+                    <Text className="text-slate-500 text-xs mt-0.5">
+                      {activeJobForModal.location} • {activeJobForModal.salary} • {activeJobForModal.applicants || 0}/{activeJobForModal.maxApplicants || 50} applicants
                     </Text>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => setLoomVideoUrl('https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403')}
-                    className="bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-lg"
-                  >
-                    <Text className="text-indigo-700 font-bold text-[10px]">Use Demo Pitch</Text>
-                  </TouchableOpacity>
-                </View>
 
-                <Text className="text-slate-500 text-[11px] mb-2.5 leading-relaxed">
-                  HireBloom requirement: Submit a short Loom link showcasing your spoken English and remote setup.
-                </Text>
-
-                <View className="flex-row items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
-                  <TextInput
-                    value={loomVideoUrl}
-                    onChangeText={setLoomVideoUrl}
-                    placeholder="https://www.loom.com/share/..."
-                    placeholderTextColor="#94a3b8"
-                    className="flex-1 text-slate-900 font-medium text-xs mr-2"
-                    autoCapitalize="none"
-                  />
-                  {loomVideoUrl ? (
+                  {/* 1. Country Selection */}
+                  <View className="mb-4">
+                    <View className="flex-row justify-between items-center mb-1.5">
+                      <Text className="text-slate-800 font-bold text-xs uppercase tracking-wider">
+                        Your Country of Residence *
+                      </Text>
+                      <Text className="text-forest text-[10px] font-bold">Remote Hiring</Text>
+                    </View>
                     <TouchableOpacity
-                      onPress={() => {
-                        if (loomVideoUrl.startsWith('http')) {
-                          Linking.openURL(loomVideoUrl);
-                        } else {
-                          Alert.alert('Invalid Link', 'Please enter a valid URL starting with https://');
-                        }
-                      }}
-                      className="bg-forest px-2.5 py-1.5 rounded-lg"
+                      onPress={() => setCountryPickerVisible(true)}
+                      className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex-row items-center justify-between active:opacity-75 shadow-sm"
                     >
-                      <Text className="text-white font-bold text-[10px]">Preview</Text>
+                      <View className="flex-row items-center flex-1">
+                        <Text className="text-xl mr-2.5">{selectedCountry.flag}</Text>
+                        <View>
+                          <Text className="text-slate-900 font-bold text-xs">{selectedCountry.name}</Text>
+                          <Text className="text-slate-500 text-[10px]">{selectedCountry.region} • {selectedCountry.dialCode}</Text>
+                        </View>
+                      </View>
+                      <View className="flex-row items-center bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                        <Text className="text-forest font-bold text-[10px] mr-1">Change</Text>
+                        <ChevronDown size={12} color="#113c2c" />
+                      </View>
                     </TouchableOpacity>
-                  ) : null}
-                </View>
-              </View>
+                  </View>
 
-              {/* Optional Note */}
-              <View className="mb-5">
-                <Text className="text-slate-700 font-bold text-xs mb-1.5 uppercase tracking-wider">
-                  Intro Note to Hiring Manager (Optional)
-                </Text>
-                <TextInput
-                  value={applicationNote}
-                  onChangeText={setApplicationNote}
-                  placeholder="Share any specific tools or past experiences you bring..."
-                  placeholderTextColor="#94a3b8"
-                  multiline
-                  numberOfLines={3}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium"
-                  textAlignVertical="top"
-                />
-              </View>
+                  {/* Phone Number Field (Mandatory) */}
+                  <View className="mb-4">
+                    <View className="flex-row justify-between items-center mb-1.5">
+                      <Text className="text-slate-800 font-bold text-xs uppercase tracking-wider">
+                        Direct Phone / WhatsApp *
+                      </Text>
+                      <Text className="text-emerald-700 text-[10px] font-bold">Mandatory for Interview</Text>
+                    </View>
+                    <View className="flex-row items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                      <View className="flex-row items-center mr-2.5 pr-2.5 border-r border-slate-200">
+                        <Text className="text-base mr-1">{selectedCountry.flag}</Text>
+                        <Text className="text-slate-800 font-bold text-xs">{selectedCountry.dialCode}</Text>
+                      </View>
+                      <TextInput
+                        value={candidatePhone}
+                        onChangeText={setCandidatePhone}
+                        placeholder={selectedCountry.placeholder || "801 234 5678"}
+                        placeholderTextColor="#94a3b8"
+                        keyboardType="phone-pad"
+                        className="flex-1 text-xs text-slate-900 font-medium"
+                      />
+                    </View>
+                    <Text className="text-slate-400 text-[9px] mt-1">
+                      Used by HireBloom coordinators to dispatch interview calendar invites & notifications.
+                    </Text>
+                  </View>
 
+                  {/* 2. Tell Us About Yourself */}
+                  <View className="mb-4">
+                    <Text className="text-slate-800 font-bold text-xs uppercase tracking-wider mb-1">
+                      Tell Us About Yourself (Short Bio / Background) *
+                    </Text>
+                    <Text className="text-slate-400 text-[10px] mb-1.5">
+                      Brief summary of your professional strengths, remote setup, and career history.
+                    </Text>
+                    <TextInput
+                      value={aboutCandidate}
+                      onChangeText={setAboutCandidate}
+                      placeholder="e.g. Experienced support lead with 4+ years handling SaaS ticketing, C1 English fluency, dedicated workstation with fiber internet & power backup..."
+                      placeholderTextColor="#94a3b8"
+                      multiline
+                      numberOfLines={3}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium"
+                      textAlignVertical="top"
+                    />
+                  </View>
+
+                  {/* 3. Reason for Applying */}
+                  <View className="mb-4">
+                    <Text className="text-slate-800 font-bold text-xs uppercase tracking-wider mb-1">
+                      Why Are You Applying for This Position? *
+                    </Text>
+                    <Text className="text-slate-400 text-[10px] mb-1.5">
+                      What excites you about this specific opening and why are you the best fit?
+                    </Text>
+                    <TextInput
+                      value={reasonForApplying}
+                      onChangeText={setReasonForApplying}
+                      placeholder="e.g. I have hands-on mastery with Zendesk/Intercom and align with your team's US-hours coverage schedule..."
+                      placeholderTextColor="#94a3b8"
+                      multiline
+                      numberOfLines={3}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium"
+                      textAlignVertical="top"
+                    />
+                  </View>
+
+                  {/* 4. Cover Letter / Pitch */}
+                  <View className="mb-4">
+                    <Text className="text-slate-800 font-bold text-xs uppercase tracking-wider mb-1">
+                      Cover Letter / Detailed Pitch (Optional)
+                    </Text>
+                    <TextInput
+                      value={coverLetter}
+                      onChangeText={setCoverLetter}
+                      placeholder="Share your tailored pitch, notable projects, or metrics achieved..."
+                      placeholderTextColor="#94a3b8"
+                      multiline
+                      numberOfLines={4}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium"
+                      textAlignVertical="top"
+                    />
+                  </View>
+
+                  {/* 5. Attached Resume / CV */}
+                  <View className="bg-white border border-slate-200 rounded-2xl p-4 mb-4 shadow-sm">
+                    <View className="flex-row justify-between items-center mb-1">
+                      <View className="flex-row items-center">
+                        <FileText size={15} color="#113c2c" style={{ marginRight: 6 }} />
+                        <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                          Attached Resume / CV
+                        </Text>
+                      </View>
+                      <View className="bg-mint/20 px-2 py-0.5 rounded-md border border-mint/40">
+                        <Text className="text-forest font-bold text-[9px] uppercase tracking-wider">PDF & DOC ONLY</Text>
+                      </View>
+                    </View>
+
+                    <Text className="text-zinc-400 text-[10px] mb-2.5">
+                      Only PDF (.pdf) and Word documents (.doc, .docx) are acceptable. Max 5MB.
+                    </Text>
+
+                    <View className="bg-zinc-50 border border-zinc-200 p-3 rounded-xl flex-row items-center justify-between">
+                      <View className="flex-row items-center flex-1 pr-2">
+                        <View className="w-8 h-8 bg-red-100 rounded-lg items-center justify-center mr-2.5 border border-red-200">
+                          <FileText size={16} color="#dc2626" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-slate-900 font-bold text-xs" numberOfLines={1}>
+                            {attachedResume.name}
+                          </Text>
+                          <Text className="text-zinc-500 text-[10px]">
+                            {attachedResume.size} • Verified Valid Document
+                          </Text>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity 
+                        onPress={handlePickResume}
+                        disabled={isUploadingResume}
+                        className="bg-forest/10 border border-forest/20 px-2.5 py-1.5 rounded-lg flex-row items-center"
+                      >
+                        <UploadCloud size={12} color="#113c2c" style={{ marginRight: 4 }} />
+                        <Text className="text-forest font-bold text-[10px]">
+                          {isUploadingResume ? 'Uploading...' : 'Change File'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* 6. Loom Video Intro Section */}
+                  <View className="bg-white border border-slate-200 rounded-2xl p-4 mb-5 shadow-sm">
+                    <View className="flex-row justify-between items-center mb-2">
+                      <View className="flex-row items-center">
+                        <View className="w-5 h-5 rounded-full bg-indigo-600 items-center justify-center mr-2 shadow-sm">
+                          <Check size={11} color="white" />
+                        </View>
+                        <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                          2-Min Loom Video Pitch
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setLoomVideoUrl('https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403')}
+                        className="bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-lg"
+                      >
+                        <Text className="text-indigo-700 font-bold text-[10px]">Use Portfolio Pitch</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text className="text-slate-500 text-[11px] mb-2.5 leading-relaxed">
+                      HireBloom requirement: Submit a short Loom link showcasing your spoken English and remote setup.
+                    </Text>
+
+                    <View className="flex-row items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                      <TextInput
+                        value={loomVideoUrl}
+                        onChangeText={setLoomVideoUrl}
+                        placeholder="https://www.loom.com/share/..."
+                        placeholderTextColor="#94a3b8"
+                        className="flex-1 text-slate-900 font-medium text-xs mr-2"
+                        autoCapitalize="none"
+                      />
+                      {loomVideoUrl ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (loomVideoUrl.startsWith('http')) {
+                              Linking.openURL(loomVideoUrl);
+                            } else {
+                              Alert.alert('Invalid Link', 'Please enter a valid URL starting with https://');
+                            }
+                          }}
+                          className="bg-forest px-2.5 py-1.5 rounded-lg"
+                        >
+                          <Text className="text-white font-bold text-[10px]">Preview</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {/* Submit Button */}
+                  <TouchableOpacity
+                    onPress={handleSubmitApplication}
+                    disabled={isSubmitting}
+                    className="w-full bg-forest py-4 rounded-2xl items-center justify-center active:opacity-90 shadow-md shadow-forest/20 flex-row"
+                  >
+                    <Send size={15} color="white" style={{ marginRight: 6 }} />
+                    <Text className="text-white font-extrabold text-sm">
+                      {isSubmitting ? 'Submitting Application...' : 'Submit Application'}
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            )}
+          </KeyboardAvoidingView>
+        </Modal>
+      )}
+
+      {/* Country Selection Modal */}
+      <Modal
+        visible={countryPickerVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCountryPickerVisible(false)}
+      >
+        <View className="flex-1 bg-black/60 justify-end">
+          <View className="bg-white rounded-t-3xl p-5 max-h-[80%] border-t border-slate-200">
+            <View className="flex-row justify-between items-center mb-3">
+              <View className="flex-row items-center">
+                <Globe size={18} color="#113c2c" style={{ marginRight: 6 }} />
+                <Text className="text-base font-extrabold text-slate-900">Select Your Country</Text>
+              </View>
               <TouchableOpacity
-                onPress={handleSubmitApplication}
-                disabled={isSubmitting}
-                className="w-full bg-forest py-4 rounded-2xl items-center justify-center active:opacity-90 shadow-md shadow-forest/20"
+                onPress={() => setCountryPickerVisible(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 items-center justify-center"
               >
-                <Text className="text-white font-bold text-sm">
-                  {isSubmitting ? 'Submitting Application...' : 'Confirm & Apply'}
-                </Text>
+                <X size={16} color="#64748b" />
               </TouchableOpacity>
             </View>
-          )}
+
+            {/* Country Search */}
+            <View className="flex-row items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 mb-3">
+              <Search size={15} color="#94a3b8" style={{ marginRight: 6 }} />
+              <TextInput
+                value={countrySearch}
+                onChangeText={setCountrySearch}
+                placeholder="Search country or dial code..."
+                placeholderTextColor="#94a3b8"
+                className="flex-1 text-xs text-slate-900"
+              />
+              {countrySearch ? (
+                <TouchableOpacity onPress={() => setCountrySearch('')}>
+                  <X size={14} color="#94a3b8" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} className="max-h-96">
+              {filteredCountries.map((c) => {
+                const isSelected = selectedCountry.code === c.code;
+                return (
+                  <TouchableOpacity
+                    key={c.code}
+                    onPress={() => {
+                      setSelectedCountry(c);
+                      setCountryPickerVisible(false);
+                      setCountrySearch('');
+                    }}
+                    className={`flex-row items-center justify-between p-3.5 rounded-xl mb-1.5 ${
+                      isSelected ? 'bg-mint/20 border border-mint/40' : 'bg-slate-50'
+                    }`}
+                  >
+                    <View className="flex-row items-center flex-1">
+                      <Text className="text-2xl mr-3">{c.flag}</Text>
+                      <View>
+                        <Text className="text-slate-900 font-bold text-xs">{c.name}</Text>
+                        <Text className="text-slate-400 text-[10px]">{c.region} • {c.dialCode}</Text>
+                      </View>
+                    </View>
+                    {isSelected && (
+                      <View className="w-5 h-5 rounded-full bg-forest items-center justify-center">
+                        <CheckCircle2 size={12} color="white" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
         </View>
       </Modal>
-      )}
 
       {/* Embedded Mobile Email Inbox Modal */}
       <EmailInboxModal

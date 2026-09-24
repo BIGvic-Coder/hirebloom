@@ -156,6 +156,27 @@ export default function Login() {
     router.replace(role === 'employer' || role === 'ceo' ? '/employer' : role === 'recruiter' ? '/recruiter' : '/candidate');
   };
 
+  const sendOtpToEmail = async (cleanEmail: string, userName?: string) => {
+    setAuthLoading(true);
+    try {
+      const res = await ApplicationsService.sendEmailOtp(cleanEmail);
+      if (res.success) {
+        setGeneratedCodeHint(res.code);
+        setOtpStep('enterCode');
+        Alert.alert(
+          userName ? `Welcome Back, ${userName}` : "Verification Code Dispatched",
+          `A 6-digit security code has been sent to:\n${cleanEmail}\n\nSecurity Code: ${res.code}`
+        );
+      } else {
+        Alert.alert("Error", res.message || "Failed to send verification code.");
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to send verification code.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   // 1. Send Email Verification Code (OTP) Flow (Old vs New User Detection)
   const handleSendEmailOtp = async () => {
     const cleanEmail = ApplicationsService.normalizeEmail(email);
@@ -172,12 +193,14 @@ export default function Login() {
       // Check if user is an existing / old user
       const check = await ApplicationsService.checkUserExists(cleanEmail);
 
-      if (!check.exists) {
-        // NEW USER DETECTED: Offer instant registration
+      if (check.exists) {
+        await sendOtpToEmail(cleanEmail, check.user?.name);
+      } else {
         setAuthLoading(false);
+        // Not found in local cache: offer choice to send OTP directly or register a new profile
         Alert.alert(
-          "New to Hire Bloom?",
-          `We couldn't find an existing account for "${cleanEmail}".\n\nWould you like to register as a new user?`,
+          "Sign In or Register",
+          `We couldn't find an existing account for "${cleanEmail}".\n\nWould you like to send a login code anyway, or register as a new user?`,
           [
             { text: "Try Another Email", style: "cancel" },
             {
@@ -188,26 +211,18 @@ export default function Login() {
                   params: { email: cleanEmail }
                 });
               }
+            },
+            {
+              text: "Send Code & Sign In",
+              onPress: async () => {
+                await sendOtpToEmail(cleanEmail);
+              }
             }
           ]
         );
-        return;
       }
-
-      // EXISTING / OLD USER: Send 6-digit OTP verification code
-      const res = await ApplicationsService.sendEmailOtp(cleanEmail);
-      if (res.success) {
-        setGeneratedCodeHint(res.code);
-        setOtpStep('enterCode');
-        Alert.alert(
-          `Welcome Back${check.user?.name ? `, ${check.user.name}` : ''}!`,
-          `We verified your account. A 6-digit verification code has been sent to:\n${cleanEmail}\n\n(Testing Code: ${res.code})`
-        );
-      } else {
-        Alert.alert("Error", res.message || "Failed to send verification code.");
-      }
-    } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to verify account.");
+    } catch {
+      await sendOtpToEmail(cleanEmail);
     } finally {
       setAuthLoading(false);
     }

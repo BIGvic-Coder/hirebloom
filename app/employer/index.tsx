@@ -21,7 +21,7 @@ export default function EmployerDashboard() {
     if (refreshing) {
       const timer = setTimeout(() => {
         setRefreshing(false);
-      }, 2000);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [refreshing]);
@@ -57,10 +57,7 @@ export default function EmployerDashboard() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.race([
-        loadDashboardData(),
-        new Promise((resolve) => setTimeout(resolve, 2000)),
-      ]);
+      await loadDashboardData();
     } catch (e) {
       console.warn('Error during employer dashboard refresh:', e);
     } finally {
@@ -442,7 +439,7 @@ export default function EmployerDashboard() {
             <View className="flex-row justify-between items-center mb-6">
               <View>
                 <Text className="text-inkMuted font-medium text-xs mb-0.5">Employer Workspace</Text>
-                <Text className="text-2xl font-bold text-ink font-serif">TechNova Inc.</Text>
+                <Text className="text-2xl font-bold text-ink font-serif">HireBloom Inc.</Text>
               </View>
               <View className="bg-mintLight/60 border border-mint/40 px-3 py-1 rounded-full">
                 <Text className="text-forest font-bold text-xs">Verified Partner</Text>

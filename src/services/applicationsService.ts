@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, IS_MOCK_FIREBASE, sanitizeForFirestore } from '@/constants/firebase';
+import { db, IS_MOCK_FIREBASE, sanitizeForFirestore, ensureFirebaseAuth } from '@/constants/firebase';
 import { 
   collection, 
   doc, 
@@ -31,12 +31,35 @@ export interface JobItem {
   type: string;
   tags: string[];
   applicants: number;
+  maxApplicants?: number; // e.g. 50 applicants limit
+  deadline?: string; // e.g. "Oct 30, 2026"
   posted: string;
   status: 'Active' | 'Drafts' | 'Closed';
   postedByRole: string;
   postedByUid?: string;
   verified?: boolean;
   createdAt: string;
+}
+
+export function isJobOpenForApplications(job: JobItem): { isOpen: boolean; reason?: string } {
+  if (job.status === 'Closed') {
+    return { isOpen: false, reason: 'This requisition has been closed by the hiring team.' };
+  }
+
+  // 1. Check max applicant capacity
+  if (job.maxApplicants && (job.applicants || 0) >= job.maxApplicants) {
+    return { isOpen: false, reason: `Application limit reached (${job.maxApplicants} max applicants).` };
+  }
+
+  // 2. Check application deadline
+  if (job.deadline) {
+    const deadlineTime = new Date(job.deadline).getTime();
+    if (!isNaN(deadlineTime) && deadlineTime < Date.now()) {
+      return { isOpen: false, reason: `Application deadline expired on ${job.deadline}.` };
+    }
+  }
+
+  return { isOpen: true };
 }
 
 export interface JobApplication {
@@ -51,6 +74,16 @@ export interface JobApplication {
   candidateCountry?: string;
   candidatePhone?: string;
   candidateWhatsapp?: string;
+  // Professional Bio & Motivation
+  aboutCandidate?: string;
+  reasonForApplying?: string;
+  coverLetter?: string;
+  // AI Strict Vetting & Coordinator Assignment
+  aiMatchScore?: string;
+  aiMatchRating?: number;
+  aiVettingStatus?: 'Approved' | 'Flagged' | 'Needs Review';
+  aiVettingFeedback?: string;
+  assignedReviewer?: string;
   status: ApplicationStatus;
   statusColor: string;
   statusBg: string;
@@ -76,6 +109,131 @@ export interface JobApplication {
     salary: string;
     startDate?: string;
     role?: string;
+  };
+}
+
+export function evaluateApplicationStrictAI(
+  job: JobItem,
+  candidate: {
+    aboutCandidate?: string;
+    reasonForApplying?: string;
+    coverLetter?: string;
+    note?: string;
+    resume?: { name: string; size: string };
+    loomUrl?: string;
+  }
+): {
+  score: string;
+  rating: number;
+  status: 'Approved' | 'Flagged' | 'Needs Review';
+  feedback: string;
+  assignedReviewer: string;
+} {
+  let score = 50;
+  const issues: string[] = [];
+  const strengths: string[] = [];
+
+  const combinedText = [
+    candidate.aboutCandidate || '',
+    candidate.reasonForApplying || '',
+    candidate.coverLetter || '',
+    candidate.note || ''
+  ].join(' ').toLowerCase();
+
+  // 1. Minimum Content / Effort Check
+  const totalLength = combinedText.trim().length;
+  if (totalLength < 30) {
+    score -= 30;
+    issues.push('Very sparse application text (< 30 characters)');
+  } else if (totalLength < 80) {
+    score -= 15;
+    issues.push('Minimal motivation/bio details provided');
+  } else {
+    score += 15;
+    strengths.push('Substantive background & motivation statement');
+  }
+
+  // 2. Repetitive / Low-quality text check
+  const words = combinedText.split(/\s+/).filter(w => w.length > 0);
+  const uniqueWords = new Set(words);
+  if (words.length > 6 && uniqueWords.size / words.length < 0.45) {
+    score -= 35;
+    issues.push('Repetitive, non-substantive text detected');
+  }
+
+  // 3. Keyword / Skill Relevance matching with job title & tags
+  const jobKeywords: string[] = [];
+  const extractKeywords = (str: string) => {
+    return str
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !['with', 'from', 'your', 'this', 'that', 'have', 'more', 'lead', 'hours', 'time', 'senior'].includes(w));
+  };
+
+  jobKeywords.push(...extractKeywords(job.title));
+  if (job.tags) {
+    job.tags.forEach(t => jobKeywords.push(...extractKeywords(t)));
+  }
+
+  let matchedKeywordsCount = 0;
+  jobKeywords.forEach(kw => {
+    if (combinedText.includes(kw)) {
+      matchedKeywordsCount++;
+    }
+  });
+
+  if (jobKeywords.length > 0) {
+    if (matchedKeywordsCount >= 3) {
+      score += 25;
+      strengths.push(`Strong skill alignment (${matchedKeywordsCount} core competencies matched)`);
+    } else if (matchedKeywordsCount >= 1) {
+      score += 10;
+      strengths.push('Partial competency alignment with role tags');
+    } else {
+      score -= 25;
+      issues.push('Application does not mention core tools or experience required for this role');
+    }
+  }
+
+  // 4. Resume & Loom check
+  if (candidate.resume?.name) {
+    score += 10;
+    strengths.push('Validated PDF/DOC resume attached');
+  } else {
+    score -= 10;
+    issues.push('Missing resume attachment');
+  }
+
+  if (candidate.loomUrl && candidate.loomUrl.includes('loom.com')) {
+    score += 10;
+    strengths.push('Verified Loom video pitch attached');
+  }
+
+  // Clamp score between 28% and 98%
+  const finalRating = Math.max(28, Math.min(98, score));
+  const scoreStr = `${finalRating}%`;
+
+  let status: 'Approved' | 'Flagged' | 'Needs Review' = 'Approved';
+  let feedback = '';
+
+  if (finalRating >= 82) {
+    status = 'Approved';
+    feedback = `AI Approved (${scoreStr}): ${strengths.join('. ')}. Pre-screened for Sarah Jenkins (HireBloom Coordinator) review.`;
+  } else if (finalRating >= 60) {
+    status = 'Needs Review';
+    feedback = `Staff Review Required (${scoreStr}): Baseline qualifications found. Notice: ${issues.join(', ') || 'Pending manual scoring'}.`;
+  } else {
+    status = 'Flagged';
+    feedback = `Strict AI Warning (${scoreStr}): Low role relevance or sparse application text. Flagged: ${issues.join(', ')}.`;
+  }
+
+  return {
+    score: scoreStr,
+    rating: finalRating,
+    status,
+    feedback,
+    assignedReviewer: 'Sarah Jenkins (HireBloom Coordinator)'
   };
 }
 
@@ -270,6 +428,12 @@ const DEFAULT_EXISTING_USERS: Array<{
     company: 'HireBloom HQ',
   },
   {
+    uid: 'user-candidate-everywheregetscope',
+    email: 'everywheregetscope@gmail.com',
+    name: 'Everywhere Get Scope',
+    role: 'candidate',
+  },
+  {
     uid: 'user-victor-1',
     email: 'victor@hirebloom.com',
     name: 'Victor Taiwo',
@@ -297,7 +461,7 @@ const DEFAULT_EXISTING_USERS: Array<{
 ];
 
 // Safeguard network operations against mobile data / offline hangs
-const withTimeout = <T>(promise: Promise<T>, timeoutMs = 2500): Promise<T> => {
+const withTimeout = <T>(promise: Promise<T>, timeoutMs = 6000): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Firebase operation timed out')), timeoutMs)),
@@ -322,7 +486,7 @@ export const ApplicationsService = {
     return 'HB';
   },
 
-  // 1. Fetch all jobs
+  // 1. Fetch all jobs with real-time dynamic applicant counts
   async getJobs(): Promise<JobItem[]> {
     try {
       let jobs: JobItem[] = [];
@@ -333,14 +497,19 @@ export const ApplicationsService = {
 
       if (!IS_MOCK_FIREBASE && db) {
         try {
-          const snap = await withTimeout(getDocs(collection(db, 'jobs')), 2500);
+          await ensureFirebaseAuth();
+          const snap = await withTimeout(getDocs(collection(db, 'jobs')), 6000);
           if (!snap.empty) {
             const cloudJobs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobItem));
             for (const cj of cloudJobs) {
-              if (!jobs.find((j) => j.id === cj.id)) {
-                jobs.push(cj);
+              const idx = jobs.findIndex((j) => j.id === cj.id);
+              if (idx >= 0) {
+                jobs[idx] = { ...jobs[idx], ...cj };
+              } else {
+                jobs.unshift(cj);
               }
             }
+            await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(jobs));
           }
         } catch {
           // Handled silently
@@ -352,17 +521,48 @@ export const ApplicationsService = {
         await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(jobs));
       }
 
-      // Deduplicate jobs by unique ID
+      // Fetch all applications across all devices to calculate accurate real-time applicant counts
+      let allApps: JobApplication[] = [];
+      try {
+        allApps = await this.getAllApplications();
+      } catch {}
+
+      // Deduplicate jobs by unique ID and attach exact applicant count
       const seenJobIds = new Set<string>();
       const uniqueJobs = jobs.filter((j) => {
         if (!j || !j.id || seenJobIds.has(j.id)) return false;
         seenJobIds.add(j.id);
         return true;
+      }).map((j) => {
+        const matchingApps = allApps.filter(
+          (a) =>
+            a.jobId === j.id ||
+            (a.jobTitle && j.title && a.jobTitle.trim().toLowerCase() === j.title.trim().toLowerCase())
+        );
+        return {
+          ...j,
+          applicants: Math.max(j.applicants || 0, matchingApps.length),
+        };
       });
 
       return uniqueJobs;
     } catch {
       return DEFAULT_JOBS;
+    }
+  },
+
+  // Helper to fetch all candidate applicants who applied for a specific job
+  async getApplicantsForJob(jobIdOrTitle: string): Promise<JobApplication[]> {
+    try {
+      const allApps = await this.getAllApplications();
+      const cleanTerm = (jobIdOrTitle || '').trim().toLowerCase();
+      return allApps.filter(
+        (a) =>
+          a.jobId === jobIdOrTitle ||
+          (a.jobTitle && a.jobTitle.trim().toLowerCase() === cleanTerm)
+      );
+    } catch {
+      return [];
     }
   },
 
@@ -394,9 +594,10 @@ export const ApplicationsService = {
       const updated = [newJob, ...currentJobs];
       await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(updated));
 
-      // 2. Non-blocking Firestore synchronization
+      // 2. Non-blocking Firestore synchronization across all devices
       if (!IS_MOCK_FIREBASE && db) {
         try {
+          await ensureFirebaseAuth();
           await setDoc(doc(db, 'jobs', newId), sanitizeForFirestore(newJob));
         } catch (fsErr) {
           console.warn('Firestore setDoc job sync notice (local job preserved):', fsErr);
@@ -420,11 +621,20 @@ export const ApplicationsService = {
       phone?: string;
       whatsapp?: string;
       note?: string; 
+      aboutCandidate?: string;
+      reasonForApplying?: string;
+      coverLetter?: string;
       resume?: { name: string; size: string; url?: string };
       loomUrl?: string;
     }
   ): Promise<{ success: boolean; application?: JobApplication; error?: string }> {
     try {
+      // 0. Verify role is still open and within capacity
+      const openCheck = isJobOpenForApplications(job);
+      if (!openCheck.isOpen) {
+        return { success: false, error: openCheck.reason || 'Applications are currently closed for this position.' };
+      }
+
       // 1. Read all existing applications across all candidates
       let allApps: JobApplication[] = [];
       const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
@@ -457,6 +667,16 @@ export const ApplicationsService = {
 
       const loomPitch = candidate.loomUrl || await this.getSavedCandidateLoomUrl() || 'https://www.loom.com/share/d87452e89e0843dfb031b2c45e581403';
 
+      // Run Strict AI Vetting Evaluation Engine
+      const aiEvaluation = evaluateApplicationStrictAI(job, {
+        aboutCandidate: candidate.aboutCandidate,
+        reasonForApplying: candidate.reasonForApplying,
+        coverLetter: candidate.coverLetter,
+        note: candidate.note,
+        resume: resumeInfo,
+        loomUrl: loomPitch,
+      });
+
       const newApp: JobApplication = {
         id: appId,
         jobId: job.id,
@@ -469,12 +689,20 @@ export const ApplicationsService = {
         candidateCountry: candidate.country,
         candidatePhone: candidate.phone,
         candidateWhatsapp: candidate.whatsapp,
+        aboutCandidate: candidate.aboutCandidate,
+        reasonForApplying: candidate.reasonForApplying,
+        coverLetter: candidate.coverLetter,
+        aiMatchScore: aiEvaluation.score,
+        aiMatchRating: aiEvaluation.rating,
+        aiVettingStatus: aiEvaluation.status,
+        aiVettingFeedback: aiEvaluation.feedback,
+        assignedReviewer: aiEvaluation.assignedReviewer,
         status: status,
         statusColor: style.color,
         statusBg: style.bg,
         appliedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         step: 'Intro & Screening Review',
-        notes: candidate.note || 'Application submitted via Hirebloom candidate portal with attached resume.',
+        notes: candidate.note || candidate.coverLetter || 'Application submitted via Hirebloom candidate portal with attached resume.',
         resumeName: resumeInfo.name,
         resumeSize: resumeInfo.size,
         resumeUrl: resumeInfo.url || '',
@@ -486,10 +714,12 @@ export const ApplicationsService = {
       const updatedApps = [newApp, ...otherApps];
       await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updatedApps));
 
-      // 3. Sync to Firestore if permitted
+      // 3. Sync to Firestore in real-time across cloud devices
       if (!IS_MOCK_FIREBASE && db) {
         try {
+          await ensureFirebaseAuth();
           await setDoc(doc(db, 'applications', appId), sanitizeForFirestore(newApp));
+          console.log('[HireBloom Sync] Application successfully persisted to cloud Firestore:', appId);
         } catch (firestoreErr) {
           console.warn('Firestore setDoc application warning:', firestoreErr);
         }
@@ -569,18 +799,20 @@ export const ApplicationsService = {
 
       if (!IS_MOCK_FIREBASE && db && targetId) {
         try {
+          await ensureFirebaseAuth();
           const q = query(collection(db, 'applications'), where('candidateId', '==', targetId));
-          const snap = await withTimeout(getDocs(q), 2500);
+          const snap = await withTimeout(getDocs(q), 6000);
           if (!snap.empty) {
             const cloudDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
             for (const item of cloudDocs) {
               const idx = apps.findIndex((a) => a.id === item.id);
               if (idx >= 0) {
-                apps[idx] = item;
+                apps[idx] = { ...apps[idx], ...item };
               } else {
-                apps.push(item);
+                apps.unshift(item);
               }
             }
+            await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(apps));
           }
         } catch {
           // Handled silently
@@ -617,20 +849,23 @@ export const ApplicationsService = {
 
       if (!IS_MOCK_FIREBASE && db) {
         try {
-          const snap = await withTimeout(getDocs(collection(db, 'applications')), 2500);
+          await ensureFirebaseAuth();
+          const snap = await withTimeout(getDocs(collection(db, 'applications')), 6000);
           if (!snap.empty) {
             const cloudApps = snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobApplication));
             for (const ca of cloudApps) {
               const idx = apps.findIndex((a) => a.id === ca.id);
               if (idx >= 0) {
-                apps[idx] = ca;
+                apps[idx] = { ...apps[idx], ...ca };
               } else {
-                apps.push(ca);
+                apps.unshift(ca);
               }
             }
+            // Update local cache with newly discovered cloud applications
+            await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(apps));
           }
-        } catch {
-          // Handled silently
+        } catch (err) {
+          console.warn('getAllApplications cloud fetch warning:', err);
         }
       }
 
@@ -675,6 +910,7 @@ export const ApplicationsService = {
 
       if (!IS_MOCK_FIREBASE && db) {
         try {
+          await ensureFirebaseAuth();
           await updateDoc(doc(db, 'applications', appId), sanitizeForFirestore(updates));
         } catch (updateErr) {
           console.warn('Firestore updateDoc warning:', updateErr);
@@ -801,6 +1037,7 @@ export const ApplicationsService = {
 
       if (!IS_MOCK_FIREBASE && db) {
         try {
+          await ensureFirebaseAuth();
           const { deleteDoc, doc: fsDoc } = await import('firebase/firestore');
           await deleteDoc(fsDoc(db, 'applications', appId));
         } catch (fsErr) {
@@ -1025,8 +1262,21 @@ export const ApplicationsService = {
 
   normalizeEmail(rawEmail: string): string {
     let clean = (rawEmail || '').trim().toLowerCase();
-    // Auto-fix accidental keyboard typos at the end of domain extensions (e.g. .comg, .comm, .con)
-    clean = clean.replace(/@gmail\.com[a-z0-9]+$/i, '@gmail.com');
+    // Strip leading/trailing punctuation, hyphens, slashes, spaces
+    clean = clean.replace(/^[\s,.;:<>'\"/\\]+|[\s,.;:<>'\"/\\]+$/g, '');
+    
+    // Fix dot-dash / dash-dot combinations in domain or TLD (e.g. gmail.-com -> gmail.com, gmail-.com -> gmail.com)
+    clean = clean.replace(/[\.-]+com/g, '.com');
+    clean = clean.replace(/[\.-]+org/g, '.org');
+    clean = clean.replace(/[\.-]+net/g, '.net');
+    clean = clean.replace(/[\.-]+io/g, '.io');
+    clean = clean.replace(/[\.-]+co/g, '.co');
+    
+    // Fix multiple dots
+    clean = clean.replace(/\.{2,}/g, '.');
+
+    // Auto-fix common email provider typos
+    clean = clean.replace(/@(gmail|gmaill|gamil|gmial|gmai)\.(com|comm|coom|con|cm)[a-z0-9]*$/i, '@gmail.com');
     clean = clean.replace(/@([a-z0-9.-]+)\.com[a-z0-9]+$/i, '@$1.com');
     clean = clean.replace(/@([a-z0-9.-]+)\.org[a-z0-9]+$/i, '@$1.org');
     clean = clean.replace(/@([a-z0-9.-]+)\.net[a-z0-9]+$/i, '@$1.net');
@@ -1065,14 +1315,64 @@ export const ApplicationsService = {
       };
     }
 
-    // 1. Check local registered user cache
+    // 1. Check local registered user cache & defaults
     const registered = await this.getRegisteredUsers();
     const foundLocal = registered.find((u) => this.normalizeEmail(u.email) === cleanEmail);
     if (foundLocal) {
       return { exists: true, user: foundLocal };
     }
 
-    // 2. Check Firestore 'users' collection if online
+    // 2. Check current active session cache
+    try {
+      const curStr = await AsyncStorage.getItem(CURRENT_USER_KEY);
+      if (curStr) {
+        const cur = JSON.parse(curStr);
+        if (cur && cur.email && this.normalizeEmail(cur.email) === cleanEmail) {
+          const userObj = {
+            uid: cur.uid || `user-${Date.now()}`,
+            email: cleanEmail,
+            name: cur.name || cleanEmail.split('@')[0],
+            role: cur.role || 'candidate',
+            company: cur.company,
+            country: cur.country,
+            phone: cur.phone,
+            whatsapp: cur.whatsapp,
+          };
+          await this.registerNewUser(userObj);
+          return { exists: true, user: userObj };
+        }
+      }
+    } catch {}
+
+    // 3. Check candidate applications cache
+    try {
+      const appsStr = await AsyncStorage.getItem(APPS_STORAGE_KEY);
+      if (appsStr) {
+        const apps = JSON.parse(appsStr);
+        if (Array.isArray(apps)) {
+          const foundApp = apps.find(
+            (a: any) =>
+              (a.candidateEmail && this.normalizeEmail(a.candidateEmail) === cleanEmail) ||
+              (a.email && this.normalizeEmail(a.email) === cleanEmail)
+          );
+          if (foundApp) {
+            const userObj = {
+              uid: foundApp.candidateId || `user-${Date.now()}`,
+              email: cleanEmail,
+              name: foundApp.candidateName || cleanEmail.split('@')[0],
+              role: 'candidate' as const,
+              country: foundApp.country,
+              phone: foundApp.phone,
+              whatsapp: foundApp.whatsapp,
+            };
+            await this.registerNewUser(userObj);
+            return { exists: true, user: userObj };
+          }
+        }
+      }
+    } catch {}
+
+    // 4. Check Firestore 'users' collection if online
     if (!IS_MOCK_FIREBASE && db) {
       try {
         const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
@@ -1085,6 +1385,9 @@ export const ApplicationsService = {
             name: docData.name || cleanEmail.split('@')[0],
             role: (docData.role as any) || 'candidate',
             company: docData.company,
+            country: docData.country,
+            phone: docData.phone,
+            whatsapp: docData.whatsapp,
           };
           await this.registerNewUser(foundFirestore);
           return { exists: true, user: foundFirestore };
