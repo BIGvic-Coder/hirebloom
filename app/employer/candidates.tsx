@@ -568,13 +568,20 @@ export default function EmployerCandidates() {
       candidateName: selectedCandidate.name,
       candidateEmail: selectedCandidate.email,
       jobTitle: selectedCandidate.role,
-      company: 'HireBloom Inc.',
+      company: (selectedCandidate as any).company || 'HireBloom Inc.',
     });
 
-    Alert.alert(
-      'Candidate Decision Updated',
-      `${selectedCandidate.name} is now set to "${newStage}" (${applicationStatus}).\n\nThe candidate's mobile tracking screen and Email Inbox update immediately in real-time!`
-    );
+    if (newStage === 'Not Selected') {
+      Alert.alert(
+        'Candidate Application Closed',
+        `${selectedCandidate.name} has been marked as "Not Selected".\n\nAn official, respectful status update and talent network retention email have been sent to their inbox, keeping their profile active for future matching roles.`
+      );
+    } else {
+      Alert.alert(
+        'Candidate Decision Updated',
+        `${selectedCandidate.name} is now set to "${newStage}" (${applicationStatus}).\n\nThe candidate's mobile tracking screen and Email Inbox update immediately in real-time!`
+      );
+    }
   };
 
   const handleRecommendCandidate = async () => {

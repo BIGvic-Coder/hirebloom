@@ -13,6 +13,7 @@ import {
 import { NotificationsService } from './notificationsService';
 import { WorkflowService } from './workflowService';
 import { EmailService } from './emailService';
+import { OffersService } from './offersService';
 
 export type ApplicationStatus = 
   | 'Pending Final Review'
@@ -927,65 +928,92 @@ export const ApplicationsService = {
         ...(options?.candidateEmail ? { candidateEmail: options.candidateEmail } : {}),
       };
 
-      if (!IS_MOCK_FIREBASE && db) {
-        try {
-          await ensureFirebaseAuth();
-          await updateDoc(doc(db, 'applications', appId), sanitizeForFirestore(updates));
-        } catch (updateErr) {
-          console.warn('Firestore updateDoc warning:', updateErr);
-        }
-      }
-
       const local = await AsyncStorage.getItem(APPS_STORAGE_KEY);
       const allApps: JobApplication[] = local ? JSON.parse(local) : DEFAULT_APPLICATIONS;
-      let updated = allApps.map((a) => (a.id === appId ? { ...a, ...updates } : a));
-      let targetApp = updated.find(
-        (a) => a.id === appId || (options?.candidateEmail && a.candidateEmail?.toLowerCase() === options.candidateEmail.toLowerCase())
-      );
 
-      if (!targetApp) {
+      const isMatch = (a: JobApplication) => {
+        if (a.id === appId) return true;
+        if (options?.candidateEmail && a.candidateEmail && a.candidateEmail.toLowerCase().trim() === options.candidateEmail.toLowerCase().trim()) return true;
+        if (options?.candidateName && a.candidateName && a.candidateName.toLowerCase().trim() === options.candidateName.toLowerCase().trim()) return true;
+        return false;
+      };
+
+      const matchedIndex = allApps.findIndex(isMatch);
+      let targetApp: JobApplication;
+
+      if (matchedIndex >= 0) {
+        targetApp = {
+          ...allApps[matchedIndex],
+          ...updates,
+          ...(options?.candidateEmail ? { candidateEmail: options.candidateEmail } : {}),
+          ...(options?.candidateName ? { candidateName: options.candidateName } : {}),
+          ...(options?.jobTitle ? { jobTitle: options.jobTitle } : {}),
+          ...(options?.company ? { company: options.company } : {}),
+        };
+        allApps[matchedIndex] = targetApp;
+      } else {
         // Synthesize an official application record so candidate never misses their interview status
-        const fallbackApp: JobApplication = {
+        targetApp = {
           id: appId,
           jobId: 'job-1',
-          jobTitle: options?.jobTitle || 'Senior Customer Support Lead',
-          company: options?.company || 'HireBloom Inc.',
+          jobTitle: options?.jobTitle || 'Role Requisition',
+          company: options?.company || 'HireBloom Partner',
           candidateId: `cand-${Date.now()}`,
-          candidateName: options?.candidateName || 'Victor Taiwo',
-          candidateEmail: options?.candidateEmail || 'victor@hirebloom.com',
+          candidateName: options?.candidateName || 'Candidate',
+          candidateEmail: options?.candidateEmail || 'talent@hirebloom.com',
           status: newStatus,
           statusColor: style.color,
           statusBg: style.bg,
           appliedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          step: updates.step || 'Step 3: Client Panel Interview Scheduled',
+          step: updates.step || 'Candidate Selection Completed',
           notes: options?.notes,
           feedbackReason: options?.feedbackReason,
           interviewDetails: options?.interviewDetails,
           offerDetails: options?.offerDetails,
         };
-        updated.unshift(fallbackApp);
-        targetApp = fallbackApp;
-        if (!IS_MOCK_FIREBASE && db) {
-          try {
-            await ensureFirebaseAuth();
-            await setDoc(doc(db, 'applications', appId), sanitizeForFirestore(fallbackApp));
-          } catch {}
-        }
-      } else {
-        if (options?.candidateEmail && targetApp.candidateEmail !== options.candidateEmail) {
-          targetApp.candidateEmail = options.candidateEmail;
-        }
-        if (options?.candidateName && !targetApp.candidateName) {
-          targetApp.candidateName = options.candidateName;
+        allApps.unshift(targetApp);
+      }
+
+      // Ensure all instances matching this candidate are updated so their portal is 100% in sync
+      const updated = allApps.map((a) => (isMatch(a) ? { ...a, ...updates } : a));
+      await AsyncStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(updated));
+
+      // Non-blocking Firestore synchronization across all devices
+      if (!IS_MOCK_FIREBASE && db) {
+        try {
+          await ensureFirebaseAuth();
+          await setDoc(doc(db, 'applications', targetApp.id), sanitizeForFirestore(targetApp), { merge: true });
+        } catch (updateErr) {
+          console.warn('Firestore setDoc updateApplicationStatus warning:', updateErr);
         }
       }
+
+      // If an offer is issued, automatically register an active offer in OffersService for onboarding
+      if (newStatus === 'Offer Received') {
+        try {
+          await OffersService.createOffer({
+            applicationId: targetApp.id,
+            candidateName: targetApp.candidateName,
+            candidateEmail: targetApp.candidateEmail,
+            company: targetApp.company,
+            role: targetApp.jobTitle,
+            salary: options?.offerDetails?.salary || targetApp.offerDetails?.salary || '$15.00 / hr',
+            hours: 'Full-time (40 hrs/wk, US EST)',
+            startDate: options?.offerDetails?.startDate || targetApp.offerDetails?.startDate || 'Within 2 weeks',
+            terms: 'Embedded Team flat rate contract. Payroll, international compliance, and contracts administered by Hire Bloom.',
+          });
+        } catch (offerErr) {
+          console.warn('OffersService createOffer notice:', offerErr);
+        }
+      }
+
       if (targetApp) {
         // Record audit log
         await WorkflowService.recordAuditLog(
           reviewer,
           `STATUS_CHANGED_${newStatus.toUpperCase().replace(/\s+/g, '_')}`,
           'application',
-          appId,
+          targetApp.id,
           { newStatus, step: updates.step, feedback: options?.feedbackReason }
         );
 
@@ -999,17 +1027,21 @@ export const ApplicationsService = {
           notifType = 'interview';
           notifBody = `Client panel interview scheduled for ${targetApp.jobTitle} at ${targetApp.company}.`;
         } else if (newStatus === 'Offer Received') {
-          notifTitle = 'Offer Received!';
+          notifTitle = 'Offer Extended';
           notifType = 'offer';
-          notifBody = `Congratulations! You received an employment offer for ${targetApp.jobTitle}.`;
+          notifBody = `Congratulations! You received an employment offer for ${targetApp.jobTitle} at ${targetApp.company}.`;
         } else if (newStatus === 'Pending Final Review') {
           notifTitle = 'Matched to Final Review';
           notifType = 'application';
           notifBody = `Your application for ${targetApp.jobTitle} passed screening and has moved to final review.`;
+        } else if (newStatus === 'Not Selected') {
+          notifTitle = 'Application Status Update';
+          notifType = 'application';
+          notifBody = `Thank you for applying for ${targetApp.jobTitle} at ${targetApp.company}. Your profile remains active in our talent network.`;
         }
 
         await NotificationsService.sendNotification({
-          userId: targetApp.candidateId,
+          userId: targetApp.candidateId || targetApp.candidateEmail,
           type: notifType,
           title: notifTitle,
           body: notifBody,

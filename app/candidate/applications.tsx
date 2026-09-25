@@ -17,7 +17,9 @@ import {
   ArrowRight,
   ClipboardList,
   Mail,
-  MessageSquare
+  MessageSquare,
+  ShieldCheck,
+  Briefcase
 } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';
@@ -298,10 +300,55 @@ export default function CandidateApplications() {
             )}
 
             {currentApp.status === 'Not Selected' && (
-              <View className="space-y-4 mb-8">
-                <Text className="text-base text-slate-700 leading-relaxed font-normal">
-                  {currentApp.feedbackReason || "Thank you for taking the time to interview with our team. While we have selected another candidate for this specific role, your profile remains active in the Bloom talent network for matching openings."}
+              <View className="bg-slate-50 border border-slate-200 rounded-3xl p-5 mb-8 shadow-sm">
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center">
+                    <ShieldCheck size={18} color="#475569" style={{ marginRight: 6 }} />
+                    <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Application Concluded • Talent Pool Active
+                    </Text>
+                  </View>
+                  <View className="bg-slate-200 px-2 py-0.5 rounded-full">
+                    <Text className="text-slate-700 text-[9px] font-extrabold">Pool Verified</Text>
+                  </View>
+                </View>
+
+                <Text className="text-sm text-slate-700 leading-relaxed mb-3">
+                  Thank you for applying for <Text className="font-bold text-slate-900">{currentApp.jobTitle}</Text> at <Text className="font-bold text-slate-900">{currentApp.company}</Text>. While the hiring team has moved forward with another applicant for this specific role, your verified profile and qualifications remain active in the HireBloom Talent Network.
                 </Text>
+
+                {currentApp.feedbackReason ? (
+                  <View className="bg-white border-l-4 border-slate-400 p-3.5 rounded-r-xl mb-4">
+                    <Text className="text-[10px] font-extrabold text-slate-800 uppercase tracking-wider mb-1">
+                      Hiring Team Notes:
+                    </Text>
+                    <Text className="text-xs text-slate-700 italic leading-relaxed">
+                      "{currentApp.feedbackReason}"
+                    </Text>
+                  </View>
+                ) : null}
+
+                <Text className="text-xs text-slate-500 leading-relaxed mb-4">
+                  Our placement specialists continually review active profiles for new matching client openings, and we will reach out directly as soon as an aligned opportunity becomes available. You are also welcome to apply to other positions.
+                </Text>
+
+                <View className="flex-row gap-2 pt-2 border-t border-slate-200">
+                  <TouchableOpacity
+                    onPress={() => router.push('/candidate/jobs')}
+                    className="flex-1 bg-forest py-2.5 rounded-xl items-center flex-row justify-center active:opacity-90"
+                  >
+                    <Briefcase size={14} color="white" style={{ marginRight: 6 }} />
+                    <Text className="text-white text-xs font-bold">Explore Open Roles</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setEmailModalVisible(true)}
+                    className="bg-white border border-slate-300 px-3.5 py-2.5 rounded-xl items-center flex-row justify-center active:opacity-85"
+                  >
+                    <Mail size={14} color="#334155" style={{ marginRight: 5 }} />
+                    <Text className="text-slate-800 text-xs font-bold">View Email</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 

@@ -736,7 +736,7 @@ Global Talent Desk`,
       toName: firstName,
       fromName: 'HireBloom Placement Operations',
       fromEmail: 'offers@hirebloom.com',
-      subject: `Formal Offer Extended: ${job.title} at ${job.company}! 🎉`,
+      subject: `Formal Offer Extended: ${job.title} at ${job.company}`,
       preview: `Congratulations ${firstName}! You have received an employment offer for ${job.title} at ${offer.salary}.`,
       template: 'offer_letter',
       date: 'Today',
@@ -781,17 +781,20 @@ Global Placements Division`,
     candidate: { name: string; email: string },
     job: { title: string; company: string },
     feedback: string,
-    reviewerName: string = 'Hire Bloom Vetting Team'
+    reviewerName: string = 'HireBloom Vetting Team'
   ): Promise<EmailMessage> {
-    const firstName = candidate.name.split(' ')[0] || 'Victor';
+    const cleanName = candidate.name?.trim() || 'Candidate';
+    const firstName = cleanName.split(' ')[0] || 'Candidate';
+    const cleanEmail = (candidate.email || 'talent@hirebloom.com').toLowerCase().trim();
+
     const email: EmailMessage = {
       id: `email-${Date.now()}`,
-      toEmail: candidate.email.toLowerCase().trim(),
-      toName: firstName,
-      fromName: 'Bloom Talent Team',
+      toEmail: cleanEmail,
+      toName: cleanName,
+      fromName: 'HireBloom Talent Desk',
       fromEmail: 'review@hirebloom.com',
-      subject: `Update regarding your application for ${job.title}`,
-      preview: `Thank you for your application, ${firstName}. Here is an update on your candidacy for ${job.title}.`,
+      subject: `Application Update: ${job.title} at ${job.company}`,
+      preview: `Thank you for your application, ${firstName}. Your profile remains active in our verified talent pool.`,
       template: 'not_selected',
       date: 'Today',
       timestamp: Date.now(),
@@ -802,23 +805,24 @@ Global Placements Division`,
         stage: 'Not Selected',
         feedback: feedback,
         reviewerName: reviewerName,
+        senderTitle: 'Talent Acquisition & Global Placements',
+        teamName: 'HireBloom People & Culture Division',
       },
       body: `Hi ${firstName},
 
-Thank you for taking the time to apply for ${job.title} at ${job.company}.
+Thank you for taking the time to apply for the ${job.title} position at ${job.company} through HireBloom.
 
-Our hiring review team carefully evaluated your background against the immediate requirements for this opening. While we have chosen to move forward with other candidates whose specific domain experience aligned more closely with current requisition needs, we were genuinely impressed with your profile.
+Our hiring team has completed the candidate evaluation process for this requisition. While we were impressed with your qualifications and experience, we have decided to move forward with another applicant whose immediate domain background aligned more closely with the current project requirements.
 
-Reviewer Feedback:
-"${feedback}"
+${feedback ? `Hiring Team Notes:\n"${feedback}"\n\n` : ''}Please note that your profile and verified credentials remain active in the HireBloom Talent Network. Our placement coordinators continually review active profiles for new matching client openings, and we will reach out directly as soon as an aligned opportunity becomes available.
 
-Your profile remains active in our verified talent network. As new requisitions open that match your skills, we will notify you immediately.
+You are also welcome to browse and apply for new positions anytime through your talent portal.
 
-Thank you again for your interest in Bloom.
+We sincerely appreciate the time you invested in connecting with our hiring team and wish you continued success in your professional career.
 
 Warm regards,
 ${reviewerName}
-Hire Bloom Talent Network`,
+HireBloom Talent Operations Desk`,
     };
 
     await this.dispatchEmail(email);

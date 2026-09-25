@@ -13,7 +13,8 @@ import {
   Award, 
   ChevronRight,
   ClipboardList,
-  Mail
+  Mail,
+  Calendar
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import HireBloomHeader from '@/components/ui/HireBloomHeader';
@@ -153,14 +154,24 @@ export default function CandidateHome() {
                 {stageInfo.description}
               </Text>
 
-              {/* Reviewer Feedback Callout (if entered by Admin / Recruiter) */}
+              {/* Reviewer Feedback Callout */}
               {activeApp.feedbackReason ? (
-                <View className="bg-emerald-50/80 border-l-4 border-emerald-600 p-3.5 rounded-r-2xl mb-4">
+                <View className={`border-l-4 p-3.5 rounded-r-2xl mb-4 ${
+                  stageInfo.stage === 'Declined'
+                    ? 'bg-slate-50 border-slate-400'
+                    : 'bg-emerald-50/80 border-emerald-600'
+                }`}>
                   <View className="flex-row items-center justify-between mb-1">
-                    <Text className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider">
-                      Official Reviewer Feedback
+                    <Text className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                      stageInfo.stage === 'Declined' ? 'text-slate-800' : 'text-emerald-900'
+                    }`}>
+                      {stageInfo.stage === 'Declined' ? 'Hiring Team Notes' : 'Official Reviewer Feedback'}
                     </Text>
-                    <Text className="text-[10px] text-emerald-700 font-medium">Verified</Text>
+                    <Text className={`text-[10px] font-medium ${
+                      stageInfo.stage === 'Declined' ? 'text-slate-500' : 'text-emerald-700'
+                    }`}>
+                      {stageInfo.stage === 'Declined' ? 'Talent Pool Active' : 'Verified'}
+                    </Text>
                   </View>
                   <Text className="text-xs text-slate-800 italic leading-relaxed">
                     "{activeApp.feedbackReason}"
@@ -168,14 +179,33 @@ export default function CandidateHome() {
                 </View>
               ) : null}
 
-              {/* Action Button */}
-              <TouchableOpacity
-                onPress={() => router.push('/candidate/applications')}
-                className="w-full bg-forest py-3 rounded-xl flex-row items-center justify-center active:opacity-90 shadow-sm"
-              >
-                <Text className="text-white text-xs font-bold mr-1.5">View Application Timeline</Text>
-                <ChevronRight size={14} color="white" />
-              </TouchableOpacity>
+              {/* Action Buttons based on stage */}
+              {stageInfo.stage === 'Declined' ? (
+                <View className="flex-row gap-2">
+                  <TouchableOpacity
+                    onPress={() => router.push('/candidate/jobs')}
+                    className="flex-1 bg-forest py-3 rounded-xl flex-row items-center justify-center active:opacity-90 shadow-sm"
+                  >
+                    <Briefcase size={14} color="white" style={{ marginRight: 6 }} />
+                    <Text className="text-white text-xs font-bold">Browse Open Roles</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => router.push('/candidate/applications')}
+                    className="bg-zinc-100 border border-zinc-300 px-3.5 py-3 rounded-xl flex-row items-center justify-center active:opacity-85"
+                  >
+                    <Text className="text-slate-700 text-xs font-bold">Timeline</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => router.push('/candidate/applications')}
+                  className="w-full bg-forest py-3 rounded-xl flex-row items-center justify-center active:opacity-90 shadow-sm"
+                >
+                  <Text className="text-white text-xs font-bold mr-1.5">View Application Timeline</Text>
+                  <ChevronRight size={14} color="white" />
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -227,9 +257,12 @@ export default function CandidateHome() {
                 </View>
               </View>
 
-              <Text className="text-xs text-purple-900 font-medium mb-1">
-                📅 {upcomingInterview.date} at {upcomingInterview.time} ({upcomingInterview.timezone})
-              </Text>
+              <View className="flex-row items-center mb-1">
+                <Calendar size={13} color="#6D28D9" style={{ marginRight: 5 }} />
+                <Text className="text-xs text-purple-900 font-medium">
+                  {upcomingInterview.date} at {upcomingInterview.time} ({upcomingInterview.timezone})
+                </Text>
+              </View>
               <Text className="text-[11px] text-purple-800 mb-3">
                 Host: {upcomingInterview.interviewer}
               </Text>
