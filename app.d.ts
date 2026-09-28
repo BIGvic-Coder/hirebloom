@@ -13,3 +13,8 @@ declare module 'react-native' {
 declare module 'react-native-svg' {
   interface SvgProps { className?: string; }
 }
+
+declare module '*.css' {
+  const content: any;
+  export default content;
+}

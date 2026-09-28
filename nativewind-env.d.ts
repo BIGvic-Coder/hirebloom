@@ -1,7 +1,9 @@
-// Type definitions for custom className props
+/// <reference types="nativewind/types" />
 
 import 'react';
 import 'react-native';
+
+declare module '*.css';
 
 declare global {
   namespace JSX {
