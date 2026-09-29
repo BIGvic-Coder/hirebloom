@@ -333,17 +333,27 @@ export default function Register() {
 
     setAuthLoading(true);
     try {
-      // 1. Verify Google Play Services is available
+      // 1. Ensure Google SDK client is configured with web client ID
+      if (GoogleSignin?.configure) {
+        GoogleSignin.configure({
+          webClientId:
+            process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+            '32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com',
+          offlineAccess: false,
+        });
+      }
+
+      // 2. Verify Google Play Services is available
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
-      // 2. Sign out any existing session first to ensure the native Android Account Chooser dialog pops up every single time
+      // 3. Sign out any existing session first to ensure the native Android Account Chooser dialog pops up every single time
       try {
         await GoogleSignin.signOut();
       } catch {
         // Safe to ignore if not signed in
       }
 
-      // 3. Prompt user with native Google Account Chooser bottom sheet
+      // 4. Prompt user with native Google Account Chooser bottom sheet
       const response = await GoogleSignin.signIn();
 
       if (response && (response as any).type === 'cancelled') {
@@ -396,6 +406,15 @@ export default function Register() {
         console.log('User dismissed Google registration picker');
       } else if (errCode === statusCodes?.PLAY_SERVICES_NOT_AVAILABLE) {
         Alert.alert('Google Play Services', 'Google Play Services is not available or outdated on this device.');
+      } else if (
+        errStr.includes('DEVELOPER_ERROR') ||
+        errCode === '10' ||
+        errCode === statusCodes?.DEVELOPER_ERROR
+      ) {
+        Alert.alert(
+          'Google Configuration Required',
+          'DEVELOPER_ERROR (Code 10): The Android signing SHA-1 fingerprint must be added to Firebase Console under Project Settings -> Android Apps.'
+        );
       } else {
         Alert.alert('Google Registration Error', error?.message || error.toString());
       }

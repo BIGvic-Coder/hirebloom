@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "32893466508-eas-build-keystore.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.victor.hirebloom",
+            "certificate_hash": "f565cb291e58f355c392953d7c72085b2db91074"
+          }
+        },
+        {
           "client_id": "32893466508-gdfbel1mf5gc2vlgtqpp6e9s3jpr97j4.apps.googleusercontent.com",
           "client_type": 3
         }
